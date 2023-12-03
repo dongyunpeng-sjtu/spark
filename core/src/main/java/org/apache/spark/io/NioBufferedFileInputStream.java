@@ -18,8 +18,6 @@ import org.apache.spark.storage.StorageUtils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.lang.ref.Cleaner;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
@@ -34,10 +32,7 @@ import java.nio.file.StandardOpenOption;
  */
 public final class NioBufferedFileInputStream extends InputStream {
 
-  private static final Cleaner CLEANER = Cleaner.create();
   private static final int DEFAULT_BUFFER_SIZE_BYTES = 8192;
-
-  private final Cleaner.Cleanable cleanable;
 
   private final ByteBuffer byteBuffer;
 
@@ -47,7 +42,6 @@ public final class NioBufferedFileInputStream extends InputStream {
     byteBuffer = ByteBuffer.allocateDirect(bufferSizeInBytes);
     fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
     byteBuffer.flip();
-    this.cleanable = CLEANER.register(this, new ResourceCleaner(fileChannel, byteBuffer));
   }
 
   public NioBufferedFileInputStream(File file) throws IOException {
@@ -131,29 +125,13 @@ public final class NioBufferedFileInputStream extends InputStream {
 
   @Override
   public synchronized void close() throws IOException {
-    try {
-      this.cleanable.clean();
-    } catch (UncheckedIOException re) {
-      if (re.getCause() != null) {
-        throw re.getCause();
-      } else {
-        throw re;
-      }
-    }
+    fileChannel.close();
+    StorageUtils.dispose(byteBuffer);
   }
 
-  private record ResourceCleaner(
-      FileChannel fileChannel,
-      ByteBuffer byteBuffer) implements Runnable {
-    @Override
-    public void run() {
-      try {
-        fileChannel.close();
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      } finally {
-        StorageUtils.dispose(byteBuffer);
-      }
-    }
+  @SuppressWarnings("deprecation")
+  @Override
+  protected void finalize() throws IOException {
+    close();
   }
 }

@@ -293,9 +293,9 @@ private[spark] object SerDe {
     } else {
       // Convert ArrayType collected from DataFrame to Java array
       // Collected data of ArrayType from a DataFrame is observed to be of
-      // type "scala.collection.mutable.ArraySeq"
+      // type "scala.collection.mutable.WrappedArray"
       val value = obj match {
-        case wa: mutable.ArraySeq[_] => wa.array
+        case wa: mutable.WrappedArray[_] => wa.array
         case other => other
       }
 

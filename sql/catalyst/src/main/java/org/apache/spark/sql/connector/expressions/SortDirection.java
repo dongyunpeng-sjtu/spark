@@ -49,9 +49,13 @@ public enum SortDirection {
 
   @Override
   public String toString() {
-    return switch (this) {
-      case ASCENDING -> "ASC";
-      case DESCENDING -> "DESC";
-    };
+    switch (this) {
+      case ASCENDING:
+        return "ASC";
+      case DESCENDING:
+        return "DESC";
+      default:
+        throw new IllegalArgumentException("Unexpected sort direction: " + this);
+    }
   }
 }

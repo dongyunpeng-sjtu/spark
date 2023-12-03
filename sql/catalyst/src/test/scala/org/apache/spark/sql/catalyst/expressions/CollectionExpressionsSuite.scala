@@ -32,14 +32,12 @@ import org.apache.spark.sql.catalyst.analysis.TypeCheckResult.DataTypeMismatch
 import org.apache.spark.sql.catalyst.util.{DateTimeTestUtils, DateTimeUtils}
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{outstandingZoneIds, LA, UTC}
 import org.apache.spark.sql.catalyst.util.IntervalUtils._
-import org.apache.spark.sql.errors.DataTypeErrorsBase
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.array.ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH
 import org.apache.spark.unsafe.types.UTF8String
 
-class CollectionExpressionsSuite
-  extends SparkFunSuite with ExpressionEvalHelper with DataTypeErrorsBase {
+class CollectionExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
 
   implicit def stringToUTF8Str(str: String): UTF8String = UTF8String.fromString(str)
 
@@ -86,19 +84,6 @@ class CollectionExpressionsSuite
       SQLConf.ANSI_ENABLED.key -> "true") {
       testSize(sizeOfNull = null)
     }
-  }
-
-  test("Unsupported data type for size()") {
-    val exception = intercept[org.apache.spark.SparkException] {
-      Size(Literal.create("str", StringType)).eval(EmptyRow)
-    }
-    checkError(
-      exception = exception,
-      errorClass = "INTERNAL_ERROR",
-      parameters = Map(
-        "message" -> ("The size function doesn't support the operand type " +
-          toSQLType(StringType))
-      ))
   }
 
   test("MapKeys/MapValues") {
@@ -615,21 +600,10 @@ class CollectionExpressionsSuite
     checkEvaluation(Slice(a0, Literal(-3), Literal(2)), Seq(4, 5))
     checkEvaluation(Slice(a0, Literal(4), Literal(10)), Seq(4, 5, 6))
     checkEvaluation(Slice(a0, Literal(-1), Literal(2)), Seq(6))
-    checkErrorInExpression[SparkRuntimeException](
-      expression = Slice(a0, Literal(1), Literal(-1)),
-      errorClass = "INVALID_PARAMETER_VALUE.LENGTH",
-      parameters = Map(
-        "parameter" -> toSQLId("length"),
-        "length" -> (-1).toString,
-        "functionName" -> toSQLId("slice")
-      ))
-    checkErrorInExpression[SparkRuntimeException](
-      expression = Slice(a0, Literal(0), Literal(1)),
-      errorClass = "INVALID_PARAMETER_VALUE.START",
-      parameters = Map(
-        "parameter" -> toSQLId("start"),
-        "functionName" -> toSQLId("slice")
-      ))
+    checkExceptionInExpression[RuntimeException](Slice(a0, Literal(1), Literal(-1)),
+      "Unexpected value for length")
+    checkExceptionInExpression[RuntimeException](Slice(a0, Literal(0), Literal(1)),
+      "Unexpected value for start")
     checkEvaluation(Slice(a0, Literal(-20), Literal(1)), Seq.empty[Int])
     checkEvaluation(Slice(a1, Literal(-20), Literal(1)), Seq.empty[String])
     checkEvaluation(Slice(a0, Literal.create(null, IntegerType), Literal(2)), null)
@@ -2354,27 +2328,6 @@ class CollectionExpressionsSuite
     )
 
     // null handling
-    checkEvaluation(
-      ArrayInsert(
-        Literal.create(null, ArrayType(StringType)),
-        Literal(-1),
-        Literal.create("c", StringType),
-        legacyNegativeIndex = false),
-      null)
-    checkEvaluation(
-      ArrayInsert(
-        Literal.create(null, ArrayType(StringType)),
-        Literal(-1),
-        Literal.create(null, StringType),
-        legacyNegativeIndex = false),
-      null)
-    checkEvaluation(
-      ArrayInsert(
-        Literal.create(Seq(""), ArrayType(StringType)),
-        Literal(-1),
-        Literal.create(null, StringType),
-        legacyNegativeIndex = false),
-      Seq("", null))
     checkEvaluation(new ArrayInsert(
       a1, Literal(3), Literal.create(null, IntegerType)), Seq(1, 2, null, 4)
     )
@@ -2383,38 +2336,6 @@ class CollectionExpressionsSuite
       Seq("b", null, "d", "a", "g", null))
     checkEvaluation(new ArrayInsert(a11, Literal(3), Literal("d")), null)
     checkEvaluation(new ArrayInsert(a10, Literal.create(null, IntegerType), Literal("d")), null)
-
-    assert(
-      ArrayInsert(
-        Literal.create(Seq(null, 1d, 2d), ArrayType(DoubleType)),
-        Literal(-1),
-        Literal.create(3, IntegerType),
-        legacyNegativeIndex = false)
-        .checkInputDataTypes() ==
-        DataTypeMismatch(
-          errorSubClass = "ARRAY_FUNCTION_DIFF_TYPES",
-          messageParameters = Map(
-            "functionName" -> "`array_insert`",
-            "dataType" -> "\"ARRAY\"",
-            "leftType" -> "\"ARRAY<DOUBLE>\"",
-            "rightType" -> "\"INT\""))
-    )
-
-    assert(
-      ArrayInsert(
-        Literal.create("Hi", StringType),
-        Literal(-1),
-        Literal.create("Spark", StringType),
-        legacyNegativeIndex = false)
-        .checkInputDataTypes() == DataTypeMismatch(
-        errorSubClass = "ARRAY_FUNCTION_DIFF_TYPES",
-        messageParameters = Map(
-          "functionName" -> "`array_insert`",
-          "dataType" -> "\"ARRAY\"",
-          "leftType" -> "\"STRING\"",
-          "rightType" -> "\"STRING\"")
-      )
-    )
   }
 
   test("Array Intersect") {
@@ -2758,20 +2679,99 @@ class CollectionExpressionsSuite
     }
   }
 
+  test("ArrayAppend Expression Test") {
+    checkEvaluation(
+      ArrayAppend(
+        Literal.create(null, ArrayType(StringType)),
+        Literal.create("c", StringType)),
+      null)
+
+    checkEvaluation(
+      ArrayAppend(
+        Literal.create(null, ArrayType(StringType)),
+        Literal.create(null, StringType)),
+      null)
+
+    checkEvaluation(
+      ArrayAppend(
+        Literal.create(Seq(""), ArrayType(StringType)),
+        Literal.create(null, StringType)),
+      Seq("", null))
+
+    checkEvaluation(
+      ArrayAppend(
+        Literal.create(Seq("a", "b", "c"), ArrayType(StringType)),
+        Literal.create(null, StringType)),
+      Seq("a", "b", "c", null))
+
+    checkEvaluation(
+      ArrayAppend(
+        Literal.create(Seq(Double.NaN, 1d, 2d), ArrayType(DoubleType)),
+        Literal.create(3d, DoubleType)),
+      Seq(Double.NaN, 1d, 2d, 3d))
+    // Null entry check
+    checkEvaluation(
+      ArrayAppend(
+        Literal.create(Seq(null, 1d, 2d), ArrayType(DoubleType)),
+        Literal.create(3d, DoubleType)),
+      Seq(null, 1d, 2d, 3d))
+
+    checkEvaluation(
+      ArrayAppend(
+        Literal.create(Seq("a", "b", "c"), ArrayType(StringType)),
+        Literal.create("c", StringType)),
+      Seq("a", "b", "c", "c"))
+
+    assert(
+      ArrayAppend(
+        Literal.create(Seq(null, 1d, 2d), ArrayType(DoubleType)),
+        Literal.create(3, IntegerType))
+        .checkInputDataTypes() ==
+        DataTypeMismatch(
+          errorSubClass = "ARRAY_FUNCTION_DIFF_TYPES",
+          messageParameters = Map(
+            "functionName" -> "`array_append`",
+            "dataType" -> "\"ARRAY\"",
+            "leftType" -> "\"ARRAY<DOUBLE>\"",
+            "rightType" -> "\"INT\""))
+    )
+
+
+    assert(
+      ArrayAppend(
+        Literal.create("Hi", StringType),
+        Literal.create("Spark", StringType))
+        .checkInputDataTypes() == DataTypeMismatch(
+        errorSubClass = "UNEXPECTED_INPUT_TYPE",
+        messageParameters = Map(
+          "paramIndex" -> "0",
+          "requiredType" -> "\"ARRAY\"",
+          "inputSql" -> "\"Hi\"",
+          "inputType" -> "\"STRING\""
+        )
+      )
+    )
+
+  }
+
   test("SPARK-42401: Array insert of null value (explicit)") {
     val a = Literal.create(Seq("b", "a", "c"), ArrayType(StringType, false))
-    checkEvaluation(
-      new ArrayInsert(a, Literal(2), Literal.create(null, StringType)),
-      Seq("b", null, "a", "c"))
-    checkEvaluation(
-      new ArrayInsert(a, Literal(-1), Literal.create(null, StringType)),
-      Seq("b", "a", "c", null))
+    checkEvaluation(new ArrayInsert(
+      a, Literal(2), Literal.create(null, StringType)), Seq("b", null, "a", "c")
+    )
   }
 
   test("SPARK-42401: Array insert of null value (implicit)") {
     val a = Literal.create(Seq("b", "a", "c"), ArrayType(StringType, false))
     checkEvaluation(new ArrayInsert(
       a, Literal(5), Literal.create("q", StringType)), Seq("b", "a", "c", null, "q")
+    )
+  }
+
+  test("SPARK-42401: Array append of null value") {
+    val a = Literal.create(Seq("b", "a", "c"), ArrayType(StringType, false))
+    checkEvaluation(ArrayAppend(
+      a, Literal.create(null, StringType)), Seq("b", "a", "c", null)
     )
   }
 }

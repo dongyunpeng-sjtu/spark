@@ -88,10 +88,6 @@ object ConstantFolding extends Rule[LogicalPlan] {
           e
       }
 
-    // Replace ScalarSubquery with null if its maxRows is 0
-    case s: ScalarSubquery if s.plan.maxRows.contains(0) =>
-      Literal(null, s.dataType)
-
     case other => other.mapChildren(constantFolding(_, isConditionalBranch))
   }
 
@@ -116,7 +112,7 @@ object ConstantFolding extends Rule[LogicalPlan] {
  */
 object ConstantPropagation extends Rule[LogicalPlan] {
   def apply(plan: LogicalPlan): LogicalPlan = plan.transformUpWithPruning(
-    _.containsAllPatterns(LITERAL, FILTER, BINARY_COMPARISON), ruleId) {
+    _.containsAllPatterns(LITERAL, FILTER), ruleId) {
     case f: Filter =>
       val (newCondition, _) = traverse(f.condition, replaceChildren = true, nullIsFalse = true)
       if (newCondition.isDefined) {
@@ -125,6 +121,8 @@ object ConstantPropagation extends Rule[LogicalPlan] {
         f
       }
   }
+
+  type EqualityPredicates = Seq[((AttributeReference, Literal), BinaryComparison)]
 
   /**
    * Traverse a condition as a tree and replace attributes with constant values.
@@ -142,25 +140,23 @@ object ConstantPropagation extends Rule[LogicalPlan] {
    *                    resulted false
    * @return A tuple including:
    *         1. Option[Expression]: optional changed condition after traversal
-   *         2. AttributeMap: propagated mapping of attribute => constant
+   *         2. EqualityPredicates: propagated mapping of attribute => constant
    */
   private def traverse(condition: Expression, replaceChildren: Boolean, nullIsFalse: Boolean)
-    : (Option[Expression], AttributeMap[(Literal, BinaryComparison)]) =
+    : (Option[Expression], EqualityPredicates) =
     condition match {
-      case _ if !condition.containsAllPatterns(LITERAL, BINARY_COMPARISON) =>
-        (None, AttributeMap.empty)
       case e @ EqualTo(left: AttributeReference, right: Literal)
         if safeToReplace(left, nullIsFalse) =>
-        (None, AttributeMap(Map(left -> (right, e))))
+        (None, Seq(((left, right), e)))
       case e @ EqualTo(left: Literal, right: AttributeReference)
         if safeToReplace(right, nullIsFalse) =>
-        (None, AttributeMap(Map(right -> (left, e))))
+        (None, Seq(((right, left), e)))
       case e @ EqualNullSafe(left: AttributeReference, right: Literal)
         if safeToReplace(left, nullIsFalse) =>
-        (None, AttributeMap(Map(left -> (right, e))))
+        (None, Seq(((left, right), e)))
       case e @ EqualNullSafe(left: Literal, right: AttributeReference)
         if safeToReplace(right, nullIsFalse) =>
-        (None, AttributeMap(Map(right -> (left, e))))
+        (None, Seq(((right, left), e)))
       case a: And =>
         val (newLeft, equalityPredicatesLeft) =
           traverse(a.left, replaceChildren = false, nullIsFalse)
@@ -187,12 +183,12 @@ object ConstantPropagation extends Rule[LogicalPlan] {
         } else {
           None
         }
-        (newSelf, AttributeMap.empty)
+        (newSelf, Seq.empty)
       case n: Not =>
         // Ignore the EqualityPredicates from children since they are only propagated through And.
         val (newChild, _) = traverse(n.child, replaceChildren = true, nullIsFalse = false)
-        (newChild.map(Not), AttributeMap.empty)
-      case _ => (None, AttributeMap.empty)
+        (newChild.map(Not), Seq.empty)
+      case _ => (None, Seq.empty)
     }
 
   // We need to take into account if an attribute is nullable and the context of the conjunctive
@@ -203,15 +199,16 @@ object ConstantPropagation extends Rule[LogicalPlan] {
   private def safeToReplace(ar: AttributeReference, nullIsFalse: Boolean) =
     !ar.nullable || nullIsFalse
 
-  private def replaceConstants(
-      condition: Expression,
-      equalityPredicates: AttributeMap[(Literal, BinaryComparison)]): Expression = {
-    val constantsMap = AttributeMap(equalityPredicates.map { case (attr, (lit, _)) => attr -> lit })
-    val predicates = equalityPredicates.values.map(_._2).toSet
-    condition.transformWithPruning(_.containsPattern(BINARY_COMPARISON)) {
-      case b: BinaryComparison if !predicates.contains(b) => b transform {
-        case a: AttributeReference => constantsMap.getOrElse(a, a)
-      }
+  private def replaceConstants(condition: Expression, equalityPredicates: EqualityPredicates)
+    : Expression = {
+    val constantsMap = AttributeMap(equalityPredicates.map(_._1))
+    val predicates = equalityPredicates.map(_._2).toSet
+    def replaceConstants0(expression: Expression) = expression transform {
+      case a: AttributeReference => constantsMap.getOrElse(a, a)
+    }
+    condition transform {
+      case e @ EqualTo(_, _) if !predicates.contains(e) => replaceConstants0(e)
+      case e @ EqualNullSafe(_, _) if !predicates.contains(e) => replaceConstants0(e)
     }
   }
 }
@@ -289,7 +286,7 @@ object OptimizeIn extends Rule[LogicalPlan] {
       case In(v, list) if list.isEmpty =>
         // IN (empty list) is always false under current behavior.
         // Under legacy behavior it's null if the left side is null, otherwise false (SPARK-44550).
-        if (!SQLConf.get.legacyNullInEmptyBehavior) {
+        if (!SQLConf.get.getConf(SQLConf.LEGACY_NULL_IN_EMPTY_LIST_BEHAVIOR)) {
           FalseLiteral
         } else {
           If(IsNotNull(v), FalseLiteral, Literal(null, BooleanType))
@@ -851,20 +848,20 @@ object NullPropagation extends Rule[LogicalPlan] {
 
       // If the list is empty, transform the In expression to false literal.
       case In(_, list)
-        if list.isEmpty && !SQLConf.get.legacyNullInEmptyBehavior =>
+        if list.isEmpty && !SQLConf.get.getConf(SQLConf.LEGACY_NULL_IN_EMPTY_LIST_BEHAVIOR) =>
         Literal.create(false, BooleanType)
       // If the value expression is NULL (and the list is non-empty), then transform the
       // In expression to null literal.
       // If the legacy flag is set, then it becomes null even if the list is empty (which is
       // incorrect legacy behavior)
       case In(Literal(null, _), list)
-        if list.nonEmpty || SQLConf.get.legacyNullInEmptyBehavior
+        if list.nonEmpty || SQLConf.get.getConf(SQLConf.LEGACY_NULL_IN_EMPTY_LIST_BEHAVIOR)
       => Literal.create(null, BooleanType)
       case InSubquery(Seq(Literal(null, _)), _)
-        if SQLConf.get.legacyNullInEmptyBehavior =>
+        if SQLConf.get.getConf(SQLConf.LEGACY_NULL_IN_EMPTY_LIST_BEHAVIOR) =>
         Literal.create(null, BooleanType)
       case InSubquery(Seq(Literal(null, _)), ListQuery(sub, _, _, _, conditions, _))
-        if !SQLConf.get.legacyNullInEmptyBehavior
+        if !SQLConf.get.getConf(SQLConf.LEGACY_NULL_IN_EMPTY_LIST_BEHAVIOR)
         && conditions.isEmpty =>
         If(Exists(sub), Literal(null, BooleanType), FalseLiteral)
 

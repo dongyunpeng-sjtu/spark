@@ -15,8 +15,10 @@
 # limitations under the License.
 #
 
+from distutils.version import LooseVersion
 import itertools
 import inspect
+import unittest
 
 import pandas as pd
 import numpy as np
@@ -188,6 +190,10 @@ class NamespaceTestsMixin:
         self.assert_eq(pd.to_datetime(pdf), ps.to_datetime(psdf))
         self.assert_eq(pd.to_datetime(dict_from_pdf), ps.to_datetime(dict_from_pdf))
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43709): Enable NamespaceTests.test_date_range for pandas 2.0.0.",
+    )
     def test_date_range(self):
         self.assert_eq(
             ps.date_range(start="1/1/2018", end="1/08/2018"),
@@ -220,29 +226,14 @@ class NamespaceTestsMixin:
         )
 
         self.assert_eq(
-            ps.date_range(start="2017-01-01", end="2017-01-04", inclusive="left"),
-            pd.date_range(start="2017-01-01", end="2017-01-04", inclusive="left"),
+            ps.date_range(start="2017-01-01", end="2017-01-04", closed="left"),
+            pd.date_range(start="2017-01-01", end="2017-01-04", closed="left"),
         )
 
         self.assert_eq(
-            ps.date_range(start="2017-01-01", end="2017-01-04", inclusive="right"),
-            pd.date_range(start="2017-01-01", end="2017-01-04", inclusive="right"),
+            ps.date_range(start="2017-01-01", end="2017-01-04", closed="right"),
+            pd.date_range(start="2017-01-01", end="2017-01-04", closed="right"),
         )
-
-        self.assert_eq(
-            ps.date_range(start="2017-01-01", end="2017-01-04", inclusive="both"),
-            pd.date_range(start="2017-01-01", end="2017-01-04", inclusive="both"),
-        )
-
-        self.assert_eq(
-            ps.date_range(start="2017-01-01", end="2017-01-04", inclusive="neither"),
-            pd.date_range(start="2017-01-01", end="2017-01-04", inclusive="neither"),
-        )
-
-        with self.assertRaisesRegex(
-            ValueError, "Inclusive has to be either 'both', 'neither', 'left' or 'right'"
-        ):
-            ps.date_range(start="2017-01-01", end="2017-01-04", inclusive="test")
 
         self.assertRaises(
             AssertionError, lambda: ps.date_range(start="1/1/2018", periods=5, tz="Asia/Tokyo")
@@ -318,7 +309,9 @@ class NamespaceTestsMixin:
 
         ignore_indexes = [True, False]
         joins = ["inner", "outer"]
-        sorts = [True, False]
+        sorts = [True]
+        if LooseVersion(pd.__version__) >= LooseVersion("1.4"):
+            sorts += [False]
         objs = [
             ([psdf, psdf.reset_index()], [pdf, pdf.reset_index()]),
             ([psdf.reset_index(), psdf], [pdf.reset_index(), pdf]),
@@ -352,19 +345,21 @@ class NamespaceTestsMixin:
             ([psdf["C"], psdf["A"]], [pdf["C"], pdf["A"]]),
         ]
 
-        series_objs = [
-            # more than two Series
-            ([psdf, psdf["C"], psdf["A"]], [pdf, pdf["C"], pdf["A"]]),
-            # only one Series
-            ([psdf, psdf["C"]], [pdf, pdf["C"]]),
-            ([psdf["C"], psdf], [pdf["C"], pdf]),
-        ]
-        for psdfs, pdfs in series_objs:
-            for ignore_index, join, sort in itertools.product(ignore_indexes, joins, sorts):
-                self.assert_eq(
-                    ps.concat(psdfs, ignore_index=ignore_index, join=join, sort=sort),
-                    pd.concat(pdfs, ignore_index=ignore_index, join=join, sort=sort),
-                )
+        # See also https://github.com/pandas-dev/pandas/issues/47127
+        if LooseVersion(pd.__version__) >= LooseVersion("1.4.3"):
+            series_objs = [
+                # more than two Series
+                ([psdf, psdf["C"], psdf["A"]], [pdf, pdf["C"], pdf["A"]]),
+                # only one Series
+                ([psdf, psdf["C"]], [pdf, pdf["C"]]),
+                ([psdf["C"], psdf], [pdf["C"], pdf]),
+            ]
+            for psdfs, pdfs in series_objs:
+                for ignore_index, join, sort in itertools.product(ignore_indexes, joins, sorts):
+                    self.assert_eq(
+                        ps.concat(psdfs, ignore_index=ignore_index, join=join, sort=sort),
+                        pd.concat(pdfs, ignore_index=ignore_index, join=join, sort=sort),
+                    )
 
         for ignore_index, join, sort in itertools.product(ignore_indexes, joins, sorts):
             for i, (psdfs, pdfs) in enumerate(objs):
@@ -403,10 +398,11 @@ class NamespaceTestsMixin:
             ([psdf3, psdf3[[("Y", "C"), ("X", "A")]]], [pdf3, pdf3[[("Y", "C"), ("X", "A")]]]),
         ]
 
-        objs += [
-            ([psdf3.reset_index(), psdf3], [pdf3.reset_index(), pdf3]),
-            ([psdf3[[("Y", "C"), ("X", "A")]], psdf3], [pdf3[[("Y", "C"), ("X", "A")]], pdf3]),
-        ]
+        if LooseVersion(pd.__version__) >= LooseVersion("1.4"):
+            objs += [
+                ([psdf3.reset_index(), psdf3], [pdf3.reset_index(), pdf3]),
+                ([psdf3[[("Y", "C"), ("X", "A")]], psdf3], [pdf3[[("Y", "C"), ("X", "A")]], pdf3]),
+            ]
 
         for ignore_index, sort in itertools.product(ignore_indexes, sorts):
             for i, (psdfs, pdfs) in enumerate(objs):

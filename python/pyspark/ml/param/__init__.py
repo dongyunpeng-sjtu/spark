@@ -373,6 +373,7 @@ class Params(Identifiable, metaclass=ABCMeta):
         ...
 
     def getOrDefault(self, param: Union[str, Param[T]]) -> Union[Any, T]:
+
         """
         Gets the value of a param in the user-supplied param map or its
         default value. Raises an error if neither is set.

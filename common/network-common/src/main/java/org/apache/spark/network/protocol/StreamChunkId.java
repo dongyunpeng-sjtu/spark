@@ -60,7 +60,8 @@ public final class StreamChunkId implements Encodable {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof StreamChunkId o) {
+    if (other instanceof StreamChunkId) {
+      StreamChunkId o = (StreamChunkId) other;
       return streamId == o.streamId && chunkIndex == o.chunkIndex;
     }
     return false;

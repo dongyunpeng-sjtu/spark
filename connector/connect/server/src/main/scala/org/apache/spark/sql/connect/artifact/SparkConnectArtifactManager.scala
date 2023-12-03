@@ -23,10 +23,9 @@ import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.ws.rs.core.UriBuilder
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-import io.grpc.Status
 import org.apache.commons.io.{FilenameUtils, FileUtils}
 import org.apache.hadoop.fs.{LocalFileSystem, Path => FSPath}
 
@@ -126,18 +125,11 @@ class SparkConnectArtifactManager(sessionHolder: SessionHolder) extends Logging 
     } else {
       val target = ArtifactUtils.concatenatePaths(artifactPath, remoteRelativePath)
       Files.createDirectories(target.getParent)
-
-      // Disallow overwriting with modified version
+      // Disallow overwriting non-classfile artifacts
       if (Files.exists(target)) {
-        // makes the query idempotent
-        if (FileUtils.contentEquals(target.toFile, serverLocalStagingPath.toFile)) {
-          return
-        }
-
-        throw Status.ALREADY_EXISTS
-          .withDescription(s"Duplicate Artifact: $remoteRelativePath. " +
+        throw new RuntimeException(
+          s"Duplicate Artifact: $remoteRelativePath. " +
             "Artifacts cannot be overwritten.")
-          .asRuntimeException()
       }
       Files.move(serverLocalStagingPath, target)
 

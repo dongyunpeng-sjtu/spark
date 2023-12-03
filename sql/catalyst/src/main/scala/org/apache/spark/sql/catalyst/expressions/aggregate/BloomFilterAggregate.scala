@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.catalyst.expressions.aggregate
 
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 import org.apache.spark.sql.catalyst.InternalRow
@@ -83,7 +84,7 @@ case class BloomFilterAggregate(
           DataTypeMismatch(
             errorSubClass = "NON_FOLDABLE_INPUT",
             messageParameters = Map(
-              "inputName" -> toSQLId("estimatedNumItems"),
+              "inputName" -> "estimatedNumItems",
               "inputType" -> toSQLType(estimatedNumItemsExpression.dataType),
               "inputExpr" -> toSQLExpr(estimatedNumItemsExpression)
             )
@@ -101,7 +102,7 @@ case class BloomFilterAggregate(
           DataTypeMismatch(
             errorSubClass = "NON_FOLDABLE_INPUT",
             messageParameters = Map(
-              "inputName" -> toSQLId("numBitsExpression"),
+              "inputName" -> "numBitsExpression",
               "inputType" -> toSQLType(numBitsExpression.dataType),
               "inputExpr" -> toSQLExpr(numBitsExpression)
             )
@@ -226,7 +227,12 @@ object BloomFilterAggregate {
     out.toByteArray
   }
 
-  final def deserialize(bytes: Array[Byte]): BloomFilter = BloomFilter.readFrom(bytes)
+  final def deserialize(bytes: Array[Byte]): BloomFilter = {
+    val in = new ByteArrayInputStream(bytes)
+    val bloomFilter = BloomFilter.readFrom(in)
+    in.close()
+    bloomFilter
+  }
 }
 
 private trait BloomFilterUpdater {

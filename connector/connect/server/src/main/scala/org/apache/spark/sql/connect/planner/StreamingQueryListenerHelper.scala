@@ -17,11 +17,7 @@
 
 package org.apache.spark.sql.connect.planner
 
-import java.io.EOFException
-
-import org.apache.spark.SparkException
-import org.apache.spark.api.python.{PythonException, PythonWorkerUtils, SimplePythonFunction, SpecialLengths, StreamingPythonRunner}
-import org.apache.spark.internal.Logging
+import org.apache.spark.api.python.{PythonRDD, SimplePythonFunction, StreamingPythonRunner}
 import org.apache.spark.sql.connect.service.{SessionHolder, SparkConnectService}
 import org.apache.spark.sql.streaming.StreamingQueryListener
 
@@ -30,73 +26,47 @@ import org.apache.spark.sql.streaming.StreamingQueryListener
  * instance of this class starts a python process, inside which has the python handling logic.
  * When a new event is received, it is serialized to json, and passed to the python process.
  */
-class PythonStreamingQueryListener(listener: SimplePythonFunction, sessionHolder: SessionHolder)
-    extends StreamingQueryListener
-    with Logging {
+class PythonStreamingQueryListener(
+    listener: SimplePythonFunction,
+    sessionHolder: SessionHolder,
+    pythonExec: String)
+    extends StreamingQueryListener {
 
   private val port = SparkConnectService.localPort
   private val connectUrl = s"sc://localhost:$port/;user_id=${sessionHolder.userId}"
-  // Scoped for testing
-  private[connect] val runner = StreamingPythonRunner(
+  private val runner = StreamingPythonRunner(
     listener,
     connectUrl,
     sessionHolder.sessionId,
     "pyspark.sql.connect.streaming.worker.listener_worker")
 
-  val (dataOut, dataIn) = runner.init()
+  val (dataOut, _) = runner.init()
 
   override def onQueryStarted(event: StreamingQueryListener.QueryStartedEvent): Unit = {
-    PythonWorkerUtils.writeUTF(event.json, dataOut)
+    PythonRDD.writeUTF(event.json, dataOut)
     dataOut.writeInt(0)
     dataOut.flush()
-    handlePythonWorkerError("onQueryStarted")
   }
 
   override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = {
-    PythonWorkerUtils.writeUTF(event.json, dataOut)
+    PythonRDD.writeUTF(event.json, dataOut)
     dataOut.writeInt(1)
     dataOut.flush()
-    handlePythonWorkerError("onQueryProgress")
   }
 
   override def onQueryIdle(event: StreamingQueryListener.QueryIdleEvent): Unit = {
-    PythonWorkerUtils.writeUTF(event.json, dataOut)
+    PythonRDD.writeUTF(event.json, dataOut)
     dataOut.writeInt(2)
     dataOut.flush()
-    handlePythonWorkerError("onQueryIdle")
   }
 
   override def onQueryTerminated(event: StreamingQueryListener.QueryTerminatedEvent): Unit = {
-    PythonWorkerUtils.writeUTF(event.json, dataOut)
+    PythonRDD.writeUTF(event.json, dataOut)
     dataOut.writeInt(3)
     dataOut.flush()
-    handlePythonWorkerError("onQueryTerminated")
   }
 
   private[spark] def stopListenerProcess(): Unit = {
     runner.stop()
-  }
-
-  // TODO: Reuse the same method in StreamingForeachBatchHelper to avoid duplication.
-  private def handlePythonWorkerError(functionName: String): Unit = {
-    try {
-      dataIn.readInt() match {
-        case 0 =>
-          logInfo(s"Streaming query listener function $functionName completed (ret: 0)")
-        case SpecialLengths.PYTHON_EXCEPTION_THROWN =>
-          val msg = PythonWorkerUtils.readUTF(dataIn)
-          throw new PythonException(
-            s"Found error inside Streaming query listener Python " +
-              s"process for function $functionName: $msg",
-            null)
-        case otherValue =>
-          throw new IllegalStateException(
-            s"Unexpected return value $otherValue from the " +
-              s"Python worker.")
-      }
-    } catch {
-      case eof: EOFException =>
-        throw new SparkException("Python worker exited unexpectedly (crashed)", eof)
-    }
   }
 }

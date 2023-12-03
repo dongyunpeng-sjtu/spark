@@ -435,6 +435,7 @@ class BasicOperationTests(PySparkStreamingTestCase):
     "The tests fail in PyPy3 implementation for an unknown reason.",
 )
 class WindowFunctionTests(PySparkStreamingTestCase):
+
     timeout = 15
 
     def test_window(self):
@@ -527,6 +528,7 @@ class WindowFunctionTests(PySparkStreamingTestCase):
     "The tests fail in PyPy3 implementation for an unknown reason.",
 )
 class CheckpointTests(unittest.TestCase):
+
     setupCalled = False
 
     @staticmethod

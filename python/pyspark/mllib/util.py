@@ -17,7 +17,6 @@
 
 import sys
 from functools import reduce
-
 import numpy as np
 
 from pyspark import SparkContext, since

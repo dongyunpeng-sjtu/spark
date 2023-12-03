@@ -35,6 +35,8 @@ import org.apache.spark.sql.types.StructType
 
 trait AnalysisTest extends PlanTest {
 
+  import org.apache.spark.QueryContext
+
   protected def extendedAnalysisRules: Seq[Rule[LogicalPlan]] = Nil
 
   protected def createTempView(
@@ -175,7 +177,7 @@ trait AnalysisTest extends PlanTest {
       inputPlan: LogicalPlan,
       expectedErrorClass: String,
       expectedMessageParameters: Map[String, String],
-      queryContext: Array[ExpectedContext] = Array.empty,
+      queryContext: Array[QueryContext] = Array.empty,
       caseSensitive: Boolean = true): Unit = {
     withSQLConf(SQLConf.CASE_SENSITIVE.key -> caseSensitive.toString) {
       val analyzer = getAnalyzer

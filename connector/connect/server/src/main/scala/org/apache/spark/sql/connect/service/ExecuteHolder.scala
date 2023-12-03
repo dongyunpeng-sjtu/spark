@@ -19,8 +19,8 @@ package org.apache.spark.sql.connect.service
 
 import java.util.UUID
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 
 import org.apache.spark.{SparkEnv, SparkSQLException}
 import org.apache.spark.connect.proto
@@ -164,10 +164,6 @@ private[connect] class ExecuteHolder(
   private def addGrpcResponseSender(
       sender: ExecuteGrpcResponseSender[proto.ExecutePlanResponse]) = synchronized {
     if (closedTime.isEmpty) {
-      // Interrupt all other senders - there can be only one active sender.
-      // Interrupted senders will remove themselves with removeGrpcResponseSender when they exit.
-      grpcResponseSenders.foreach(_.interrupt())
-      // And add this one.
       grpcResponseSenders += sender
       lastAttachedRpcTime = None
     } else {
@@ -176,7 +172,7 @@ private[connect] class ExecuteHolder(
     }
   }
 
-  def removeGrpcResponseSender(sender: ExecuteGrpcResponseSender[_]): Unit = synchronized {
+  def removeGrpcResponseSender[_](sender: ExecuteGrpcResponseSender[_]): Unit = synchronized {
     // if closed, we are shutting down and interrupting all senders already
     if (closedTime.isEmpty) {
       grpcResponseSenders -=
@@ -185,16 +181,6 @@ private[connect] class ExecuteHolder(
         lastAttachedRpcTime = Some(System.currentTimeMillis())
       }
     }
-  }
-
-  // For testing.
-  private[connect] def setGrpcResponseSendersDeadline(deadlineMs: Long) = synchronized {
-    grpcResponseSenders.foreach(_.setDeadline(deadlineMs))
-  }
-
-  // For testing
-  private[connect] def interruptGrpcResponseSenders() = synchronized {
-    grpcResponseSenders.foreach(_.interrupt())
   }
 
   /**

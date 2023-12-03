@@ -20,7 +20,6 @@ Serializers for PyArrow and pandas conversions. See `pyspark.serializers` for mo
 """
 
 from pyspark.errors import PySparkRuntimeError, PySparkTypeError, PySparkValueError
-from pyspark.loose_version import LooseVersion
 from pyspark.serializers import Serializer, read_int, write_int, UTF8Deserializer, CPickleSerializer
 from pyspark.sql.pandas.types import (
     from_arrow_type,
@@ -186,21 +185,7 @@ class ArrowStreamPandasSerializer(ArrowStreamSerializer):
         # instead of creating datetime64[ns] as intermediate data to avoid overflow caused by
         # datetime64[ns] type handling.
         # Cast dates to objects instead of datetime64[ns] dtype to avoid overflow.
-        pandas_options = {"date_as_object": True}
-
-        import pyarrow as pa
-
-        if LooseVersion(pa.__version__) >= LooseVersion("13.0.0"):
-            # A legacy option to coerce date32, date64, duration, and timestamp
-            # time units to nanoseconds when converting to pandas.
-            # This option can only be added since 13.0.0.
-            pandas_options.update(
-                {
-                    "coerce_temporal_nanoseconds": True,
-                }
-            )
-
-        s = arrow_column.to_pandas(**pandas_options)
+        s = arrow_column.to_pandas(date_as_object=True)
 
         # TODO(SPARK-43579): cache the converter for reuse
         converter = _create_converter_to_pandas(
@@ -234,9 +219,9 @@ class ArrowStreamPandasSerializer(ArrowStreamSerializer):
         pyarrow.Array
         """
         import pyarrow as pa
-        import pandas as pd
+        from pandas.api.types import is_categorical_dtype
 
-        if isinstance(series.dtype, pd.CategoricalDtype):
+        if is_categorical_dtype(series.dtype):
             series = series.astype(series.dtypes.categories.dtype)
 
         if arrow_type is not None:
@@ -589,9 +574,9 @@ class ArrowStreamPandasUDTFSerializer(ArrowStreamPandasUDFSerializer):
         pyarrow.Array
         """
         import pyarrow as pa
-        import pandas as pd
+        from pandas.api.types import is_categorical_dtype
 
-        if isinstance(series.dtype, pd.CategoricalDtype):
+        if is_categorical_dtype(series.dtype):
             series = series.astype(series.dtypes.categories.dtype)
 
         if arrow_type is not None:

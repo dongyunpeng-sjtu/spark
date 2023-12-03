@@ -27,7 +27,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.errors.QueryCompilationErrors
 import org.apache.spark.sql.internal.SQLConf
@@ -1097,20 +1096,15 @@ object TypeCoercion extends TypeCoercionBase {
       }
     }
 
-    private def isIntervalType(dt: DataType): Boolean = dt match {
-      case _: CalendarIntervalType | _: AnsiIntervalType => true
-      case _ => false
-    }
-
     override def transform: PartialFunction[Expression, Expression] = {
       // Skip nodes who's children have not been resolved yet.
       case e if !e.childrenResolved => e
 
       case a @ BinaryArithmetic(left @ StringTypeExpression(), right)
-        if !isIntervalType(right.dataType) =>
+        if right.dataType != CalendarIntervalType =>
         a.makeCopy(Array(Cast(left, DoubleType), right))
       case a @ BinaryArithmetic(left, right @ StringTypeExpression())
-        if !isIntervalType(left.dataType) =>
+        if left.dataType != CalendarIntervalType =>
         a.makeCopy(Array(left, Cast(right, DoubleType)))
 
       // For equality between string and timestamp we cast the string to a timestamp
@@ -1216,8 +1210,7 @@ trait TypeCoercionRule extends Rule[LogicalPlan] with Logging {
           } else {
             beforeMapChildren
           }
-          withPropagatedTypes.transformExpressionsUpWithPruning(
-            AlwaysProcess.fn, ruleId)(typeCoercionFn)
+          withPropagatedTypes.transformExpressionsUp(typeCoercionFn)
         }
     }
   }

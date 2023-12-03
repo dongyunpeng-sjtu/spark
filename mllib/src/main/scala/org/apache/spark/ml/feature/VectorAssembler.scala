@@ -279,8 +279,8 @@ object VectorAssembler extends DefaultParamsReadable[VectorAssembler] {
         featureIndex += vec.size
       case null =>
         if (keepInvalid) {
-          val length = lengths(inputColumnIndex)
-          Iterator.range(0, length).foreach { i =>
+          val length: Int = lengths(inputColumnIndex)
+          Array.range(0, length).foreach { i =>
             indices += featureIndex + i
             values += Double.NaN
           }
@@ -295,8 +295,6 @@ object VectorAssembler extends DefaultParamsReadable[VectorAssembler] {
       case o =>
         throw new SparkException(s"$o of type ${o.getClass.getName} is not supported.")
     }
-
-    val (idxArray, valArray) = (indices.result(), values.result())
-    Vectors.sparse(featureIndex, idxArray, valArray).compressed(idxArray.length)
+    Vectors.sparse(featureIndex, indices.result(), values.result()).compressed
   }
 }

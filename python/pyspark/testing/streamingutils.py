@@ -57,6 +57,7 @@ should_test_kinesis = kinesis_requirement_message is None
 
 
 class PySparkStreamingTestCase(unittest.TestCase):
+
     timeout = 30  # seconds
     duration = 0.5
 

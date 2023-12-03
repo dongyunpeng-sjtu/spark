@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from distutils.version import LooseVersion
 import unittest
 
 import pandas as pd
@@ -39,6 +40,10 @@ class GroupbyIndexMixin:
     def psdf(self):
         return ps.from_pandas(self.pdf)
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43555): Enable GroupByTests.test_groupby_multiindex_columns for pandas 2.0.0.",
+    )
     def test_groupby_multiindex_columns(self):
         pdf = pd.DataFrame(
             {
@@ -79,10 +84,16 @@ class GroupbyIndexMixin:
 
         self.assert_eq(psdf.groupby((10, "a"))[(20, "c")].sum().sort_index(), expected)
 
-        self.assert_eq(
-            psdf[(20, "c")].groupby(psdf[(10, "a")]).sum().sort_index(),
-            pdf[(20, "c")].groupby(pdf[(10, "a")]).sum().sort_index(),
-        )
+        if LooseVersion(pd.__version__) != LooseVersion("1.1.3") and LooseVersion(
+            pd.__version__
+        ) != LooseVersion("1.1.4"):
+            self.assert_eq(
+                psdf[(20, "c")].groupby(psdf[(10, "a")]).sum().sort_index(),
+                pdf[(20, "c")].groupby(pdf[(10, "a")]).sum().sort_index(),
+            )
+        else:
+            # Due to pandas bugs resolved in 1.0.4, re-introduced in 1.1.3 and resolved in 1.1.5
+            self.assert_eq(psdf[(20, "c")].groupby(psdf[(10, "a")]).sum().sort_index(), expected)
 
     def test_idxmax(self):
         pdf = pd.DataFrame(

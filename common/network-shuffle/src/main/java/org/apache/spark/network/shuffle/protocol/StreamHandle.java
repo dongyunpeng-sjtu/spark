@@ -57,7 +57,8 @@ public class StreamHandle extends BlockTransferMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof StreamHandle o) {
+    if (other instanceof StreamHandle) {
+      StreamHandle o = (StreamHandle) other;
       return Objects.equals(streamId, o.streamId)
         && Objects.equals(numChunks, o.numChunks);
     }

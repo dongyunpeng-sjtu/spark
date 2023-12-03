@@ -16,16 +16,14 @@
  */
 package org.apache.spark.sql.connect.planner
 
-import java.io.EOFException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
-import org.apache.spark.SparkException
-import org.apache.spark.api.python.{PythonException, PythonWorkerUtils, SimplePythonFunction, SpecialLengths, StreamingPythonRunner}
+import org.apache.spark.api.python.{PythonRDD, SimplePythonFunction, StreamingPythonRunner}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.connect.service.SessionHolder
@@ -40,9 +38,7 @@ object StreamingForeachBatchHelper extends Logging {
 
   type ForeachBatchFnType = (DataFrame, Long) => Unit
 
-  // Visible for testing.
-  /** An AutoClosable to clean up resources on query termination. Stops Python worker. */
-  private[connect] case class RunnerCleaner(runner: StreamingPythonRunner) extends AutoCloseable {
+  case class RunnerCleaner(runner: StreamingPythonRunner) extends AutoCloseable {
     override def close(): Unit = {
       try runner.stop()
       catch {
@@ -100,12 +96,11 @@ object StreamingForeachBatchHelper extends Logging {
   /**
    * Starts up Python worker and initializes it with Python function. Returns a foreachBatch
    * function that sets up the session and Dataframe cache and and interacts with the Python
-   * worker to execute user's function. In addition, it returns an AutoClosable. The caller must
-   * ensure it is closed so that worker process and related resources are released.
+   * worker to execute user's function.
    */
   def pythonForeachBatchWrapper(
       pythonFn: SimplePythonFunction,
-      sessionHolder: SessionHolder): (ForeachBatchFnType, AutoCloseable) = {
+      sessionHolder: SessionHolder): (ForeachBatchFnType, RunnerCleaner) = {
 
     val port = SparkConnectService.localPort
     val connectUrl = s"sc://localhost:$port/;user_id=${sessionHolder.userId}"
@@ -118,6 +113,7 @@ object StreamingForeachBatchHelper extends Logging {
 
     val foreachBatchRunnerFn: FnArgsWithId => Unit = (args: FnArgsWithId) => {
 
+      // TODO(SPARK-44460): Support Auth credentials
       // TODO(SPARK-44462): A new session id pointing to args.df.sparkSession needs to be created.
       //     This is because MicroBatch execution clones the session during start.
       //     The session attached to the foreachBatch dataframe is different from the one the one
@@ -126,30 +122,12 @@ object StreamingForeachBatchHelper extends Logging {
       //     the session alive. The session mapping at Connect server does not expire and query
       //     keeps running even if the original client disappears. This keeps the query running.
 
-      PythonWorkerUtils.writeUTF(args.dfId, dataOut)
+      PythonRDD.writeUTF(args.dfId, dataOut)
       dataOut.writeLong(args.batchId)
       dataOut.flush()
 
-      try {
-        dataIn.readInt() match {
-          case 0 =>
-            logInfo(s"Python foreach batch for dfId ${args.dfId} completed (ret: 0)")
-          case SpecialLengths.PYTHON_EXCEPTION_THROWN =>
-            val msg = PythonWorkerUtils.readUTF(dataIn)
-            throw new PythonException(
-              s"Found error inside foreachBatch Python process: $msg",
-              null)
-          case otherValue =>
-            throw new IllegalStateException(
-              s"Unexpected return value $otherValue from the " +
-                s"Python worker.")
-        }
-      } catch {
-        // TODO: Better handling (e.g. retries) on exceptions like EOFException to avoid
-        // transient errors, same for StreamingQueryListenerHelper.
-        case eof: EOFException =>
-          throw new SparkException("Python worker exited unexpectedly (crashed)", eof)
-      }
+      val ret = dataIn.readInt()
+      logInfo(s"Python foreach batch for dfId ${args.dfId} completed (ret: $ret)")
     }
 
     (dataFrameCachingWrapper(foreachBatchRunnerFn, sessionHolder), RunnerCleaner(runner))

@@ -23,8 +23,8 @@ import java.util.Random;
 import java.util.Set;
 
 import org.apache.spark.unsafe.Platform;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
  * Test the XXH64 function.
@@ -52,81 +52,81 @@ public class XXH64Suite {
 
   @Test
   public void testKnownIntegerInputs() {
-    Assertions.assertEquals(0x9256E58AA397AEF1L, hasher.hashInt(TEST_INT));
-    Assertions.assertEquals(0x9D5FFDFB928AB4BL, XXH64.hashInt(TEST_INT, PRIME));
+    Assert.assertEquals(0x9256E58AA397AEF1L, hasher.hashInt(TEST_INT));
+    Assert.assertEquals(0x9D5FFDFB928AB4BL, XXH64.hashInt(TEST_INT, PRIME));
   }
 
   @Test
   public void testKnownLongInputs() {
-    Assertions.assertEquals(0xF74CB1451B32B8CFL, hasher.hashLong(TEST_LONG));
-    Assertions.assertEquals(0x9C44B77FBCC302C5L, XXH64.hashLong(TEST_LONG, PRIME));
+    Assert.assertEquals(0xF74CB1451B32B8CFL, hasher.hashLong(TEST_LONG));
+    Assert.assertEquals(0x9C44B77FBCC302C5L, XXH64.hashLong(TEST_LONG, PRIME));
   }
 
   @Test
   public void testKnownByteArrayInputs() {
-    Assertions.assertEquals(0xEF46DB3751D8E999L,
+    Assert.assertEquals(0xEF46DB3751D8E999L,
             hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 0));
-    Assertions.assertEquals(0xAC75FDA2929B17EFL,
+    Assert.assertEquals(0xAC75FDA2929B17EFL,
             XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 0, PRIME));
-    Assertions.assertEquals(0x4FCE394CC88952D8L,
+    Assert.assertEquals(0x4FCE394CC88952D8L,
             hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 1));
-    Assertions.assertEquals(0x739840CB819FA723L,
+    Assert.assertEquals(0x739840CB819FA723L,
             XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 1, PRIME));
-    Assertions.assertEquals(0x9256E58AA397AEF1L,
+    Assert.assertEquals(0x9256E58AA397AEF1L,
             hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4));
-    Assertions.assertEquals(0x9D5FFDFB928AB4BL,
+    Assert.assertEquals(0x9D5FFDFB928AB4BL,
             XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4, PRIME));
-    Assertions.assertEquals(0xF74CB1451B32B8CFL,
+    Assert.assertEquals(0xF74CB1451B32B8CFL,
             hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8));
-    Assertions.assertEquals(0x9C44B77FBCC302C5L,
+    Assert.assertEquals(0x9C44B77FBCC302C5L,
             XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8, PRIME));
-    Assertions.assertEquals(0xCFFA8DB881BC3A3DL,
+    Assert.assertEquals(0xCFFA8DB881BC3A3DL,
             hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14));
-    Assertions.assertEquals(0x5B9611585EFCC9CBL,
+    Assert.assertEquals(0x5B9611585EFCC9CBL,
             XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14, PRIME));
-    Assertions.assertEquals(0x0EAB543384F878ADL,
+    Assert.assertEquals(0x0EAB543384F878ADL,
             hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE));
-    Assertions.assertEquals(0xCAA65939306F1E21L,
+    Assert.assertEquals(0xCAA65939306F1E21L,
             XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE, PRIME));
   }
 
   @Test
   public void testKnownWordArrayInputs() {
-    Assertions.assertEquals(0XEF46DB3751D8E999L,
+    Assert.assertEquals(0XEF46DB3751D8E999L,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 0));
-    Assertions.assertEquals(0XAC75FDA2929B17EFL,
+    Assert.assertEquals(0XAC75FDA2929B17EFL,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 0, PRIME));
-    Assertions.assertEquals(0XF74CB1451B32B8CFL,
+    Assert.assertEquals(0XF74CB1451B32B8CFL,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8));
-    Assertions.assertEquals(0X9C44B77FBCC302C5L,
+    Assert.assertEquals(0X9C44B77FBCC302C5L,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8, PRIME));
-    Assertions.assertEquals(0X169173A697113B29L,
+    Assert.assertEquals(0X169173A697113B29L,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 16));
-    Assertions.assertEquals(0XA0B652822C1538F6L,
+    Assert.assertEquals(0XA0B652822C1538F6L,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 16, PRIME));
-    Assertions.assertEquals(0XCEF5D1497F99F246L,
+    Assert.assertEquals(0XCEF5D1497F99F246L,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 24));
-    Assertions.assertEquals(0X1FA29EA08AA60D77L,
+    Assert.assertEquals(0X1FA29EA08AA60D77L,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 24, PRIME));
-    Assertions.assertEquals(0XAF5753D39159EDEEL,
+    Assert.assertEquals(0XAF5753D39159EDEEL,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 32));
-    Assertions.assertEquals(0XDCAB9233B8CA7B0FL,
+    Assert.assertEquals(0XDCAB9233B8CA7B0FL,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 32, PRIME));
-    Assertions.assertEquals(0XBAB04D3F1769013L,
+    Assert.assertEquals(0XBAB04D3F1769013L,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 40));
-    Assertions.assertEquals(0X21273A6B8D344CF0L,
+    Assert.assertEquals(0X21273A6B8D344CF0L,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 40, PRIME));
-    Assertions.assertEquals(0XB3571A0E02A3F4E1L,
+    Assert.assertEquals(0XB3571A0E02A3F4E1L,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 48));
-    Assertions.assertEquals(0X867479AC0EF16154L,
+    Assert.assertEquals(0X867479AC0EF16154L,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 48, PRIME));
-    Assertions.assertEquals(0XA3D5C82BD2EE104AL,
+    Assert.assertEquals(0XA3D5C82BD2EE104AL,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 56));
-    Assertions.assertEquals(0X55EF042CF82C04D7L,
+    Assert.assertEquals(0X55EF042CF82C04D7L,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 56, PRIME));
-    Assertions.assertEquals(0X18F5388F1D2BA08CL,
+    Assert.assertEquals(0X18F5388F1D2BA08CL,
             hasher.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 64));
-    Assertions.assertEquals(0X479E7103CF9AA020L,
+    Assert.assertEquals(0X479E7103CF9AA020L,
             XXH64.hashUnsafeWords(BUFFER, Platform.BYTE_ARRAY_OFFSET, 64, PRIME));
   }
 
@@ -140,14 +140,14 @@ public class XXH64Suite {
     for (int i = 0; i < size; i++) {
       int vint = rand.nextInt();
       long lint = rand.nextLong();
-      Assertions.assertEquals(hasher.hashInt(vint), hasher.hashInt(vint));
-      Assertions.assertEquals(hasher.hashLong(lint), hasher.hashLong(lint));
+      Assert.assertEquals(hasher.hashInt(vint), hasher.hashInt(vint));
+      Assert.assertEquals(hasher.hashLong(lint), hasher.hashLong(lint));
 
       hashcodes.add(hasher.hashLong(lint));
     }
 
     // A very loose bound.
-    Assertions.assertTrue(hashcodes.size() > size * 0.95d);
+    Assert.assertTrue(hashcodes.size() > size * 0.95d);
   }
 
   @Test
@@ -162,7 +162,7 @@ public class XXH64Suite {
       byte[] bytes = new byte[byteArrSize];
       rand.nextBytes(bytes);
 
-      Assertions.assertEquals(
+      Assert.assertEquals(
               hasher.hashUnsafeWords(bytes, Platform.BYTE_ARRAY_OFFSET, byteArrSize),
               hasher.hashUnsafeWords(bytes, Platform.BYTE_ARRAY_OFFSET, byteArrSize));
 
@@ -171,7 +171,7 @@ public class XXH64Suite {
     }
 
     // A very loose bound.
-    Assertions.assertTrue(hashcodes.size() > size * 0.95d);
+    Assert.assertTrue(hashcodes.size() > size * 0.95d);
   }
 
   @Test
@@ -185,7 +185,7 @@ public class XXH64Suite {
       byte[] paddedBytes = new byte[byteArrSize];
       System.arraycopy(strBytes, 0, paddedBytes, 0, strBytes.length);
 
-      Assertions.assertEquals(
+      Assert.assertEquals(
               hasher.hashUnsafeWords(paddedBytes, Platform.BYTE_ARRAY_OFFSET, byteArrSize),
               hasher.hashUnsafeWords(paddedBytes, Platform.BYTE_ARRAY_OFFSET, byteArrSize));
 
@@ -194,6 +194,6 @@ public class XXH64Suite {
     }
 
     // A very loose bound.
-    Assertions.assertTrue(hashcodes.size() > size * 0.95d);
+    Assert.assertTrue(hashcodes.size() > size * 0.95d);
   }
 }

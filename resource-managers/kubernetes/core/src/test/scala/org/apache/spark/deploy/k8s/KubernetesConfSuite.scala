@@ -24,7 +24,6 @@ import org.apache.spark.deploy.k8s.Config._
 import org.apache.spark.deploy.k8s.Constants._
 import org.apache.spark.deploy.k8s.submit._
 import org.apache.spark.resource.ResourceProfile.DEFAULT_RESOURCE_PROFILE_ID
-import org.apache.spark.util.Utils
 
 class KubernetesConfSuite extends SparkFunSuite {
 
@@ -43,9 +42,7 @@ class KubernetesConfSuite extends SparkFunSuite {
     "customLabel2Key" -> "customLabel2Value")
   private val CUSTOM_ANNOTATIONS = Map(
     "customAnnotation1Key" -> "customAnnotation1Value",
-    "customAnnotation2Key" -> "customAnnotation2Value",
-    "customAnnotation3Key" -> "{{APP_ID}}",
-    "customAnnotation4Key" -> "{{EXECUTOR_ID}}")
+    "customAnnotation2Key" -> "customAnnotation2Value")
   private val SECRET_NAMES_TO_MOUNT_PATHS = Map(
     "secret1" -> "/mnt/secrets/secret1",
     "secret2" -> "/mnt/secrets/secret2")
@@ -96,9 +93,7 @@ class KubernetesConfSuite extends SparkFunSuite {
       SPARK_APP_NAME_LABEL -> KubernetesConf.getAppNameLabel(conf.appName),
       SPARK_ROLE_LABEL -> SPARK_POD_DRIVER_ROLE) ++
       CUSTOM_LABELS)
-    assert(conf.annotations === CUSTOM_ANNOTATIONS.map {
-      case (k, v) => (k, Utils.substituteAppNExecIds(v, conf.appId, ""))
-    })
+    assert(conf.annotations === CUSTOM_ANNOTATIONS)
     assert(conf.secretNamesToMountPaths === SECRET_NAMES_TO_MOUNT_PATHS)
     assert(conf.secretEnvNamesToKeyRefs === SECRET_ENV_VARS)
     assert(conf.environment === CUSTOM_ENVS)
@@ -166,9 +161,7 @@ class KubernetesConfSuite extends SparkFunSuite {
       SPARK_APP_NAME_LABEL -> KubernetesConf.getAppNameLabel(conf.appName),
       SPARK_ROLE_LABEL -> SPARK_POD_EXECUTOR_ROLE,
       SPARK_RESOURCE_PROFILE_ID_LABEL -> DEFAULT_RESOURCE_PROFILE_ID.toString) ++ CUSTOM_LABELS)
-    assert(conf.annotations === CUSTOM_ANNOTATIONS.map {
-      case (k, v) => (k, Utils.substituteAppNExecIds(v, conf.appId, EXECUTOR_ID))
-    })
+    assert(conf.annotations === CUSTOM_ANNOTATIONS)
     assert(conf.secretNamesToMountPaths === SECRET_NAMES_TO_MOUNT_PATHS)
     assert(conf.secretEnvNamesToKeyRefs === SECRET_ENV_VARS)
   }

@@ -15,9 +15,8 @@
 # limitations under the License.
 #
 
-from typing import Any, Union, List, Tuple, Callable, Iterable
-
 import pandas as pd
+from typing import Any, Union, List, Tuple, Callable, Iterable
 
 from pyspark import cloudpickle
 from pyspark.sql import DataFrame
@@ -119,7 +118,7 @@ def transform_dataframe_column(
         A list of names of input columns to be transformed
 
     transform_fn:
-        A transforming function with one or more arguments of `pandas.Series` type,
+        A transforming function with one arguments of `pandas.Series` type,
         if the transform function output is only one column data,
         return transformed result as a `pandas.Series` object,
         otherwise return transformed result as a `pandas.DataFrame` object
@@ -148,7 +147,6 @@ def transform_dataframe_column(
         output_col_name, spark_udf_return_type = output_cols[0]
 
     if isinstance(dataframe, pd.DataFrame):
-        dataframe = dataframe.copy(deep=False)
         result_data = transform_fn(*[dataframe[col_name] for col_name in input_cols])
         if isinstance(result_data, pd.Series):
             assert len(output_cols) == 1
@@ -162,8 +160,8 @@ def transform_dataframe_column(
         return dataframe
 
     @pandas_udf(returnType=spark_udf_return_type)  # type: ignore[call-overload]
-    def transform_fn_pandas_udf(*s: "pd.Series") -> "pd.Series":
-        return transform_fn(*s)
+    def transform_fn_pandas_udf(s: "pd.Series") -> "pd.Series":
+        return transform_fn(s)
 
     result_spark_df = dataframe.withColumn(output_col_name, transform_fn_pandas_udf(*input_cols))
 

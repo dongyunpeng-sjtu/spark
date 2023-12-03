@@ -96,10 +96,10 @@ class ClosureCleanerSuite2 extends SparkFunSuite with BeforeAndAfterAll with Pri
     // If the resulting closure is not serializable even after
     // cleaning, we expect ClosureCleaner to throw a SparkException
     if (serializableAfter) {
-      SparkClosureCleaner.clean(closure, checkSerializable = true, transitive)
+      ClosureCleaner.clean(closure, checkSerializable = true, transitive)
     } else {
       intercept[SparkException] {
-        SparkClosureCleaner.clean(closure, checkSerializable = true, transitive)
+        ClosureCleaner.clean(closure, checkSerializable = true, transitive)
       }
     }
     assertSerializable(closure, serializableAfter)

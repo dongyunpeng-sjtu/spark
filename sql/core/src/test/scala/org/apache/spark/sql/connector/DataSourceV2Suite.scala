@@ -77,12 +77,6 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }.head
   }
 
-  test("invalid data source") {
-    intercept[IllegalArgumentException] {
-      spark.read.format(classOf[InvalidDataSource].getName).load()
-    }
-  }
-
   test("simplest implementation") {
     Seq(classOf[SimpleDataSourceV2], classOf[JavaSimpleDataSourceV2]).foreach { cls =>
       withClue(cls.getName) {
@@ -1160,10 +1154,4 @@ class ReportStatisticsDataSource extends SimpleWritableDataSource {
       }
     }
   }
-}
-
-class InvalidDataSource extends TestingV2Source {
-  throw new IllegalArgumentException("test error")
-
-  override def getTable(options: CaseInsensitiveStringMap): Table = null
 }

@@ -22,7 +22,9 @@ from pyspark.testing.pandasutils import PandasOnSparkTestUtils
 
 
 class NamespaceParityTests(NamespaceTestsMixin, PandasOnSparkTestUtils, ReusedConnectTestCase):
-    pass
+    @unittest.skip("TODO(SPARK-43655): Enable NamespaceParityTests.test_get_index_map.")
+    def test_get_index_map(self):
+        super().test_get_index_map()
 
 
 if __name__ == "__main__":

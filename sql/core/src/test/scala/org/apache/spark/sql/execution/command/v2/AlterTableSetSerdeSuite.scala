@@ -41,7 +41,7 @@ class AlterTableSetSerdeSuite extends command.AlterTableSetSerdeSuiteBase with C
           sql(s"ALTER TABLE $t SET SERDEPROPERTIES ('columns'='foo,bar', 'field.delim' = ',')")
         },
         errorClass = "NOT_SUPPORTED_COMMAND_FOR_V2_TABLE",
-        sqlState = "0A000",
+        sqlState = "46110",
         parameters = Map("cmd" -> "ALTER TABLE ... SET [SERDE|SERDEPROPERTIES]")
       )
     }

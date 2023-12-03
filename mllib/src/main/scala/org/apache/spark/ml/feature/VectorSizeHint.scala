@@ -17,16 +17,17 @@
 
 package org.apache.spark.ml.feature
 
+import org.apache.spark.SparkException
 import org.apache.spark.annotation.Since
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.attribute.AttributeGroup
-import org.apache.spark.ml.linalg.VectorUDT
+import org.apache.spark.ml.linalg.{Vector, VectorUDT}
 import org.apache.spark.ml.param.{IntParam, Param, ParamMap, ParamValidators}
 import org.apache.spark.ml.param.shared.{HasHandleInvalid, HasInputCol}
 import org.apache.spark.ml.util.{DefaultParamsReadable, DefaultParamsWritable, Identifiable}
-import org.apache.spark.sql.{DataFrame, Dataset}
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{StringType, StructType}
+import org.apache.spark.sql.{Column, DataFrame, Dataset}
+import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.types.StructType
 
 /**
  * A feature transformer that adds size information to the metadata of a vector column.
@@ -103,25 +104,33 @@ class VectorSizeHint @Since("2.3.0") (@Since("2.3.0") override val uid: String)
     if (localHandleInvalid == VectorSizeHint.OPTIMISTIC_INVALID && group.size == localSize) {
       dataset.toDF()
     } else {
-      val vecCol = col(localInputCol)
-      val sizeCol = coalesce(unwrap_udt(vecCol).getField("size"),
-        array_size(unwrap_udt(vecCol).getField("values")))
-      val newVecCol = localHandleInvalid match {
-        case VectorSizeHint.OPTIMISTIC_INVALID => vecCol
+      val newCol: Column = localHandleInvalid match {
+        case VectorSizeHint.OPTIMISTIC_INVALID => col(localInputCol)
         case VectorSizeHint.ERROR_INVALID =>
-          when(vecCol.isNull, raise_error(
-            lit("Got null vector in VectorSizeHint, set `handleInvalid` to 'skip' to " +
-              "filter invalid rows.")))
-            .when(sizeCol =!= localSize, raise_error(concat(
-              lit(s"VectorSizeHint Expecting a vector of size $localSize but got "),
-              sizeCol.cast(StringType))))
-            .otherwise(vecCol)
+          val checkVectorSizeUDF = udf { vector: Vector =>
+            if (vector == null) {
+              throw new SparkException(s"Got null vector in VectorSizeHint, set `handleInvalid` " +
+                s"to 'skip' to filter invalid rows.")
+            }
+            if (vector.size != localSize) {
+              throw new SparkException(s"VectorSizeHint Expecting a vector of size $localSize but" +
+                s" got ${vector.size}")
+            }
+            vector
+          }.asNondeterministic()
+          checkVectorSizeUDF(col(localInputCol))
         case VectorSizeHint.SKIP_INVALID =>
-          when(!vecCol.isNull && sizeCol === localSize, vecCol)
-            .otherwise(lit(null))
+          val checkVectorSizeUDF = udf { vector: Vector =>
+            if (vector != null && vector.size == localSize) {
+              vector
+            } else {
+              null
+            }
+          }
+          checkVectorSizeUDF(col(localInputCol))
       }
 
-      val res = dataset.withColumn(localInputCol, newVecCol, newGroup.toMetadata())
+      val res = dataset.withColumn(localInputCol, newCol.as(localInputCol, newGroup.toMetadata()))
       if (localHandleInvalid == VectorSizeHint.SKIP_INVALID) {
         res.na.drop(Array(localInputCol))
       } else {

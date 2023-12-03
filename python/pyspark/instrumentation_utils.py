@@ -31,6 +31,7 @@ _local = threading.local()
 
 
 def _wrap_function(class_name: str, function_name: str, func: Callable, logger: Any) -> Callable:
+
     signature = inspect.signature(func)
 
     @functools.wraps(func)
@@ -90,6 +91,7 @@ def _wrap_property(class_name: str, property_name: str, prop: Any, logger: Any) 
 def _wrap_missing_function(
     class_name: str, function_name: str, func: Callable, original: Any, logger: Any
 ) -> Any:
+
     if not hasattr(original, function_name):
         return func
 
@@ -108,6 +110,7 @@ def _wrap_missing_function(
 
 
 def _wrap_missing_property(class_name: str, property_name: str, prop: Any, logger: Any) -> Any:
+
     is_deprecated = prop.fget.__name__ == "deprecated_property"
 
     @property  # type: ignore[misc]

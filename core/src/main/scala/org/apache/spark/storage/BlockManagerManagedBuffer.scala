@@ -51,8 +51,6 @@ private[storage] class BlockManagerManagedBuffer(
 
   override def convertToNetty(): Object = data.toNetty()
 
-  override def convertToNettyForSsl(): Object = data.toNettyForSsl()
-
   override def retain(): ManagedBuffer = {
     refCount.incrementAndGet()
     val locked = blockInfoManager.lockForReading(blockId, blocking = false)

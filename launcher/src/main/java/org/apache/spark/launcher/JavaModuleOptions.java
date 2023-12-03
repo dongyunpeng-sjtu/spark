@@ -36,7 +36,6 @@ public class JavaModuleOptions {
       "--add-opens=java.base/java.util=ALL-UNNAMED",
       "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
       "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
-      "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
       "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
       "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
       "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
@@ -50,13 +49,5 @@ public class JavaModuleOptions {
      */
     public static String defaultModuleOptions() {
       return String.join(" ", DEFAULT_MODULE_OPTIONS);
-    }
-
-    /**
-     * Returns the default Java option array related to `--add-opens' and
-     * `-XX:+IgnoreUnrecognizedVMOptions` used by Spark.
-     */
-    public static String[] defaultModuleOptionArray() {
-      return DEFAULT_MODULE_OPTIONS;
     }
 }

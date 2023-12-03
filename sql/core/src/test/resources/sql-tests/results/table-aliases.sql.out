@@ -40,11 +40,10 @@ struct<>
 -- !query output
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "ASSIGNMENT_ARITY_MISMATCH",
-  "sqlState" : "42802",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1028",
   "messageParameters" : {
-    "numExpr" : "3",
-    "numTarget" : "2"
+    "columnSize" : "3",
+    "outputSize" : "2"
   },
   "queryContext" : [ {
     "objectType" : "",
@@ -63,11 +62,10 @@ struct<>
 -- !query output
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "ASSIGNMENT_ARITY_MISMATCH",
-  "sqlState" : "42802",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1028",
   "messageParameters" : {
-    "numExpr" : "1",
-    "numTarget" : "2"
+    "columnSize" : "1",
+    "outputSize" : "2"
   },
   "queryContext" : [ {
     "objectType" : "",

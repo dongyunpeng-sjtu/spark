@@ -18,17 +18,15 @@
 package org.apache.spark.sql.connect.client
 
 import java.net.URI
-import java.util.{Locale, UUID}
+import java.util.UUID
 import java.util.concurrent.Executor
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
-import scala.util.Properties
 
 import com.google.protobuf.ByteString
 import io.grpc._
 
-import org.apache.spark.SparkBuildInfo.{spark_version => SPARK_VERSION}
 import org.apache.spark.connect.proto
 import org.apache.spark.connect.proto.UserContext
 import org.apache.spark.sql.connect.common.ProtoUtils
@@ -468,7 +466,7 @@ object SparkConnectClient {
 
     def userAgent(value: String): Builder = {
       require(value != null)
-      _configuration = _configuration.copy(userAgent = genUserAgent(value))
+      _configuration = _configuration.copy(userAgent = value)
       this
     }
 
@@ -588,27 +586,6 @@ object SparkConnectClient {
   }
 
   /**
-   * Appends the Spark, Scala & JVM version, and the used OS to the user-provided user agent.
-   */
-  private def genUserAgent(value: String): String = {
-    val scalaVersion = Properties.versionNumberString
-    val jvmVersion = System.getProperty("java.version").split("_")(0)
-    val osName = {
-      val os = System.getProperty("os.name").toLowerCase(Locale.ROOT)
-      if (os.contains("mac")) "darwin"
-      else if (os.contains("linux")) "linux"
-      else if (os.contains("win")) "windows"
-      else "unknown"
-    }
-    List(
-      value,
-      s"spark/$SPARK_VERSION",
-      s"scala/$scalaVersion",
-      s"jvm/$jvmVersion",
-      s"os/$osName").mkString(" ")
-  }
-
-  /**
    * Helper class that fully captures the configuration for a [[SparkConnectClient]].
    */
   private[sql] case class Configuration(
@@ -619,8 +596,7 @@ object SparkConnectClient {
       token: Option[String] = None,
       isSslEnabled: Option[Boolean] = None,
       metadata: Map[String, String] = Map.empty,
-      userAgent: String = genUserAgent(
-        sys.env.getOrElse("SPARK_CONNECT_USER_AGENT", DEFAULT_USER_AGENT)),
+      userAgent: String = DEFAULT_USER_AGENT,
       retryPolicy: GrpcRetryHandler.RetryPolicy = GrpcRetryHandler.RetryPolicy(),
       useReattachableExecute: Boolean = true,
       interceptors: List[ClientInterceptor] = List.empty,

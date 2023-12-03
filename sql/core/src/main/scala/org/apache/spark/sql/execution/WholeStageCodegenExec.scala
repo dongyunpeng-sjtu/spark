@@ -164,7 +164,7 @@ trait CodegenSupport extends SparkPlan {
       }
 
     val inputVars = inputVarsCandidate match {
-      case stream: LazyList[ExprCode] => stream.force
+      case stream: Stream[ExprCode] => stream.force
       case other => other
     }
 

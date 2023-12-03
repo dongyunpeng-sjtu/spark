@@ -19,7 +19,7 @@ package org.apache.spark.streaming.kafka010
 
 import java.{ util => ju }
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.kafka.common.TopicPartition
 

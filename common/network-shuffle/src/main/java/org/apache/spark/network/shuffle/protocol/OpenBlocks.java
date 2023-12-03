@@ -60,7 +60,8 @@ public class OpenBlocks extends BlockTransferMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof OpenBlocks o) {
+    if (other instanceof OpenBlocks) {
+      OpenBlocks o = (OpenBlocks) other;
       return Objects.equals(appId, o.appId)
         && Objects.equals(execId, o.execId)
         && Arrays.equals(blockIds, o.blockIds);

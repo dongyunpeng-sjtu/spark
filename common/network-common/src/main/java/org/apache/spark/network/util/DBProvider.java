@@ -21,8 +21,6 @@ import java.io.IOException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.spark.network.shuffledb.DB;
 import org.apache.spark.network.shuffledb.DBBackend;
@@ -31,7 +29,6 @@ import org.apache.spark.network.shuffledb.RocksDB;
 import org.apache.spark.network.shuffledb.StoreVersion;
 
 public class DBProvider {
-  private static final Logger logger = LoggerFactory.getLogger(DBProvider.class);
     public static DB initDB(
         DBBackend dbBackend,
         File dbFile,
@@ -41,7 +38,6 @@ public class DBProvider {
         switch (dbBackend) {
           case LEVELDB:
             org.iq80.leveldb.DB levelDB = LevelDBProvider.initLevelDB(dbFile, version, mapper);
-            logger.warn("The LEVELDB is deprecated. Please use ROCKSDB instead.");
             return levelDB != null ? new LevelDB(levelDB) : null;
           case ROCKSDB:
             org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version, mapper);
@@ -56,13 +52,12 @@ public class DBProvider {
     @VisibleForTesting
     public static DB initDB(DBBackend dbBackend, File file) throws IOException {
       if (file != null) {
-        return switch (dbBackend) {
-          case LEVELDB -> {
-            logger.warn("The LEVELDB is deprecated. Please use ROCKSDB instead.");
-            yield new LevelDB(LevelDBProvider.initLevelDB(file));
-          }
-          case ROCKSDB -> new RocksDB(RocksDBProvider.initRocksDB(file));
-        };
+        switch (dbBackend) {
+          case LEVELDB: return new LevelDB(LevelDBProvider.initLevelDB(file));
+          case ROCKSDB: return new RocksDB(RocksDBProvider.initRocksDB(file));
+          default:
+            throw new IllegalArgumentException("Unsupported DBBackend: " + dbBackend);
+        }
       }
       return null;
     }

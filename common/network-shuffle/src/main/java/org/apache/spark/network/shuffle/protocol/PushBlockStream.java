@@ -87,7 +87,8 @@ public class PushBlockStream extends BlockTransferMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof PushBlockStream o) {
+    if (other instanceof PushBlockStream) {
+      PushBlockStream o = (PushBlockStream) other;
       return Objects.equal(appId, o.appId)
         && appAttemptId == o.appAttemptId
         && shuffleId == o.shuffleId

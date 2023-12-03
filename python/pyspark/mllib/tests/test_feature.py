@@ -118,6 +118,7 @@ class HashingTFTest(MLlibTestCase):
 
 
 class DimensionalityReductionTests(MLlibTestCase):
+
     denseData = [
         Vectors.dense([0.0, 1.0, 2.0]),
         Vectors.dense([3.0, 4.0, 5.0]),

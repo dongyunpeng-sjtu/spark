@@ -202,8 +202,8 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
     val udf: TestUDF
   }
 
-  protected trait UDTFSetTest {
-    val udtfSet: TestUDTFSet
+  protected trait UDTFTest {
+    val udtf: TestUDTF
   }
 
   /** A regular test case. */
@@ -241,14 +241,14 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
       UDFAnalyzerTestCase(newName, inputFile, newResultFile, udf)
   }
 
-  protected case class UDTFSetTestCase(
+  protected case class UDTFTestCase(
       name: String,
       inputFile: String,
       resultFile: String,
-      udtfSet: TestUDTFSet) extends TestCase with UDTFSetTest {
+      udtf: TestUDTF) extends TestCase with UDTFTest {
 
     override def asAnalyzerTest(newName: String, newResultFile: String): TestCase =
-      UDTFSetAnalyzerTestCase(newName, inputFile, newResultFile, udtfSet)
+      UDTFAnalyzerTestCase(newName, inputFile, newResultFile, udtf)
   }
 
   /** A UDAF test case. */
@@ -299,9 +299,9 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
   protected case class UDFAnalyzerTestCase(
       name: String, inputFile: String, resultFile: String, udf: TestUDF)
       extends AnalyzerTest with UDFTest
-  protected case class UDTFSetAnalyzerTestCase(
-      name: String, inputFile: String, resultFile: String, udtfSet: TestUDTFSet)
-      extends AnalyzerTest with UDTFSetTest
+  protected case class UDTFAnalyzerTestCase(
+      name: String, inputFile: String, resultFile: String, udtf: TestUDTF)
+      extends AnalyzerTest with UDTFTest
   protected case class UDAFAnalyzerTestCase(
       name: String, inputFile: String, resultFile: String, udf: TestUDF)
       extends AnalyzerTest with UDFTest
@@ -321,19 +321,19 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
       // Create a test case to ignore this case.
       ignore(testCase.name) { /* Do nothing */ }
     } else testCase match {
-      case udfTestCase: SQLQueryTestSuite#UDFTest
+      case udfTestCase: UDFTest
           if udfTestCase.udf.isInstanceOf[TestPythonUDF] && !shouldTestPythonUDFs =>
         ignore(s"${testCase.name} is skipped because " +
           s"[$pythonExec] and/or pyspark were not available.") {
           /* Do nothing */
         }
-      case udfTestCase: SQLQueryTestSuite#UDFTest
+      case udfTestCase: UDFTest
           if udfTestCase.udf.isInstanceOf[TestScalarPandasUDF] && !shouldTestPandasUDFs =>
         ignore(s"${testCase.name} is skipped because pyspark," +
           s"pandas and/or pyarrow were not available in [$pythonExec].") {
           /* Do nothing */
         }
-      case udfTestCase: SQLQueryTestSuite#UDFTest
+      case udfTestCase: UDFTest
           if udfTestCase.udf.isInstanceOf[TestGroupedAggPandasUDF] &&
             !shouldTestPandasUDFs =>
         ignore(s"${testCase.name} is skipped because pyspark," +
@@ -425,7 +425,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
       // We need to do cartesian product for all the config dimensions, to get a list of
       // config sets, and run the query once for each config set.
       val configDimLines = comments.filter(_.startsWith("--CONFIG_DIM")).map(_.substring(12))
-      val configDims = configDimLines.groupBy(_.takeWhile(_ != ' ')).view.mapValues { lines =>
+      val configDims = configDimLines.groupBy(_.takeWhile(_ != ' ')).mapValues { lines =>
         lines.map(_.dropWhile(_ != ' ').substring(1)).map(_.split(",").map { kv =>
           val (conf, value) = kv.span(_ != '=')
           conf.trim -> value.substring(1).trim
@@ -503,15 +503,15 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
     val localSparkSession = spark.newSession()
 
     testCase match {
-      case udfTestCase: SQLQueryTestSuite#UDFTest =>
+      case udfTestCase: UDFTest =>
         registerTestUDF(udfTestCase.udf, localSparkSession)
-      case udtfTestCase: SQLQueryTestSuite#UDTFSetTest =>
-        registerTestUDTFs(udtfTestCase.udtfSet, localSparkSession)
+      case udtfTestCase: UDTFTest =>
+        registerTestUDTF(udtfTestCase.udtf, localSparkSession)
       case _ =>
     }
 
     testCase match {
-      case _: SQLQueryTestSuite#PgSQLTest =>
+      case _: PgSQLTest =>
         // booleq/boolne used by boolean.sql
         localSparkSession.udf.register("booleq", (b1: Boolean, b2: Boolean) => b1 == b2)
         localSparkSession.udf.register("boolne", (b1: Boolean, b2: Boolean) => b1 != b2)
@@ -519,9 +519,9 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
         localSparkSession.udf.register("vol", (s: String) => s)
         localSparkSession.conf.set(SQLConf.ANSI_ENABLED.key, true)
         localSparkSession.conf.set(SQLConf.LEGACY_INTERVAL_ENABLED.key, true)
-      case _: SQLQueryTestSuite#AnsiTest =>
+      case _: AnsiTest =>
         localSparkSession.conf.set(SQLConf.ANSI_ENABLED.key, true)
-      case _: SQLQueryTestSuite#TimestampNTZTest =>
+      case _: TimestampNTZTest =>
         localSparkSession.conf.set(SQLConf.TIMESTAMP_TYPE.key,
           TimestampTypes.TIMESTAMP_NTZ.toString)
       case _ =>
@@ -541,19 +541,19 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
         case _: AnalyzerTest =>
           val (_, output) =
             handleExceptions(getNormalizedQueryAnalysisResult(localSparkSession, sql))
-          // We do some query canonicalization now.
+          // We might need to do some query canonicalization in the future.
           AnalyzerOutput(
             sql = sql,
             schema = None,
-            output = normalizeTestResults(output.mkString("\n")))
+            output = output.mkString("\n").replaceAll("\\s+$", ""))
         case _ =>
           val (schema, output) =
             handleExceptions(getNormalizedQueryExecutionResult(localSparkSession, sql))
-          // We do some query canonicalization now.
+          // We might need to do some query canonicalization in the future.
           val executionOutput = ExecutionOutput(
             sql = sql,
             schema = Some(schema),
-            output = normalizeTestResults(output.mkString("\n")))
+            output = output.mkString("\n").replaceAll("\\s+$", ""))
           if (testCase.isInstanceOf[CTETest]) {
             expandCTEQueryAndCompareResult(localSparkSession, sql, executionOutput)
           }
@@ -581,21 +581,20 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
     // See also SPARK-29127. It is difficult to see the version information in the failed test
     // cases so the version information related to Python was also added.
     val clue = testCase match {
-      case udfTestCase: SQLQueryTestSuite#UDFTest
+      case udfTestCase: UDFTest
           if udfTestCase.udf.isInstanceOf[TestPythonUDF] && shouldTestPythonUDFs =>
         s"${testCase.name}${System.lineSeparator()}Python: $pythonVer${System.lineSeparator()}"
-      case udfTestCase: SQLQueryTestSuite#UDFTest
+      case udfTestCase: UDFTest
           if udfTestCase.udf.isInstanceOf[TestScalarPandasUDF] && shouldTestPandasUDFs =>
         s"${testCase.name}${System.lineSeparator()}" +
           s"Python: $pythonVer Pandas: $pandasVer PyArrow: $pyarrowVer${System.lineSeparator()}"
-      case udfTestCase: SQLQueryTestSuite#UDFTest
+      case udfTestCase: UDFTest
           if udfTestCase.udf.isInstanceOf[TestGroupedAggPandasUDF] &&
             shouldTestPandasUDFs =>
         s"${testCase.name}${System.lineSeparator()}" +
           s"Python: $pythonVer Pandas: $pandasVer PyArrow: $pyarrowVer${System.lineSeparator()}"
-      case udtfTestCase: SQLQueryTestSuite#UDTFSetTest
-          if udtfTestCase.udtfSet.udtfs.forall(_.isInstanceOf[TestPythonUDTF]) &&
-            shouldTestPythonUDFs =>
+      case udtfTestCase: UDTFTest
+          if udtfTestCase.udtf.isInstanceOf[TestPythonUDTF] && shouldTestPythonUDFs =>
         s"${testCase.name}${System.lineSeparator()}Python: $pythonVer${System.lineSeparator()}"
       case _ =>
         s"${testCase.name}${System.lineSeparator()}"
@@ -644,27 +643,10 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
             s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
         }
       } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udtf")) {
-        Seq(TestUDTFSet(Seq(
-          TestPythonUDTF("udtf"),
-          TestPythonUDTFCountSumLast,
-          TestPythonUDTFLastString,
-          TestPythonUDTFWithSinglePartition,
-          TestPythonUDTFPartitionBy,
-          InvalidPartitionByAndWithSinglePartition,
-          InvalidOrderByWithoutPartitionBy,
-          InvalidEvalReturnsNoneToNonNullableColumnScalarType,
-          InvalidEvalReturnsNoneToNonNullableColumnArrayType,
-          InvalidEvalReturnsNoneToNonNullableColumnArrayElementType,
-          InvalidEvalReturnsNoneToNonNullableColumnStructType,
-          InvalidEvalReturnsNoneToNonNullableColumnMapType,
-          InvalidTerminateReturnsNoneToNonNullableColumnScalarType,
-          InvalidTerminateReturnsNoneToNonNullableColumnArrayType,
-          InvalidTerminateReturnsNoneToNonNullableColumnArrayElementType,
-          InvalidTerminateReturnsNoneToNonNullableColumnStructType,
-          InvalidTerminateReturnsNoneToNonNullableColumnMapType
-        ))).map { udtfSet =>
-          UDTFSetTestCase(
-            s"$testCaseName - Python UDTFs", absPath, resultFile, udtfSet)
+        Seq(TestPythonUDTF("udtf")).map { udtf =>
+          UDTFTestCase(
+            s"$testCaseName - ${udtf.prettyName}", absPath, resultFile, udtf
+          )
         }
       } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}postgreSQL")) {
         PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
@@ -707,10 +689,12 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
   protected def createTestTables(session: SparkSession): Unit = {
     import session.implicits._
 
-    // Before creating test tables, deletes warehouse dir
-    val f = new File(new URI(conf.warehousePath))
-    if (f.exists()) {
-      Utils.deleteRecursively(f)
+    // Before creating test tables, deletes orphan directories in warehouse dir
+    Seq("testdata", "arraydata", "mapdata", "aggtest", "onek", "tenk1").foreach { dirName =>
+      val f = new File(new URI(s"${conf.warehousePath}/$dirName"))
+      if (f.exists()) {
+        Utils.deleteRecursively(f)
+      }
     }
 
     (1 to 100).map(i => (i, i.toString)).toDF("key", "value")
@@ -858,18 +842,17 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
         s"Expected $numSegments blocks in result file but got " +
           s"${segments.size}. Try regenerate the result files.")
       var curSegment = 0
-
       outputs.map { output =>
         val result = if (output.numSegments == 3) {
           makeOutput(
             segments(curSegment + 1).trim, // SQL
             Some(segments(curSegment + 2).trim), // Schema
-            normalizeTestResults(segments(curSegment + 3))) // Output
+            segments(curSegment + 3).replaceAll("\\s+$", "")) // Output
         } else {
           makeOutput(
             segments(curSegment + 1).trim, // SQL
             None, // Schema
-            normalizeTestResults(segments(curSegment + 2))) // Output
+            segments(curSegment + 2).replaceAll("\\s+$", "")) // Output
         }
         curSegment += output.numSegments
         result
@@ -894,22 +877,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
         output.output
       }
     }
-  }
-
-  /** This is a helper function to normalize non-deterministic Python error stacktraces. */
-  def normalizeTestResults(output: String): String = {
-    val strippedPythonErrors: String = {
-      var traceback = false
-      output.split("\n").filter { line: String =>
-        if (line == "Traceback (most recent call last):") {
-          traceback = true
-        } else if (!line.startsWith(" ")) {
-          traceback = false
-        }
-        !traceback
-      }.mkString("\n")
-    }
-    strippedPythonErrors.replaceAll("\\s+$", "")
   }
 
   /** A single SQL query's output. */

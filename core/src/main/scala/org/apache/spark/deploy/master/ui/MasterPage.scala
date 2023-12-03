@@ -32,17 +32,13 @@ import org.apache.spark.util.Utils
 
 private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") {
   private val master = parent.masterEndpointRef
-  private val jsonFieldPattern = "/json/([a-zA-Z]+).*".r
 
   def getMasterState: MasterStateResponse = {
     master.askSync[MasterStateResponse](RequestMasterState)
   }
 
   override def renderJson(request: HttpServletRequest): JValue = {
-    jsonFieldPattern.findFirstMatchIn(request.getRequestURI()) match {
-      case None => JsonProtocol.writeMasterState(getMasterState)
-      case Some(m) => JsonProtocol.writeMasterState(getMasterState, Some(m.group(1)))
-    }
+    JsonProtocol.writeMasterState(getMasterState)
   }
 
   def handleAppKillRequest(request: HttpServletRequest): Unit = {
@@ -151,14 +147,8 @@ private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") {
                 {state.activeApps.length} <a href="#running-app">Running</a>,
                 {state.completedApps.length} <a href="#completed-app">Completed</a> </li>
               <li><strong>Drivers:</strong>
-                {state.activeDrivers.length} Running
-                ({state.activeDrivers.count(_.state == DriverState.SUBMITTED)} Waiting),
-                {state.completedDrivers.length} Completed
-                ({state.completedDrivers.count(_.state == DriverState.KILLED)} Killed,
-                {state.completedDrivers.count(_.state == DriverState.FAILED)} Failed,
-                {state.completedDrivers.count(_.state == DriverState.ERROR)} Error,
-                {state.completedDrivers.count(_.state == DriverState.RELAUNCHING)} Relaunching)
-              </li>
+                {state.activeDrivers.length} Running,
+                {state.completedDrivers.length} Completed </li>
               <li><strong>Status:</strong> {state.status}</li>
             </ul>
           </div>

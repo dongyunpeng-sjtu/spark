@@ -22,7 +22,7 @@ import java.sql.{SQLException, SQLFeatureNotSupportedException}
 import java.time.DateTimeException
 import java.util.ConcurrentModificationException
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 class SparkException(
     message: String,
@@ -133,7 +133,7 @@ private[spark] case class ExecutorDeadException(message: String)
 /**
  * Exception thrown when Spark returns different result after upgrading to a new version.
  */
-private[spark] class SparkUpgradeException(
+private[spark] class SparkUpgradeException private(
   message: String,
   cause: Option[Throwable],
   errorClass: Option[String],
@@ -169,7 +169,7 @@ private[spark] class SparkUpgradeException(
 /**
  * Arithmetic exception thrown from Spark with an error class.
  */
-private[spark] class SparkArithmeticException(
+private[spark] class SparkArithmeticException private(
     message: String,
     errorClass: Option[String],
     messageParameters: Map[String, String],
@@ -207,7 +207,7 @@ private[spark] class SparkArithmeticException(
 /**
  * Unsupported operation exception thrown from Spark with an error class.
  */
-private[spark] class SparkUnsupportedOperationException(
+private[spark] class SparkUnsupportedOperationException private(
   message: String,
   errorClass: Option[String],
   messageParameters: Map[String, String])
@@ -271,7 +271,7 @@ private[spark] class SparkConcurrentModificationException(
 /**
  * Datetime exception thrown from Spark with an error class.
  */
-private[spark] class SparkDateTimeException(
+private[spark] class SparkDateTimeException private(
     message: String,
     errorClass: Option[String],
     messageParameters: Map[String, String],
@@ -324,7 +324,7 @@ private[spark] class SparkFileNotFoundException(
 /**
  * Number format exception thrown from Spark with an error class.
  */
-private[spark] class SparkNumberFormatException private[spark](
+private[spark] class SparkNumberFormatException private(
     message: String,
     errorClass: Option[String],
     messageParameters: Map[String, String],
@@ -363,7 +363,7 @@ private[spark] class SparkNumberFormatException private[spark](
 /**
  * Illegal argument exception thrown from Spark with an error class.
  */
-private[spark] class SparkIllegalArgumentException(
+private[spark] class SparkIllegalArgumentException private(
     message: String,
     cause: Option[Throwable],
     errorClass: Option[String],
@@ -403,7 +403,7 @@ private[spark] class SparkIllegalArgumentException(
   override def getQueryContext: Array[QueryContext] = context
 }
 
-private[spark] class SparkRuntimeException(
+private[spark] class SparkRuntimeException private(
     message: String,
     cause: Option[Throwable],
     errorClass: Option[String],
@@ -480,7 +480,7 @@ private[spark] class SparkSecurityException(
 /**
  * Array index out of bounds exception thrown from Spark with an error class.
  */
-private[spark] class SparkArrayIndexOutOfBoundsException(
+private[spark] class SparkArrayIndexOutOfBoundsException private(
   message: String,
   errorClass: Option[String],
   messageParameters: Map[String, String],

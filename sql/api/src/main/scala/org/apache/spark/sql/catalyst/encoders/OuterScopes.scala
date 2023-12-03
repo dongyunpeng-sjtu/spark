@@ -70,7 +70,7 @@ object OuterScopes {
    * useful for inner class defined in REPL.
    */
   def getOuterScope(innerCls: Class[_]): () => AnyRef = {
-    if (!innerCls.isMemberClass) {
+    if (!SparkClassUtils.isMemberClass(innerCls)) {
       return null
     }
     val outerClass = innerCls.getDeclaringClass

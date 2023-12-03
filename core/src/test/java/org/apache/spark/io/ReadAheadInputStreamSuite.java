@@ -16,7 +16,7 @@
  */
 package org.apache.spark.io;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.Before;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,7 +26,7 @@ import java.io.InputStream;
  */
 public class ReadAheadInputStreamSuite extends GenericFileInputStreamSuite {
 
-  @BeforeEach
+  @Before
   public void setUp() throws IOException {
     super.setUp();
     inputStreams = new InputStream[] {

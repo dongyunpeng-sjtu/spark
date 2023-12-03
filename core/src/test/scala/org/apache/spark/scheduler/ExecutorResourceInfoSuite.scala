@@ -101,7 +101,6 @@ class ExecutorResourceInfoSuite extends SparkFunSuite {
       // assert that each address was assigned `slots` times
       info.assignedAddrs
         .groupBy(identity)
-        .view
         .mapValues(_.size)
         .foreach(x => assert(x._2 == slots))
 

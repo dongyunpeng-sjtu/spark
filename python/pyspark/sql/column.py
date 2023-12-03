@@ -73,23 +73,9 @@ def _to_java_expr(col: "ColumnOrName") -> JavaObject:
     return _to_java_column(col).expr()
 
 
-@overload
-def _to_seq(sc: SparkContext, cols: Iterable[JavaObject]) -> JavaObject:
-    pass
-
-
-@overload
 def _to_seq(
     sc: SparkContext,
     cols: Iterable["ColumnOrName"],
-    converter: Optional[Callable[["ColumnOrName"], JavaObject]],
-) -> JavaObject:
-    pass
-
-
-def _to_seq(
-    sc: SparkContext,
-    cols: Union[Iterable["ColumnOrName"], Iterable[JavaObject]],
     converter: Optional[Callable[["ColumnOrName"], JavaObject]] = None,
 ) -> JavaObject:
     """
@@ -712,11 +698,11 @@ class Column:
         --------
         >>> df = spark.createDataFrame([('abcedfg', {"key": "value"})], ["l", "d"])
         >>> df.select(df.l[slice(1, 3)], df.d['key']).show()
-        +---------------+------+
-        |substr(l, 1, 3)|d[key]|
-        +---------------+------+
-        |            abc| value|
-        +---------------+------+
+        +------------------+------+
+        |substring(l, 1, 3)|d[key]|
+        +------------------+------+
+        |               abc| value|
+        +------------------+------+
         """
         if isinstance(k, slice):
             if k.step is not None:
@@ -962,9 +948,8 @@ class Column:
 
         Parameters
         ----------
-        cols : Any
-            The values to compare with the column values. The result will only be true at a location
-            if any value matches in the Column.
+        cols
+            The result will only be true at a location if any value matches in the Column.
 
         Returns
         -------
@@ -973,35 +958,12 @@ class Column:
 
         Examples
         --------
-        >>> df = spark.createDataFrame([(2, "Alice"), (5, "Bob"), (8, "Mike")], ["age", "name"])
-
-        Example 1: Filter rows with names in the specified values
-
-        >>> df[df.name.isin("Bob", "Mike")].show()
-        +---+----+
-        |age|name|
-        +---+----+
-        |  5| Bob|
-        |  8|Mike|
-        +---+----+
-
-        Example 2: Filter rows with ages in the specified list
-
-        >>> df[df.age.isin([1, 2, 3])].show()
-        +---+-----+
-        |age| name|
-        +---+-----+
-        |  2|Alice|
-        +---+-----+
-
-        Example 3: Filter rows with names not in the specified values
-
-        >>> df[~df.name.isin("Alice", "Bob")].show()
-        +---+----+
-        |age|name|
-        +---+----+
-        |  8|Mike|
-        +---+----+
+        >>> df = spark.createDataFrame(
+        ...      [(2, "Alice"), (5, "Bob")], ["age", "name"])
+        >>> df[df.name.isin("Bob", "Mike")].collect()
+        [Row(age=5, name='Bob')]
+        >>> df[df.age.isin([1, 2, 3])].collect()
+        [Row(age=2, name='Alice')]
         """
         if len(cols) == 1 and isinstance(cols[0], (list, set)):
             cols = cast(Tuple, cols[0])
@@ -1261,8 +1223,7 @@ class Column:
         upperBound: Union["Column", "LiteralType", "DateTimeLiteral", "DecimalLiteral"],
     ) -> "Column":
         """
-        Check if the current column's values are between the specified lower and upper
-        bounds, inclusive.
+        True if the current column is between the lower bound and upper bound, inclusive.
 
         .. versionadded:: 1.3.0
 
@@ -1272,21 +1233,20 @@ class Column:
         Parameters
         ----------
         lowerBound : :class:`Column`, int, float, string, bool, datetime, date or Decimal
-            The lower boundary value, inclusive.
+            a boolean expression that boundary start, inclusive.
         upperBound : :class:`Column`, int, float, string, bool, datetime, date or Decimal
-            The upper boundary value, inclusive.
+            a boolean expression that boundary end, inclusive.
 
         Returns
         -------
         :class:`Column`
-            A new column of boolean values indicating whether each element in the original
-            column is within the specified range (inclusive).
+            Column of booleans showing whether each element of Column
+            is between left and right (inclusive).
 
         Examples
         --------
-        Using between with integer values.
-
-        >>> df = spark.createDataFrame([(2, "Alice"), (5, "Bob")], ["age", "name"])
+        >>> df = spark.createDataFrame(
+        ...      [(2, "Alice"), (5, "Bob")], ["age", "name"])
         >>> df.select(df.name, df.age.between(2, 4)).show()
         +-----+---------------------------+
         | name|((age >= 2) AND (age <= 4))|
@@ -1294,73 +1254,6 @@ class Column:
         |Alice|                       true|
         |  Bob|                      false|
         +-----+---------------------------+
-
-        Using between with string values.
-
-        >>> df = spark.createDataFrame([("Alice", "A"), ("Bob", "B")], ["name", "initial"])
-        >>> df.select(df.name, df.initial.between("A", "B")).show()
-        +-----+-----------------------------------+
-        | name|((initial >= A) AND (initial <= B))|
-        +-----+-----------------------------------+
-        |Alice|                               true|
-        |  Bob|                               true|
-        +-----+-----------------------------------+
-
-        Using between with float values.
-
-        >>> df = spark.createDataFrame(
-        ...     [(2.5, "Alice"), (5.5, "Bob")], ["height", "name"])
-        >>> df.select(df.name, df.height.between(2.0, 5.0)).show()
-        +-----+-------------------------------------+
-        | name|((height >= 2.0) AND (height <= 5.0))|
-        +-----+-------------------------------------+
-        |Alice|                                 true|
-        |  Bob|                                false|
-        +-----+-------------------------------------+
-
-        Using between with date values.
-
-        >>> import pyspark.sql.functions as sf
-        >>> df = spark.createDataFrame(
-        ...     [("Alice", "2023-01-01"), ("Bob", "2023-02-01")], ["name", "date"])
-        >>> df = df.withColumn("date", sf.to_date(df.date))
-        >>> df.select(df.name, df.date.between("2023-01-01", "2023-01-15")).show()
-        +-----+-----------------------------------------------+
-        | name|((date >= 2023-01-01) AND (date <= 2023-01-15))|
-        +-----+-----------------------------------------------+
-        |Alice|                                           true|
-        |  Bob|                                          false|
-        +-----+-----------------------------------------------+
-        >>> from datetime import date
-        >>> df.select(df.name, df.date.between(date(2023, 1, 1), date(2023, 1, 15))).show()
-        +-----+-------------------------------------------------------------+
-        | name|((date >= DATE '2023-01-01') AND (date <= DATE '2023-01-15'))|
-        +-----+-------------------------------------------------------------+
-        |Alice|                                                         true|
-        |  Bob|                                                        false|
-        +-----+-------------------------------------------------------------+
-
-        Using between with timestamp values.
-
-        >>> import pyspark.sql.functions as sf
-        >>> df = spark.createDataFrame(
-        ...     [("Alice", "2023-01-01 10:00:00"), ("Bob", "2023-02-01 10:00:00")],
-        ...     schema=["name", "timestamp"])
-        >>> df = df.withColumn("timestamp", sf.to_timestamp(df.timestamp))
-        >>> df.select(df.name, df.timestamp.between("2023-01-01", "2023-02-01")).show()
-        +-----+---------------------------------------------------------+
-        | name|((timestamp >= 2023-01-01) AND (timestamp <= 2023-02-01))|
-        +-----+---------------------------------------------------------+
-        |Alice|                                                     true|
-        |  Bob|                                                    false|
-        +-----+---------------------------------------------------------+
-        >>> df.select(df.name, df.timestamp.between("2023-01-01", "2023-02-01 12:00:00")).show()
-        +-----+------------------------------------------------------------------+
-        | name|((timestamp >= 2023-01-01) AND (timestamp <= 2023-02-01 12:00:00))|
-        +-----+------------------------------------------------------------------+
-        |Alice|                                                              true|
-        |  Bob|                                                              true|
-        +-----+------------------------------------------------------------------+
         """
         return (self >= lowerBound) & (self <= upperBound)
 

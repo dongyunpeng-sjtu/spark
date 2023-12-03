@@ -19,8 +19,8 @@ package org.apache.spark.network.sasl;
 
 import java.nio.ByteBuffer;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.Test;
+import static org.junit.Assert.*;
 
 public class ShuffleSecretManagerSuite {
   static String app1 = "app1";

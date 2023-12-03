@@ -19,7 +19,6 @@ package org.apache.spark.sql.catalyst.analysis
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project, Sort}
-import org.apache.spark.sql.connector.catalog.CatalogManager
 
 /**
  * A virtual rule to resolve [[UnresolvedAttribute]] in [[Sort]]. It's only used by the real
@@ -46,22 +45,20 @@ import org.apache.spark.sql.connector.catalog.CatalogManager
  * Note, 3 and 4 are actually orthogonal. If the child plan is Aggregate, 4 can only resolve columns
  * as the grouping columns, which is completely covered by 3.
  */
-class ResolveReferencesInSort(val catalogManager: CatalogManager)
-  extends SQLConfHelper with ColumnResolutionHelper {
+object ResolveReferencesInSort extends SQLConfHelper with ColumnResolutionHelper {
 
   def apply(s: Sort): LogicalPlan = {
-    val resolvedBasic = s.order.map(resolveExpressionByPlanOutput(_, s.child))
-    val resolvedWithAgg = resolvedBasic.map(resolveColWithAgg(_, s.child))
+    val resolvedNoOuter = s.order.map(resolveExpressionByPlanOutput(_, s.child))
+    val resolvedWithAgg = resolvedNoOuter.map(resolveColWithAgg(_, s.child))
     val (missingAttrResolved, newChild) = resolveExprsAndAddMissingAttrs(resolvedWithAgg, s.child)
     val orderByAllResolved = resolveOrderByAll(
       s.global, newChild, missingAttrResolved.map(_.asInstanceOf[SortOrder]))
-    val resolvedFinal = orderByAllResolved
-      .map(e => resolveColsLastResort(e).asInstanceOf[SortOrder])
+    val finalOrdering = orderByAllResolved.map(e => resolveOuterRef(e).asInstanceOf[SortOrder])
     if (s.child.output == newChild.output) {
-      s.copy(order = resolvedFinal)
+      s.copy(order = finalOrdering)
     } else {
       // Add missing attributes and then project them away.
-      val newSort = s.copy(order = resolvedFinal, child = newChild)
+      val newSort = s.copy(order = finalOrdering, child = newChild)
       Project(s.child.output, newSort)
     }
   }

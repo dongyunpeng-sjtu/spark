@@ -20,18 +20,18 @@ package org.apache.spark.storage
 import java.io.{File, InputStream, IOException}
 import java.nio.ByteBuffer
 import java.nio.file.Files
-import java.util.concurrent.ThreadLocalRandom
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{Future, TimeoutException}
 import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.reflect.classTag
 
 import com.esotericsoftware.kryo.KryoException
+import org.apache.commons.lang3.RandomUtils
 import org.mockito.{ArgumentCaptor, ArgumentMatchers => mc}
 import org.mockito.Mockito.{doAnswer, mock, never, spy, times, verify, when}
 import org.scalatest.PrivateMethodTester
@@ -133,12 +133,12 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with PrivateMethodTe
     val bmSecurityMgr = new SecurityManager(bmConf, encryptionKey)
     val serializerManager = new SerializerManager(serializer, bmConf, encryptionKey)
     val transfer = transferService.getOrElse(new NettyBlockTransferService(
-      bmConf, securityMgr, serializerManager, "localhost", "localhost", 0, 1))
+      conf, securityMgr, serializerManager, "localhost", "localhost", 0, 1))
     val memManager = UnifiedMemoryManager(bmConf, numCores = 1)
-    val externalShuffleClient = if (bmConf.get(config.SHUFFLE_SERVICE_ENABLED)) {
-      val transConf = SparkTransportConf.fromSparkConf(bmConf, "shuffle", 0)
+    val externalShuffleClient = if (conf.get(config.SHUFFLE_SERVICE_ENABLED)) {
+      val transConf = SparkTransportConf.fromSparkConf(conf, "shuffle", 0)
       Some(new ExternalBlockStoreClient(transConf, bmSecurityMgr,
-        bmSecurityMgr.isAuthenticationEnabled(), bmConf.get(config.SHUFFLE_REGISTRATION_TIMEOUT)))
+        bmSecurityMgr.isAuthenticationEnabled(), conf.get(config.SHUFFLE_REGISTRATION_TIMEOUT)))
     } else {
       None
     }
@@ -308,37 +308,6 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with PrivateMethodTe
     // locations to BlockManagerMaster)
     master.updateBlockInfo(bm1Id, RDDBlockId(0, 0), StorageLevel.MEMORY_ONLY, 100, 0)
     master.updateBlockInfo(bm2Id, RDDBlockId(0, 1), StorageLevel.MEMORY_ONLY, 100, 0)
-  }
-
-  Seq(true, false).foreach { shuffleServiceEnabled =>
-    test("SPARK-45310: report shuffle block status should respect " +
-      s"external shuffle service (enabled=$shuffleServiceEnabled)") {
-      val conf = new SparkConf()
-        .set(config.SHUFFLE_SERVICE_ENABLED, shuffleServiceEnabled)
-        .set(config.Tests.TEST_SKIP_ESS_REGISTER, true)
-      val bm = makeBlockManager(1000, "executor", testConf = Some(conf))
-      val blockManagerId = bm.blockManagerId
-      val shuffleServiceId = bm.shuffleServerId
-      bm.reportBlockStatus(BlockId("rdd_0_0"), BlockStatus.empty)
-      eventually(timeout(5.seconds)) {
-        // For non-shuffle blocks, it should just report block manager id.
-        verify(master, times(1))
-          .updateBlockInfo(mc.eq(blockManagerId), mc.any(), mc.any(), mc.any(), mc.any())
-      }
-      bm.reportBlockStatus(BlockId("shuffle_0_0_0.index"), BlockStatus.empty)
-      bm.reportBlockStatus(BlockId("shuffle_0_0_0.data"), BlockStatus.empty)
-      eventually(timeout(5.seconds)) {
-        // For shuffle blocks, it should report shuffle service id (if enabled)
-        // instead of block manager id.
-        val (expectedBMId, expectedTimes) = if (shuffleServiceEnabled) {
-          (shuffleServiceId, 2)
-        } else {
-          (blockManagerId, 3)
-        }
-        verify(master, times(expectedTimes))
-          .updateBlockInfo(mc.eq(expectedBMId), mc.any(), mc.any(), mc.any(), mc.any())
-      }
-    }
   }
 
   test("SPARK-36036: make sure temporary download files are deleted") {
@@ -1918,7 +1887,7 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with PrivateMethodTe
         (transCtx.createServer(port, Seq.empty[TransportServerBootstrap].asJava), port)
       }
 
-      val candidatePort = ThreadLocalRandom.current().nextInt(1024, 65536)
+      val candidatePort = RandomUtils.nextInt(1024, 65536)
       val (server, shufflePort) = Utils.startServiceOnPort(candidatePort,
         newShuffleServer, conf, "ShuffleServer")
 
@@ -2212,7 +2181,7 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with PrivateMethodTe
     val sortedBlocks = blocks.sortBy(b => (b.shuffleId, b.mapId))
 
     val resolver = mock(classOf[MigratableResolver])
-    when(resolver.getStoredShuffles()).thenReturn(blocks)
+    when(resolver.getStoredShuffles).thenReturn(blocks)
 
     val bm = mock(classOf[BlockManager])
     when(bm.migratableResolver).thenReturn(resolver)
@@ -2305,7 +2274,7 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with PrivateMethodTe
         (transCtx.createServer(port, Seq.empty[TransportServerBootstrap].asJava), port)
       }
 
-      val candidatePort = ThreadLocalRandom.current().nextInt(1024, 65536)
+      val candidatePort = RandomUtils.nextInt(1024, 65536)
       val (server, shufflePort) = Utils.startServiceOnPort(candidatePort,
         newShuffleServer, conf, "ShuffleServer")
 

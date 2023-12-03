@@ -50,13 +50,7 @@ object RocksDBMemoryManager extends Logging {
         logInfo(s"Creating RocksDB state store LRU cache with " +
           s"total_size=$totalMemoryUsageInBytes")
 
-        // SPARK-44878 - avoid using strict limit to prevent insertion exception on cache full.
-        // Please refer to RocksDB issue here - https://github.com/facebook/rocksdb/issues/8670
-        cache = new LRUCache(totalMemoryUsageInBytes,
-          -1,
-          /* strictCapacityLimit = */false,
-          conf.highPriorityPoolRatio)
-
+        cache = new LRUCache(totalMemoryUsageInBytes, -1, true, conf.highPriorityPoolRatio)
         writeBufferManager = new WriteBufferManager(
           (totalMemoryUsageInBytes * conf.writeBufferCacheRatio).toLong,
           cache)

@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.expressions
 
+import scala.collection.parallel.immutable.ParVector
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, InternalRow}
 import org.apache.spark.sql.catalyst.expressions._
@@ -24,7 +26,7 @@ import org.apache.spark.sql.execution.HiveResult.hiveResultString
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.tags.SlowSQLTest
-import org.apache.spark.util.{ThreadUtils, Utils}
+import org.apache.spark.util.Utils
 
 @SlowSQLTest
 class ExpressionInfoSuite extends SparkFunSuite with SharedSparkSession {
@@ -113,16 +115,14 @@ class ExpressionInfoSuite extends SparkFunSuite with SharedSparkSession {
       // _FUNC_ is replaced by `%` which causes a parsing error on `SELECT %(2, 1.8)`
       "org.apache.spark.sql.catalyst.expressions.Remainder",
       // Examples demonstrate alternative names, see SPARK-20749
-      "org.apache.spark.sql.catalyst.expressions.Length",
-      // Examples demonstrate alternative syntax, see SPARK-45574
-      "org.apache.spark.sql.catalyst.expressions.Cast")
+      "org.apache.spark.sql.catalyst.expressions.Length")
     spark.sessionState.functionRegistry.listFunction().foreach { funcId =>
       val info = spark.sessionState.catalog.lookupFunctionInfo(funcId)
       val className = info.getClassName
       withClue(s"Expression class '$className'") {
         val exprExamples = info.getOriginalExamples
         if (!exprExamples.isEmpty && !ignoreSet.contains(className)) {
-          assert(exampleRe.findAllIn(exprExamples).iterator.to(Iterable)
+          assert(exampleRe.findAllIn(exprExamples).toIterable
             .filter(setStmtRe.findFirstIn(_).isEmpty) // Ignore SET commands
             .forall(_.contains("_FUNC_")))
         }
@@ -190,20 +190,15 @@ class ExpressionInfoSuite extends SparkFunSuite with SharedSparkSession {
       "org.apache.spark.sql.catalyst.expressions.InputFileBlockLength",
       // The example calls methods that return unstable results.
       "org.apache.spark.sql.catalyst.expressions.CallMethodViaReflection",
-      "org.apache.spark.sql.catalyst.expressions.TryReflect",
       "org.apache.spark.sql.catalyst.expressions.SparkVersion",
       // Throws an error
       "org.apache.spark.sql.catalyst.expressions.RaiseError",
-      "org.apache.spark.sql.catalyst.expressions.AssertTrue",
       classOf[CurrentUser].getName,
       // The encrypt expression includes a random initialization vector to its encrypted result
       classOf[AesEncrypt].getName)
 
-    ThreadUtils.parmap(
-      spark.sessionState.functionRegistry.listFunction(),
-      prefix = "ExpressionInfoSuite-check-outputs-of-expression-examples",
-      maxThreads = Runtime.getRuntime.availableProcessors
-    ) { funcId =>
+    val parFuncs = new ParVector(spark.sessionState.functionRegistry.listFunction().toVector)
+    parFuncs.foreach { funcId =>
       // Examples can change settings. We clone the session to prevent tests clashing.
       val clonedSpark = spark.cloneSession()
       // Coalescing partitions can change result order, so disable it.

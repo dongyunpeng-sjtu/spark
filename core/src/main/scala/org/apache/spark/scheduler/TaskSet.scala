@@ -31,7 +31,7 @@ private[spark] class TaskSet(
     val properties: Properties,
     val resourceProfileId: Int,
     val shuffleId: Option[Int]) {
-  val id: String = s"$stageId.$stageAttemptId"
+  val id: String = stageId + "." + stageAttemptId
 
   override def toString: String = "TaskSet " + id
 }

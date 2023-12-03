@@ -262,11 +262,10 @@ class ProtobufSerdeSuite extends SharedSparkSession with ProtobufTestBase {
     val expectMsg = serdeFactory match {
       case Deserializer =>
         s"[CANNOT_CONVERT_PROTOBUF_MESSAGE_TYPE_TO_SQL_TYPE] Unable to convert" +
-          s" ${protoSchema.getName} of Protobuf to SQL type ${toSQLType(catalystSchema)}." +
-          " SQLSTATE: 42846"
+          s" ${protoSchema.getName} of Protobuf to SQL type ${toSQLType(catalystSchema)}."
       case Serializer =>
         s"[UNABLE_TO_CONVERT_TO_PROTOBUF_MESSAGE_TYPE] Unable to convert SQL type" +
-          s" ${toSQLType(catalystSchema)} to Protobuf type ${protoSchema.getName}. SQLSTATE: 42K0G"
+          s" ${toSQLType(catalystSchema)} to Protobuf type ${protoSchema.getName}."
     }
 
     assert(e.getMessage === expectMsg)

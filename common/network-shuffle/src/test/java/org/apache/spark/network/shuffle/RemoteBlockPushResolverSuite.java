@@ -42,15 +42,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 import org.apache.spark.network.buffer.FileSegmentManagedBuffer;
 import org.apache.spark.network.client.StreamCallbackWithID;
@@ -91,7 +91,7 @@ public class RemoteBlockPushResolverSuite {
   private RemoteBlockPushResolver pushResolver;
   private Path[] localDirs;
 
-  @BeforeEach
+  @Before
   public void before() throws IOException {
     localDirs = createLocalDirs(2);
     MapConfigProvider provider = new MapConfigProvider(
@@ -101,7 +101,7 @@ public class RemoteBlockPushResolverSuite {
     registerExecutor(TEST_APP, prepareLocalDirs(localDirs, MERGE_DIRECTORY), MERGE_DIRECTORY_META);
   }
 
-  @AfterEach
+  @After
   public void after() {
     try {
       for (Path local : localDirs) {
@@ -195,9 +195,9 @@ public class RemoteBlockPushResolverSuite {
     // This should be deferred
     stream2.onData(stream2.getID(), ByteBuffer.wrap(new byte[3]));
     verifyMetrics(2, 0, 0, 3, 1, 0, 0);
-    assertEquals(3L,
+    assertEquals("cached bytes", 3L,
       ((Counter) pushResolver.getMetrics().getMetrics()
-        .get(PushMergeMetrics.DEFERRED_BLOCK_BYTES_METRIC)).getCount(), "cached bytes");
+        .get(PushMergeMetrics.DEFERRED_BLOCK_BYTES_METRIC)).getCount());
     // stream 1 now completes
     stream1.onData(stream1.getID(), ByteBuffer.wrap(new byte[2]));
     stream1.onComplete(stream1.getID());
@@ -223,9 +223,9 @@ public class RemoteBlockPushResolverSuite {
     stream2.onData(stream2.getID(), ByteBuffer.wrap(new byte[3]));
     stream2.onData(stream2.getID(), ByteBuffer.wrap(new byte[3]));
     verifyMetrics(2, 0, 0, 6, 2, 0, 0);
-    assertEquals(6L,
+    assertEquals("cached bytes", 6L,
       ((Counter) pushResolver.getMetrics().getMetrics()
-        .get(PushMergeMetrics.DEFERRED_BLOCK_BYTES_METRIC)).getCount(), "cached bytes");
+        .get(PushMergeMetrics.DEFERRED_BLOCK_BYTES_METRIC)).getCount());
     // stream 1 now completes
     stream1.onData(stream1.getID(), ByteBuffer.wrap(new byte[2]));
     stream1.onComplete(stream1.getID());
@@ -427,9 +427,9 @@ public class RemoteBlockPushResolverSuite {
         new PushBlockStream(TEST_APP, NO_ATTEMPT_ID, 0, 0, 2, 0, 0));
     // This should be deferred
     stream3.onData(stream3.getID(), ByteBuffer.wrap(new byte[5]));
-    assertEquals(5L,
+    assertEquals("cached bytes", 5L,
       ((Counter) pushResolver.getMetrics().getMetrics()
-        .get(PushMergeMetrics.DEFERRED_BLOCK_BYTES_METRIC)).getCount(), "cached bytes");
+        .get(PushMergeMetrics.DEFERRED_BLOCK_BYTES_METRIC)).getCount());
     // Since this stream didn't get any opportunity it will throw couldn't find opportunity error
     BlockPushNonFatalFailure e = assertThrows(BlockPushNonFatalFailure.class,
       () -> stream3.onComplete(stream3.getID()));
@@ -544,7 +544,7 @@ public class RemoteBlockPushResolverSuite {
     // deleted.
     deleted.acquire();
     for (String mergeDir : mergeDirs) {
-      Assertions.assertFalse(Files.exists(Paths.get(mergeDir)));
+      Assert.assertFalse(Files.exists(Paths.get(mergeDir)));
     }
   }
 
@@ -566,14 +566,14 @@ public class RemoteBlockPushResolverSuite {
     // This will complete without any IOExceptions because number of IOExceptions are less than
     // the threshold but the update to index file will be unsuccessful.
     callback2.onComplete(callback2.getID());
-    assertEquals(16, testIndexFile.getPos(), "index position");
+    assertEquals("index position", 16, testIndexFile.getPos());
     // Restore the index stream so it can write successfully again.
     testIndexFile.restore();
     StreamCallbackWithID callback3 = pushResolver.receiveBlockDataAsStream(
       new PushBlockStream(TEST_APP, NO_ATTEMPT_ID, 0, 0, 2, 0, 0));
     callback3.onData(callback3.getID(), ByteBuffer.wrap(new byte[2]));
     callback3.onComplete(callback3.getID());
-    assertEquals(24, testIndexFile.getPos(), "index position");
+    assertEquals("index position", 24, testIndexFile.getPos());
     MergeStatuses statuses = pushResolver.finalizeShuffleMerge(
       new FinalizeShuffleMerge(TEST_APP, NO_ATTEMPT_ID, 0, 0));
     validateMergeStatuses(statuses, new int[] {0}, new long[] {11});
@@ -599,13 +599,13 @@ public class RemoteBlockPushResolverSuite {
     // This will complete without any IOExceptions because number of IOExceptions are less than
     // the threshold but the update to index file will be unsuccessful.
     callback2.onComplete(callback2.getID());
-    assertEquals(16, testIndexFile.getPos(), "index position");
+    assertEquals("index position", 16, testIndexFile.getPos());
     // The last update to index was unsuccessful however any further updates will be successful.
     // Restore the index stream so it can write successfully again.
     testIndexFile.restore();
     MergeStatuses statuses = pushResolver.finalizeShuffleMerge(
       new FinalizeShuffleMerge(TEST_APP, NO_ATTEMPT_ID, 0, 0));
-    assertEquals(24, testIndexFile.getPos(), "index position");
+    assertEquals("index position", 24, testIndexFile.getPos());
     validateMergeStatuses(statuses, new int[] {0}, new long[] {9});
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0, 0);
     validateChunks(TEST_APP, 0, 0, 0, blockMeta, new int[] {4, 5}, new int[][] {{0}, {1}});
@@ -630,16 +630,16 @@ public class RemoteBlockPushResolverSuite {
     // This will complete without any IOExceptions because number of IOExceptions are less than
     // the threshold but the update to index and meta file will be unsuccessful.
     callback2.onComplete(callback2.getID());
-    assertEquals(16, partitionInfo.getIndexFile().getPos(), "index position");
-    assertEquals(metaPosBeforeClose, testMetaFile.getPos(), "meta position");
+    assertEquals("index position", 16, partitionInfo.getIndexFile().getPos());
+    assertEquals("meta position", metaPosBeforeClose, testMetaFile.getPos());
     // Restore the meta stream so it can write successfully again.
     testMetaFile.restore();
     StreamCallbackWithID callback3 = pushResolver.receiveBlockDataAsStream(
       new PushBlockStream(TEST_APP, NO_ATTEMPT_ID, 0, 0, 2, 0, 0));
     callback3.onData(callback3.getID(), ByteBuffer.wrap(new byte[2]));
     callback3.onComplete(callback3.getID());
-    assertEquals(24, partitionInfo.getIndexFile().getPos(), "index position");
-    assertTrue(testMetaFile.getPos() > metaPosBeforeClose, "meta position");
+    assertEquals("index position", 24, partitionInfo.getIndexFile().getPos());
+    assertTrue("meta position", testMetaFile.getPos() > metaPosBeforeClose);
     MergeStatuses statuses = pushResolver.finalizeShuffleMerge(
       new FinalizeShuffleMerge(TEST_APP, NO_ATTEMPT_ID, 0, 0));
     validateMergeStatuses(statuses, new int[] {0}, new long[] {11});
@@ -667,14 +667,14 @@ public class RemoteBlockPushResolverSuite {
     // the threshold but the update to index and meta file will be unsuccessful.
     callback2.onComplete(callback2.getID());
     MergeShuffleFile indexFile = partitionInfo.getIndexFile();
-    assertEquals(16, indexFile.getPos(), "index position");
-    assertEquals(metaPosBeforeClose, testMetaFile.getPos(), "meta position");
+    assertEquals("index position", 16, indexFile.getPos());
+    assertEquals("meta position", metaPosBeforeClose, testMetaFile.getPos());
     // Restore the meta stream so it can write successfully again.
     testMetaFile.restore();
     MergeStatuses statuses = pushResolver.finalizeShuffleMerge(
       new FinalizeShuffleMerge(TEST_APP, NO_ATTEMPT_ID, 0, 0));
-    assertEquals(24, indexFile.getPos(), "index position");
-    assertTrue(testMetaFile.getPos() > metaPosBeforeClose, "meta position");
+    assertEquals("index position", 24, indexFile.getPos());
+    assertTrue("meta position", testMetaFile.getPos() > metaPosBeforeClose);
     validateMergeStatuses(statuses, new int[] {0}, new long[] {9});
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0, 0);
     validateChunks(TEST_APP, 0, 0, 0, blockMeta, new int[] {4, 5}, new int[][] {{0}, {1}});
@@ -1132,8 +1132,8 @@ public class RemoteBlockPushResolverSuite {
 
     RemoteBlockPushResolver.AppShuffleInfo appShuffleInfo =
       pushResolver.validateAndGetAppShuffleInfo(TEST_APP);
-    assertTrue(appShuffleInfo.getShuffles().get(0).isFinalized(),
-      "Determinate shuffle should be marked finalized");
+    assertTrue("Determinate shuffle should be marked finalized",
+        appShuffleInfo.getShuffles().get(0).isFinalized());
     validateMergeStatuses(statuses, new int[] {0}, new long[] {9});
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0, 0);
     validateChunks(TEST_APP, 0, 0, 0, blockMeta, new int[]{4, 5}, new int[][]{{0}, {1}});
@@ -1213,12 +1213,12 @@ public class RemoteBlockPushResolverSuite {
     // For the previous merge id
     assertEquals(1, removedIds.iterator().next().shuffleMergeId);
     removedIds.clear();
-    assertFalse(appShuffleInfo.getMergedShuffleDataFile(0, 1, 0).exists(),
-            "Data files on the disk should be cleaned up");
-    assertFalse(appShuffleInfo.getMergedShuffleMetaFile(0, 1, 0).exists(),
-            "Meta files on the disk should be cleaned up");
-    assertFalse(new File(appShuffleInfo.getMergedShuffleIndexFilePath(0, 1, 0)).exists(),
-            "Index files on the disk should be cleaned up");
+    assertFalse("Data files on the disk should be cleaned up",
+      appShuffleInfo.getMergedShuffleDataFile(0, 1, 0).exists());
+    assertFalse("Meta files on the disk should be cleaned up",
+      appShuffleInfo.getMergedShuffleMetaFile(0, 1, 0).exists());
+    assertFalse("Index files on the disk should be cleaned up",
+      new File(appShuffleInfo.getMergedShuffleIndexFilePath(0, 1, 0)).exists());
     stream2.onData(stream2.getID(), ByteBuffer.wrap(new byte[2]));
     stream2.onData(stream2.getID(), ByteBuffer.wrap(new byte[2]));
     // stream 2 now completes
@@ -1260,12 +1260,12 @@ public class RemoteBlockPushResolverSuite {
     // For the previous merge id - here the cleanup is from finalizeShuffleMerge
     assertEquals(4, removedIds.iterator().next().shuffleMergeId);
     removedIds.clear();
-    assertFalse(appShuffleInfo.getMergedShuffleMetaFile(0, 4, 0).exists(),
-            "MergedBlock meta file for shuffle 0 and shuffleMergeId 4 should be cleaned up");
-    assertFalse(new File(appShuffleInfo.getMergedShuffleIndexFilePath(0, 4, 0)).exists(),
-            "MergedBlock index file for shuffle 0 and shuffleMergeId 4 should be cleaned up");
-    assertFalse(appShuffleInfo.getMergedShuffleDataFile(0, 4, 0).exists(),
-            "MergedBlock data file for shuffle 0 and shuffleMergeId 4 should be cleaned up");
+    assertFalse("MergedBlock meta file for shuffle 0 and shuffleMergeId 4 should be cleaned"
+      + " up", appShuffleInfo.getMergedShuffleMetaFile(0, 4, 0).exists());
+    assertFalse("MergedBlock index file for shuffle 0 and shuffleMergeId 4 should be cleaned"
+      + " up", new File(appShuffleInfo.getMergedShuffleIndexFilePath(0, 4, 0)).exists());
+    assertFalse("MergedBlock data file for shuffle 0 and shuffleMergeId 4 should be cleaned"
+      + " up", appShuffleInfo.getMergedShuffleDataFile(0, 4, 0).exists());
   }
 
   @Test
@@ -1273,11 +1273,11 @@ public class RemoteBlockPushResolverSuite {
     //shuffle 1 0 is finalized even though the server didn't receive any blocks for it.
     MergeStatuses statuses = pushResolver.finalizeShuffleMerge(
         new FinalizeShuffleMerge(TEST_APP, NO_ATTEMPT_ID, 1, 0));
-    assertEquals(0, statuses.reduceIds.length, "no partitions were merged");
+    assertEquals("no partitions were merged", 0, statuses.reduceIds.length);
     RemoteBlockPushResolver.AppShuffleInfo appShuffleInfo =
         pushResolver.validateAndGetAppShuffleInfo(TEST_APP);
-    assertTrue(appShuffleInfo.getShuffles().get(1).isFinalized(),
-      "shuffle 1 should be marked finalized");
+    assertTrue("shuffle 1 should be marked finalized",
+        appShuffleInfo.getShuffles().get(1).isFinalized());
     removeApplication(TEST_APP);
   }
 
@@ -1291,7 +1291,7 @@ public class RemoteBlockPushResolverSuite {
     //shuffle 1 0 is finalized
     MergeStatuses statuses = pushResolver.finalizeShuffleMerge(
         new FinalizeShuffleMerge(TEST_APP, NO_ATTEMPT_ID, 1, 0));
-    assertEquals(0, statuses.reduceIds.length, "no partitions were merged");
+    assertEquals("no partitions were merged", 0, statuses.reduceIds.length);
     removeApplication(TEST_APP);
   }
 
@@ -1557,12 +1557,12 @@ public class RemoteBlockPushResolverSuite {
       MergedBlockMeta meta,
       int[] expectedSizes,
       int[][] expectedMapsPerChunk) throws IOException {
-    assertEquals(expectedSizes.length, meta.getNumChunks(), "num chunks");
+    assertEquals("num chunks", expectedSizes.length, meta.getNumChunks());
     RoaringBitmap[] bitmaps = meta.readChunkBitmaps();
-    assertEquals(meta.getNumChunks(), bitmaps.length, "num of bitmaps");
+    assertEquals("num of bitmaps", meta.getNumChunks(), bitmaps.length);
     for (int i = 0; i < meta.getNumChunks(); i++) {
       RoaringBitmap chunkBitmap = bitmaps[i];
-      assertEquals(expectedMapsPerChunk[i].length, chunkBitmap.getCardinality(), "cardinality");
+      assertEquals("cardinality", expectedMapsPerChunk[i].length, chunkBitmap.getCardinality());
       Arrays.stream(expectedMapsPerChunk[i]).forEach(x -> assertTrue(chunkBitmap.contains(x)));
     }
     for (int i = 0; i < meta.getNumChunks(); i++) {
@@ -1596,20 +1596,21 @@ public class RemoteBlockPushResolverSuite {
       long expectedIgnoredBlocksBytes) {
     Map<String, Metric> metrics = pushResolver.getMetrics().getMetrics();
     Meter writtenBytes = (Meter) metrics.get(PushMergeMetrics.BLOCK_BYTES_WRITTEN_METRIC);
-    assertEquals(expectedPushBytesWritten, writtenBytes.getCount(), "bytes written");
+    assertEquals("bytes written", expectedPushBytesWritten, writtenBytes.getCount());
     Meter collidedBlocks = (Meter) metrics.get(PushMergeMetrics.BLOCK_APPEND_COLLISIONS_METRIC);
-    assertEquals(expectedNoOpportunityResponses, collidedBlocks.getCount(),
-      "could not find opportunity responses");
+    assertEquals("could not find opportunity responses", expectedNoOpportunityResponses,
+      collidedBlocks.getCount());
     Meter tooLateBlocks = (Meter) metrics.get(PushMergeMetrics.LATE_BLOCK_PUSHES_METRIC);
-    assertEquals(expectedTooLateResponses, tooLateBlocks.getCount(), "too late responses");
+    assertEquals("too late responses", expectedTooLateResponses, tooLateBlocks.getCount());
     Counter cachedBytes = (Counter) metrics.get(PushMergeMetrics.DEFERRED_BLOCK_BYTES_METRIC);
-    assertEquals(expectedDeferredBlocksBytes, cachedBytes.getCount(), "cached block bytes");
+    assertEquals("cached block bytes", expectedDeferredBlocksBytes,
+      cachedBytes.getCount());
     Meter deferredBlocks = (Meter) metrics.get(PushMergeMetrics.DEFERRED_BLOCKS_METRIC);
-    assertEquals(expectedDeferredBlocks, deferredBlocks.getCount(), "deferred blocks");
+    assertEquals("deferred blocks", expectedDeferredBlocks, deferredBlocks.getCount());
     Meter staleBlockPushes = (Meter) metrics.get(PushMergeMetrics.STALE_BLOCK_PUSHES_METRIC);
-    assertEquals(expectedStaleBlockPushes, staleBlockPushes.getCount(), "stale block pushes");
+    assertEquals("stale block pushes", expectedStaleBlockPushes, staleBlockPushes.getCount());
     Meter ignoredBlockBytes = (Meter) metrics.get(PushMergeMetrics.IGNORED_BLOCK_BYTES_METRIC);
-    assertEquals(expectedIgnoredBlocksBytes, ignoredBlockBytes.getCount(), "ignored block bytes");
+    assertEquals("ignored block bytes", expectedIgnoredBlocksBytes, ignoredBlockBytes.getCount());
   }
 
   private static class PushBlock {

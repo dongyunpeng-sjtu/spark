@@ -81,12 +81,11 @@ SELECT CEIL(2.5, null)
 -- !query analysis
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "NON_FOLDABLE_ARGUMENT",
-  "sqlState" : "42K08",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1100",
   "messageParameters" : {
-    "funcName" : "`ceil`",
-    "paramName" : "`scale`",
-    "paramType" : "\"INT\""
+    "argName" : "scale",
+    "funcName" : "ceil",
+    "requiredType" : "int"
   },
   "queryContext" : [ {
     "objectType" : "",
@@ -103,12 +102,11 @@ SELECT CEIL(2.5, 'a')
 -- !query analysis
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "NON_FOLDABLE_ARGUMENT",
-  "sqlState" : "42K08",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1100",
   "messageParameters" : {
-    "funcName" : "`ceil`",
-    "paramName" : "`scale`",
-    "paramType" : "\"INT\""
+    "argName" : "scale",
+    "funcName" : "ceil",
+    "requiredType" : "int"
   },
   "queryContext" : [ {
     "objectType" : "",
@@ -225,12 +223,11 @@ SELECT FLOOR(2.5, null)
 -- !query analysis
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "NON_FOLDABLE_ARGUMENT",
-  "sqlState" : "42K08",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1100",
   "messageParameters" : {
-    "funcName" : "`floor`",
-    "paramName" : "`scale`",
-    "paramType" : "\"INT\""
+    "argName" : "scale",
+    "funcName" : "floor",
+    "requiredType" : "int"
   },
   "queryContext" : [ {
     "objectType" : "",
@@ -247,12 +244,11 @@ SELECT FLOOR(2.5, 'a')
 -- !query analysis
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "NON_FOLDABLE_ARGUMENT",
-  "sqlState" : "42K08",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1100",
   "messageParameters" : {
-    "funcName" : "`floor`",
-    "paramName" : "`scale`",
-    "paramType" : "\"INT\""
+    "argName" : "scale",
+    "funcName" : "floor",
+    "requiredType" : "int"
   },
   "queryContext" : [ {
     "objectType" : "",

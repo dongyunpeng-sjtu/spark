@@ -17,15 +17,15 @@
 
 package org.apache.spark.ml.linalg;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 import static org.apache.spark.ml.linalg.SQLDataTypes.*;
 
 public class JavaSQLDataTypesSuite {
   @Test
   public void testSQLDataTypes() {
-    Assertions.assertEquals(new VectorUDT(), VectorType());
-    Assertions.assertEquals(new MatrixUDT(), MatrixType());
+    Assert.assertEquals(new VectorUDT(), VectorType());
+    Assert.assertEquals(new MatrixUDT(), MatrixType());
   }
 }

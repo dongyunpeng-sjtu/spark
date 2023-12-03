@@ -52,46 +52,11 @@ class MicroBatchExecution(
 
   @volatile protected var sources: Seq[SparkDataStream] = Seq.empty
 
-  @volatile protected[sql] var triggerExecutor: TriggerExecutor = _
-
-  protected def getTrigger(): TriggerExecutor = {
-    assert(sources.nonEmpty, "sources should have been retrieved from the plan!")
-    trigger match {
-      case t: ProcessingTimeTrigger => ProcessingTimeExecutor(t, triggerClock)
-      case OneTimeTrigger => SingleBatchExecutor()
-      case AvailableNowTrigger =>
-        // When the flag is enabled, Spark will wrap sources which do not support
-        // Trigger.AvailableNow with wrapper implementation, so that Trigger.AvailableNow can
-        // take effect.
-        // When the flag is disabled, Spark will fall back to single batch execution, whenever
-        // it figures out any source does not support Trigger.AvailableNow.
-        // See SPARK-45178 for more details.
-        if (sparkSession.sqlContext.conf.getConf(
-            SQLConf.STREAMING_TRIGGER_AVAILABLE_NOW_WRAPPER_ENABLED)) {
-          logInfo("Configured to use the wrapper of Trigger.AvailableNow for query " +
-            s"$prettyIdString.")
-          MultiBatchExecutor()
-        } else {
-          val supportsTriggerAvailableNow = sources.distinct.forall { src =>
-            val supports = src.isInstanceOf[SupportsTriggerAvailableNow]
-            if (!supports) {
-              logWarning(s"source [$src] does not support Trigger.AvailableNow. Falling back to " +
-                "single batch execution. Note that this may not guarantee processing new data if " +
-                "there is an uncommitted batch. Please consult with data source developer to " +
-                "support Trigger.AvailableNow.")
-            }
-
-            supports
-          }
-
-          if (supportsTriggerAvailableNow) {
-            MultiBatchExecutor()
-          } else {
-            SingleBatchExecutor()
-          }
-        }
-      case _ => throw new IllegalStateException(s"Unknown type of trigger: $trigger")
-    }
+  protected val triggerExecutor: TriggerExecutor = trigger match {
+    case t: ProcessingTimeTrigger => ProcessingTimeExecutor(t, triggerClock)
+    case OneTimeTrigger => SingleBatchExecutor()
+    case AvailableNowTrigger => MultiBatchExecutor()
+    case _ => throw new IllegalStateException(s"Unknown type of trigger: $trigger")
   }
 
   protected var watermarkTracker: WatermarkTracker = _
@@ -165,11 +130,6 @@ class MicroBatchExecution(
       // v2 source
       case r: StreamingDataSourceV2Relation => r.stream
     }
-
-    // Initializing TriggerExecutor relies on `sources`, hence calling this after initializing
-    // sources.
-    triggerExecutor = getTrigger()
-
     uniqueSources = triggerExecutor match {
       case _: SingleBatchExecutor =>
         sources.distinct.map {
@@ -280,7 +240,7 @@ class MicroBatchExecution(
       if (isActive) {
 
         // check if there are any previous errors and bubble up any existing async operations
-        errorNotifier.throwErrorIfExists()
+        errorNotifier.throwErrorIfExists
 
         var currentBatchHasNewData = false // Whether the current batch had new data
 
@@ -746,7 +706,6 @@ class MicroBatchExecution(
       StreamExecution.IS_CONTINUOUS_PROCESSING, false.toString)
 
     reportTimeTaken("queryPlanning") {
-      val isFirstBatch = lastExecution == null
       lastExecution = new IncrementalExecution(
         sparkSessionToRunBatch,
         triggerLogicalPlan,
@@ -757,8 +716,7 @@ class MicroBatchExecution(
         currentBatchId,
         offsetLog.offsetSeqMetadataForBatchId(currentBatchId - 1),
         offsetSeqMetadata,
-        watermarkPropagator,
-        isFirstBatch)
+        watermarkPropagator)
       lastExecution.executedPlan // Force the lazy generation of execution plan
     }
 

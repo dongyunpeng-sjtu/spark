@@ -22,9 +22,9 @@ import java.net._
 import java.nio.charset.StandardCharsets
 import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
-import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
 import org.apache.hadoop.conf.Configuration
@@ -137,7 +137,7 @@ private class PairwiseRDD(prev: RDD[Array[Byte]]) extends RDD[(Long, Array[Byte]
 private[spark] object PythonRDD extends Logging {
 
   // remember the broadcasts sent to each worker
-  private val workerBroadcasts = new mutable.WeakHashMap[PythonWorker, mutable.Set[Long]]()
+  private val workerBroadcasts = new mutable.WeakHashMap[Socket, mutable.Set[Long]]()
 
   // Authentication helper used when serving iterator data.
   private lazy val authHelper = {
@@ -145,7 +145,7 @@ private[spark] object PythonRDD extends Logging {
     new SocketAuthHelper(conf)
   }
 
-  def getWorkerBroadcasts(worker: PythonWorker): mutable.Set[Long] = {
+  def getWorkerBroadcasts(worker: Socket): mutable.Set[Long] = {
     synchronized {
       workerBroadcasts.getOrElseUpdate(worker, new mutable.HashSet[Long]())
     }
@@ -300,11 +300,7 @@ private[spark] object PythonRDD extends Logging {
     new PythonBroadcast(path)
   }
 
-  /**
-   * Writes the next element of the iterator `iter` to `dataOut`. Returns true if any data was
-   * written to the stream. Returns false if no data was written as the iterator has been exhausted.
-   */
-  def writeNextElementToStream[T](iter: Iterator[T], dataOut: DataOutputStream): Boolean = {
+  def writeIteratorToStream[T](iter: Iterator[T], dataOut: DataOutputStream): Unit = {
 
     def write(obj: Any): Unit = obj match {
       case null =>
@@ -322,18 +318,8 @@ private[spark] object PythonRDD extends Logging {
       case other =>
         throw new SparkException("Unexpected element type " + other.getClass)
     }
-    if (iter.hasNext) {
-      write(iter.next())
-      true
-    } else {
-      false
-    }
-  }
 
-  def writeIteratorToStream[T](iter: Iterator[T], dataOut: DataOutputStream): Unit = {
-    while (writeNextElementToStream(iter, dataOut)) {
-      // Nothing.
-    }
+    iter.foreach(write)
   }
 
   /**
@@ -501,7 +487,9 @@ private[spark] object PythonRDD extends Logging {
   }
 
   def writeUTF(str: String, dataOut: DataOutputStream): Unit = {
-    PythonWorkerUtils.writeUTF(str, dataOut)
+    val bytes = str.getBytes(StandardCharsets.UTF_8)
+    dataOut.writeInt(bytes.length)
+    dataOut.write(bytes)
   }
 
   /**

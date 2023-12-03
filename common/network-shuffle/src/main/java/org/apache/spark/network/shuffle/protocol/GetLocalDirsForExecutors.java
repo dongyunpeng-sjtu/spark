@@ -57,7 +57,8 @@ public class GetLocalDirsForExecutors extends BlockTransferMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof GetLocalDirsForExecutors o) {
+    if (other instanceof GetLocalDirsForExecutors) {
+      GetLocalDirsForExecutors o = (GetLocalDirsForExecutors) other;
       return appId.equals(o.appId) && Arrays.equals(execIds, o.execIds);
     }
     return false;

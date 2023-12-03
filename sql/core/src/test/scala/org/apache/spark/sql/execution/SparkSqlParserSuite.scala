@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkThrowable
 import org.apache.spark.internal.config.ConfigEntry

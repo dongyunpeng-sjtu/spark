@@ -15,9 +15,8 @@
 # limitations under the License.
 #
 
-import unittest
-
 import numpy as np
+import unittest
 
 have_torch = True
 try:

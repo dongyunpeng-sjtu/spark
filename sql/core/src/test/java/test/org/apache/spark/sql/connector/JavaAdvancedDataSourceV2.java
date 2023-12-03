@@ -61,7 +61,8 @@ public class JavaAdvancedDataSourceV2 implements TestingV2Source {
     @Override
     public Filter[] pushFilters(Filter[] filters) {
       Filter[] supported = Arrays.stream(filters).filter(f -> {
-        if (f instanceof GreaterThan gt) {
+        if (f instanceof GreaterThan) {
+          GreaterThan gt = (GreaterThan) f;
           return gt.attribute().equals("i") && gt.value() instanceof Integer;
         } else {
           return false;
@@ -69,7 +70,8 @@ public class JavaAdvancedDataSourceV2 implements TestingV2Source {
       }).toArray(Filter[]::new);
 
       Filter[] unsupported = Arrays.stream(filters).filter(f -> {
-        if (f instanceof GreaterThan gt) {
+        if (f instanceof GreaterThan) {
+          GreaterThan gt = (GreaterThan) f;
           return !gt.attribute().equals("i") || !(gt.value() instanceof Integer);
         } else {
           return true;
@@ -112,7 +114,8 @@ public class JavaAdvancedDataSourceV2 implements TestingV2Source {
 
       Integer lowerBound = null;
       for (Filter filter : filters) {
-        if (filter instanceof GreaterThan f) {
+        if (filter instanceof GreaterThan) {
+          GreaterThan f = (GreaterThan) filter;
           if ("i".equals(f.attribute()) && f.value() instanceof Integer) {
             lowerBound = (Integer) f.value();
             break;

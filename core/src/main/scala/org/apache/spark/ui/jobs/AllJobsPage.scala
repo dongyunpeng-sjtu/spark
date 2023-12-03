@@ -277,8 +277,7 @@ private[ui] class AllJobsPage(parent: JobsTab, store: AppStatusStore) extends We
 
   def render(request: HttpServletRequest): Seq[Node] = {
     val appInfo = store.applicationInfo()
-    val startDate = appInfo.attempts.head.startTime
-    val startTime = startDate.getTime()
+    val startTime = appInfo.attempts.head.startTime.getTime()
     val endTime = appInfo.attempts.head.endTime.getTime()
 
     val activeJobs = new ListBuffer[v1.JobData]()
@@ -327,10 +326,6 @@ private[ui] class AllJobsPage(parent: JobsTab, store: AppStatusStore) extends We
 
             <strong>User:</strong>
             {parent.getSparkUser}
-          </li>
-          <li>
-            <strong>Started At:</strong>
-            {UIUtils.formatDate(startDate)}
           </li>
           <li>
             <strong>Total Uptime:</strong>

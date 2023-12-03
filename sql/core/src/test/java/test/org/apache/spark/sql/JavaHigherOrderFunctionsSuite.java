@@ -22,12 +22,12 @@ import java.util.HashMap;
 import java.util.List;
 import static java.util.stream.Collectors.toList;
 
-import scala.jdk.CollectionConverters;
+import static scala.collection.JavaConverters.mapAsScalaMap;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -44,19 +44,19 @@ public class JavaHigherOrderFunctionsSuite {
 
     private void checkAnswer(Dataset<Row> actualDS, List<Row> expected) throws Exception {
         List<Row> actual = actualDS.collectAsList();
-        Assertions.assertEquals(expected.size(), actual.size());
+        Assert.assertEquals(expected.size(), actual.size());
         for (int i = 0; i < expected.size(); i++) {
             Row expectedRow = expected.get(i);
             Row actualRow = actual.get(i);
-            Assertions.assertEquals(expectedRow.size(), actualRow.size());
+            Assert.assertEquals(expectedRow.size(), actualRow.size());
             for (int j = 0; j < expectedRow.size(); j++) {
                 Object expectedValue = expectedRow.get(j);
                 Object actualValue = actualRow.get(j);
                 if (expectedValue != null && expectedValue.getClass().isArray()) {
                     actualValue = actualValue.getClass().getMethod("array").invoke(actualValue);
-                    Assertions.assertArrayEquals((Object[]) expectedValue, (Object[]) actualValue);
+                    Assert.assertArrayEquals((Object[]) expectedValue, (Object[]) actualValue);
                 } else {
-                    Assertions.assertEquals(expectedValue, actualValue);
+                    Assert.assertEquals(expectedValue, actualValue);
                 }
             }
         }
@@ -99,14 +99,14 @@ public class JavaHigherOrderFunctionsSuite {
         mapDf = spark.createDataFrame(data, schema);
     }
 
-    @BeforeEach
+    @Before
     public void setUp() {
         spark = new TestSparkSession();
         setUpArrDf();
         setUpMapDf();
     }
 
-    @AfterEach
+    @After
     public void tearDown() {
         spark.stop();
         spark = null;
@@ -222,10 +222,10 @@ public class JavaHigherOrderFunctionsSuite {
         checkAnswer(
             mapDf.select(transform_keys(col("x"), (k, v) -> k.plus(v))),
             toRows(
-                CollectionConverters.MapHasAsScala(new HashMap<Integer, Integer>() {{
+                mapAsScalaMap(new HashMap<Integer, Integer>() {{
                     put(2, 1);
                     put(4, 2);
-                }}).asScala(),
+                }}),
                 null
             )
         );
@@ -236,10 +236,10 @@ public class JavaHigherOrderFunctionsSuite {
         checkAnswer(
             mapDf.select(transform_values(col("x"), (k, v) -> k.plus(v))),
             toRows(
-                CollectionConverters.MapHasAsScala(new HashMap<Integer, Integer>() {{
+                mapAsScalaMap(new HashMap<Integer, Integer>() {{
                     put(1, 2);
                     put(2, 4);
-                }}).asScala(),
+                }}),
                 null
             )
         );
@@ -250,7 +250,7 @@ public class JavaHigherOrderFunctionsSuite {
         checkAnswer(
             mapDf.select(map_filter(col("x"), (k, v) -> lit(false))),
             toRows(
-                CollectionConverters.MapHasAsScala(new HashMap<Integer, Integer>()).asScala(),
+                mapAsScalaMap(new HashMap<Integer, Integer>()),
                 null
             )
         );
@@ -261,10 +261,10 @@ public class JavaHigherOrderFunctionsSuite {
         checkAnswer(
             mapDf.select(map_zip_with(col("x"), col("x"), (k, v1, v2) -> lit(false))),
             toRows(
-                CollectionConverters.MapHasAsScala(new HashMap<Integer, Boolean>() {{
+                mapAsScalaMap(new HashMap<Integer, Boolean>() {{
                     put(1, false);
                     put(2, false);
-                }}).asScala(),
+                }}),
                 null
             )
         );

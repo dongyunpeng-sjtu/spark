@@ -159,7 +159,7 @@ class TextSocketMicroBatchStream(host: String, port: Int, numPartitions: Int)
         s"Offsets committed out of order: $lastOffsetCommitted followed by $end")
     }
 
-    batches.dropInPlace(offsetDiff)
+    batches.trimStart(offsetDiff)
     lastOffsetCommitted = newOffset
   }
 

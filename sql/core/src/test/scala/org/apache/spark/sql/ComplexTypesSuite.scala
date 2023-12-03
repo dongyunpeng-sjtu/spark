@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.catalyst.expressions.CreateNamedStruct
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan

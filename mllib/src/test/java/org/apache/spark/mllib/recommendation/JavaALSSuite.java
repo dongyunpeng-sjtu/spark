@@ -23,8 +23,8 @@ import java.util.List;
 import scala.Tuple2;
 import scala.Tuple3;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.apache.spark.SharedSparkSession;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -48,14 +48,13 @@ public class JavaALSSuite extends SharedSparkSession {
     }
     JavaPairRDD<Integer, Integer> usersProducts = jsc.parallelizePairs(localUsersProducts);
     List<Rating> predictedRatings = model.predict(usersProducts).collect();
-    Assertions.assertEquals(users * products, predictedRatings.size());
+    Assert.assertEquals(users * products, predictedRatings.size());
     if (!implicitPrefs) {
       for (Rating r : predictedRatings) {
         double prediction = r.rating();
         double correct = trueRatings[r.product() * users + r.user()];
-        Assertions.assertTrue(Math.abs(prediction - correct) < matchThreshold,
-          String.format("Prediction=%2.4f not below match threshold of %2.2f",
-            prediction, matchThreshold));
+        Assert.assertTrue(String.format("Prediction=%2.4f not below match threshold of %2.2f",
+          prediction, matchThreshold), Math.abs(prediction - correct) < matchThreshold);
       }
     } else {
       // For implicit prefs we use the confidence-weighted RMSE to test
@@ -72,9 +71,8 @@ public class JavaALSSuite extends SharedSparkSession {
         denom += confidence;
       }
       double rmse = Math.sqrt(sqErr / denom);
-      Assertions.assertTrue(rmse < matchThreshold,
-        String.format("Confidence-weighted RMSE=%2.4f above threshold of %2.2f",
-          rmse, matchThreshold));
+      Assert.assertTrue(String.format("Confidence-weighted RMSE=%2.4f above threshold of %2.2f",
+        rmse, matchThreshold), rmse < matchThreshold);
     }
   }
 
@@ -178,11 +176,11 @@ public class JavaALSSuite extends SharedSparkSession {
   }
 
   private static void validateRecommendations(Rating[] recommendations, int howMany) {
-    Assertions.assertEquals(howMany, recommendations.length);
+    Assert.assertEquals(howMany, recommendations.length);
     for (int i = 1; i < recommendations.length; i++) {
-      Assertions.assertTrue(recommendations[i - 1].rating() >= recommendations[i].rating());
+      Assert.assertTrue(recommendations[i - 1].rating() >= recommendations[i].rating());
     }
-    Assertions.assertTrue(recommendations[0].rating() > 0.7);
+    Assert.assertTrue(recommendations[0].rating() > 0.7);
   }
 
 }

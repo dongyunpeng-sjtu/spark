@@ -30,7 +30,7 @@ from py4j.java_gateway import JavaObject
 from pyspark import SparkContext
 from pyspark.profiler import Profiler
 from pyspark.rdd import _prepare_for_python_RDD, PythonEvalType
-from pyspark.sql.column import Column, _to_java_expr, _to_seq
+from pyspark.sql.column import Column, _to_java_column, _to_java_expr, _to_seq
 from pyspark.sql.types import (
     DataType,
     StringType,
@@ -336,17 +336,8 @@ class UserDefinedFunction:
         )
         return judf
 
-    def __call__(self, *args: "ColumnOrName", **kwargs: "ColumnOrName") -> Column:
+    def __call__(self, *cols: "ColumnOrName") -> Column:
         sc = get_active_spark_context()
-
-        assert sc._jvm is not None
-        jexprs = [_to_java_expr(arg) for arg in args] + [
-            sc._jvm.org.apache.spark.sql.catalyst.expressions.NamedArgumentExpression(
-                key, _to_java_expr(value)
-            )
-            for key, value in kwargs.items()
-        ]
-
         profiler: Optional[Profiler] = None
         memory_profiler: Optional[Profiler] = None
         if sc.profiler_collector:
@@ -385,7 +376,7 @@ class UserDefinedFunction:
 
                 func.__signature__ = inspect.signature(f)  # type: ignore[attr-defined]
                 judf = self._create_judf(func)
-                jUDFExpr = judf.builder(_to_seq(sc, jexprs))
+                jUDFExpr = judf.builder(_to_seq(sc, cols, _to_java_expr))
                 jPythonUDF = judf.fromUDFExpr(jUDFExpr)
                 id = jUDFExpr.resultId().id()
                 sc.profiler_collector.add_profiler(id, profiler)
@@ -403,14 +394,13 @@ class UserDefinedFunction:
 
                 func.__signature__ = inspect.signature(f)  # type: ignore[attr-defined]
                 judf = self._create_judf(func)
-                jUDFExpr = judf.builder(_to_seq(sc, jexprs))
+                jUDFExpr = judf.builder(_to_seq(sc, cols, _to_java_expr))
                 jPythonUDF = judf.fromUDFExpr(jUDFExpr)
                 id = jUDFExpr.resultId().id()
                 sc.profiler_collector.add_profiler(id, memory_profiler)
         else:
             judf = self._judf
-            jUDFExpr = judf.builder(_to_seq(sc, jexprs))
-            jPythonUDF = judf.fromUDFExpr(jUDFExpr)
+            jPythonUDF = judf.apply(_to_seq(sc, cols, _to_java_column))
         return Column(jPythonUDF)
 
     # This function is for improving the online help system in the interactive interpreter.
@@ -431,8 +421,8 @@ class UserDefinedFunction:
         )
 
         @functools.wraps(self.func, assigned=assignments)
-        def wrapper(*args: "ColumnOrName", **kwargs: "ColumnOrName") -> Column:
-            return self(*args, **kwargs)
+        def wrapper(*args: "ColumnOrName") -> Column:
+            return self(*args)
 
         wrapper.__name__ = self._name
         wrapper.__module__ = (

@@ -38,6 +38,7 @@ from pyspark.testing.mlutils import SparkSessionTestCase
 
 class LogisticRegressionTest(SparkSessionTestCase):
     def test_binomial_logistic_regression_with_bound(self):
+
         df = self.spark.createDataFrame(
             [
                 (1.0, 1.0, Vectors.dense(0.0, 5.0)),
@@ -59,6 +60,7 @@ class LogisticRegressionTest(SparkSessionTestCase):
         self.assertTrue(np.isclose(model.intercept, 0.0, atol=1e-4))
 
     def test_multinomial_logistic_regression_with_bound(self):
+
         data_path = "data/mllib/sample_multiclass_classification_data.txt"
         df = self.spark.read.format("libsvm").load(data_path)
 
@@ -82,6 +84,7 @@ class LogisticRegressionTest(SparkSessionTestCase):
         )
 
     def test_logistic_regression_with_threshold(self):
+
         df = self.spark.createDataFrame(
             [
                 (1.0, 1.0, Vectors.dense(0.0, 5.0)),
@@ -118,6 +121,7 @@ class LogisticRegressionTest(SparkSessionTestCase):
 
 class MultilayerPerceptronClassifierTest(SparkSessionTestCase):
     def test_raw_and_probability_prediction(self):
+
         data_path = "data/mllib/sample_multiclass_classification_data.txt"
         df = self.spark.read.format("libsvm").load(data_path)
 
@@ -371,6 +375,7 @@ class ALSTest(SparkSessionTestCase):
 
 class GeneralizedLinearRegressionTest(SparkSessionTestCase):
     def test_tweedie_distribution(self):
+
         df = self.spark.createDataFrame(
             [
                 (1.0, Vectors.dense(0.0, 0.0)),
@@ -391,6 +396,7 @@ class GeneralizedLinearRegressionTest(SparkSessionTestCase):
         self.assertTrue(np.isclose(model2.intercept, 0.6667, atol=1e-4))
 
     def test_offset(self):
+
         df = self.spark.createDataFrame(
             [
                 (0.2, 1.0, 2.0, Vectors.dense(0.0, 5.0)),
@@ -411,6 +417,7 @@ class GeneralizedLinearRegressionTest(SparkSessionTestCase):
 
 class LinearRegressionTest(SparkSessionTestCase):
     def test_linear_regression_with_huber_loss(self):
+
         data_path = "data/mllib/sample_linear_regression_data.txt"
         df = self.spark.read.format("libsvm").load(data_path)
 

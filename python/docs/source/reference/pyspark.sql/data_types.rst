@@ -48,4 +48,3 @@ Data Types
     TimestampNTZType
     DayTimeIntervalType
     YearMonthIntervalType
-    CalendarIntervalType

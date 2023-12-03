@@ -19,6 +19,8 @@ package org.apache.spark.repl
 
 import java.io._
 import java.nio.charset.StandardCharsets
+import java.sql.Timestamp
+import java.util.Date
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Promise
@@ -68,9 +70,10 @@ class SparkShellSuite extends SparkFunSuite {
     val lock = new Object
 
     def captureOutput(source: String)(line: String): Unit = lock.synchronized {
-      val newLine = s"$source> $line"
-
-      logInfo(newLine)
+      // This test suite sometimes gets extremely slow out of unknown reason on Jenkins.  Here we
+      // add a timestamp to provide more diagnosis information.
+      val newLine = s"${new Timestamp(new Date().getTime)} - $source> $line"
+      log.info(newLine)
       buffer += newLine
 
       if (line.startsWith("Spark context available") && line.contains("app id")) {
@@ -79,7 +82,7 @@ class SparkShellSuite extends SparkFunSuite {
 
       // If we haven't found all expected answers and another expected answer comes up...
       if (next < expectedAnswers.size && line.contains(expectedAnswers(next))) {
-        logInfo(s"$source> found expected output line $next: '${expectedAnswers(next)}'")
+        log.info(s"$source> found expected output line $next: '${expectedAnswers(next)}'")
         next += 1
         // If all expected answers have been found...
         if (next == expectedAnswers.size) {

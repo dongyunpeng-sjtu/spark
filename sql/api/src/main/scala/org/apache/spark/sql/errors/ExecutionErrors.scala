@@ -21,8 +21,9 @@ import java.time.temporal.ChronoField
 
 import org.apache.arrow.vector.types.pojo.ArrowType
 
-import org.apache.spark.{QueryContext, SparkArithmeticException, SparkBuildInfo, SparkDateTimeException, SparkException, SparkRuntimeException, SparkUnsupportedOperationException, SparkUpgradeException}
+import org.apache.spark.{SparkArithmeticException, SparkBuildInfo, SparkDateTimeException, SparkException, SparkRuntimeException, SparkUnsupportedOperationException, SparkUpgradeException}
 import org.apache.spark.sql.catalyst.WalkedTypePath
+import org.apache.spark.sql.catalyst.trees.SQLQueryContext
 import org.apache.spark.sql.internal.SqlApiConf
 import org.apache.spark.sql.types.{DataType, DoubleType, StringType, UserDefinedType}
 import org.apache.spark.unsafe.types.UTF8String
@@ -82,14 +83,14 @@ private[sql] trait ExecutionErrors extends DataTypeErrorsBase {
   def invalidInputInCastToDatetimeError(
       value: UTF8String,
       to: DataType,
-      context: QueryContext): SparkDateTimeException = {
+      context: SQLQueryContext): SparkDateTimeException = {
     invalidInputInCastToDatetimeErrorInternal(toSQLValue(value), StringType, to, context)
   }
 
   def invalidInputInCastToDatetimeError(
      value: Double,
      to: DataType,
-     context: QueryContext): SparkDateTimeException = {
+     context: SQLQueryContext): SparkDateTimeException = {
     invalidInputInCastToDatetimeErrorInternal(toSQLValue(value), DoubleType, to, context)
   }
 
@@ -97,7 +98,7 @@ private[sql] trait ExecutionErrors extends DataTypeErrorsBase {
       sqlValue: String,
       from: DataType,
       to: DataType,
-      context: QueryContext): SparkDateTimeException = {
+      context: SQLQueryContext): SparkDateTimeException = {
     new SparkDateTimeException(
       errorClass = "CAST_INVALID_INPUT",
       messageParameters = Map(
@@ -112,7 +113,7 @@ private[sql] trait ExecutionErrors extends DataTypeErrorsBase {
   def arithmeticOverflowError(
       message: String,
       hint: String = "",
-      context: QueryContext = null): ArithmeticException = {
+      context: SQLQueryContext = null): ArithmeticException = {
     val alternative = if (hint.nonEmpty) {
       s" Use '$hint' to tolerate overflow and return NULL instead."
     } else ""

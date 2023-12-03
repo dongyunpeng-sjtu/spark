@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import java.util.regex.Pattern
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import com.fasterxml.jackson.databind.ObjectMapper
 
@@ -106,7 +106,7 @@ private[sql] object DataSourceV2Utils extends Logging {
 
     val optionsWithPath = getOptionsWithPaths(extraOptions, paths: _*)
 
-    val finalOptions = sessionOptions.view.filterKeys(!optionsWithPath.contains(_)).toMap ++
+    val finalOptions = sessionOptions.filterKeys(!optionsWithPath.contains(_)).toMap ++
       optionsWithPath.originalMap
     val dsOptions = new CaseInsensitiveStringMap(finalOptions.asJava)
     val (table, catalog, ident) = provider match {
@@ -133,8 +133,7 @@ private[sql] object DataSourceV2Utils extends Logging {
         } else {
           None
         }
-        val timeTravel = TimeTravelSpec.create(
-          timeTravelTimestamp, timeTravelVersion, conf.sessionLocalTimeZone)
+        val timeTravel = TimeTravelSpec.create(timeTravelTimestamp, timeTravelVersion, conf)
         (CatalogV2Util.getTable(catalog, ident, timeTravel), Some(catalog), Some(ident))
       case _ =>
         // TODO: Non-catalog paths for DSV2 are currently not well defined.

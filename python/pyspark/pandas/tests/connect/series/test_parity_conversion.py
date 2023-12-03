@@ -24,6 +24,7 @@ from pyspark.testing.pandasutils import PandasOnSparkTestUtils
 class SeriesParityConversionTests(
     SeriesConversionMixin, PandasOnSparkTestUtils, ReusedConnectTestCase
 ):
+
     pass
 
 

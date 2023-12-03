@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst.parser
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
@@ -26,7 +26,7 @@ import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import org.apache.spark.{QueryContext, SparkThrowable, SparkThrowableHelper}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, Origin, SQLQueryContext, WithOrigin}
+import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, Origin, WithOrigin}
 import org.apache.spark.sql.catalyst.util.SparkParserUtils
 import org.apache.spark.sql.errors.QueryParsingErrors
 import org.apache.spark.sql.internal.SqlApiConf
@@ -229,8 +229,8 @@ class ParseException(
     val builder = new StringBuilder
     builder ++= "\n" ++= message
     start match {
-      case Origin(Some(l), Some(p), _, _, _, _, _, _) =>
-        builder ++= s" (line $l, pos $p)\n"
+      case Origin(Some(l), Some(p), _, _, _, _, _) =>
+        builder ++= s"(line $l, pos $p)\n"
         command.foreach { cmd =>
           val (above, below) = cmd.split("\n").splitAt(l)
           builder ++= "\n== SQL ==\n"
@@ -262,7 +262,8 @@ class ParseException(
 
 object ParseException {
   def getQueryContext(): Array[QueryContext] = {
-    Some(CurrentOrigin.get.context).collect { case b: SQLQueryContext if b.isValid => b }.toArray
+    val context = CurrentOrigin.get.context
+    if (context.isValid) Array(context) else Array.empty
   }
 }
 

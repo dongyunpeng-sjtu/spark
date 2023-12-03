@@ -41,7 +41,7 @@ trait SQLHelper {
         None
       }
     }
-    keys.lazyZip(values).foreach { (k, v) =>
+    (keys, values).zipped.foreach { (k, v) =>
       if (spark.conf.isModifiable(k)) {
         spark.conf.set(k, v)
       } else {

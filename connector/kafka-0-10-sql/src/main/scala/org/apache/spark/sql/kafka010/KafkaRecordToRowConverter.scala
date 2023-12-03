@@ -19,7 +19,7 @@ package org.apache.spark.sql.kafka010
 
 import java.sql.Timestamp
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.kafka.clients.consumer.ConsumerRecord
 

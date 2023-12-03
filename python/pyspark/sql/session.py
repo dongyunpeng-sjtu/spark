@@ -74,7 +74,6 @@ if TYPE_CHECKING:
     from pyspark.sql.streaming import StreamingQueryManager
     from pyspark.sql.udf import UDFRegistration
     from pyspark.sql.udtf import UDTFRegistration
-    from pyspark.sql.datasource import DataSourceRegistration
 
     # Running MyPy type checks will always require pandas and
     # other dependencies so importing here is fine.
@@ -274,7 +273,7 @@ class SparkSession(SparkConversionMixin):
             """
             with self._lock:
                 if conf is not None:
-                    for k, v in conf.getAll():
+                    for (k, v) in conf.getAll():
                         self._validate_startup_urls()
                         self._options[k] = v
                 elif map is not None:
@@ -863,20 +862,6 @@ class SparkSession(SparkConversionMixin):
         from pyspark.sql.udtf import UDTFRegistration
 
         return UDTFRegistration(self)
-
-    @property
-    def dataSource(self) -> "DataSourceRegistration":
-        """Returns a :class:`DataSourceRegistration` for data source registration.
-
-        .. versionadded:: 4.0.0
-
-        Returns
-        -------
-        :class:`DataSourceRegistration`
-        """
-        from pyspark.sql.datasource import DataSourceRegistration
-
-        return DataSourceRegistration(self)
 
     def range(
         self,
@@ -1533,8 +1518,7 @@ class SparkSession(SparkConversionMixin):
             Supported Data Types</a> for supported value types in Python.
             For example, dictionary keys: "rank", "name", "birthdate";
             dictionary or list values: 1, "Steven", datetime.date(2023, 4, 2).
-            A value can be also a `Column` of a literal or collection constructor functions such
-            as `map()`, `array()`, `struct()`, in that case it is taken as is.
+            A value can be also a `Column` of literal expression, in that case it is taken as is.
 
             .. versionadded:: 3.4.0
 
@@ -1614,27 +1598,23 @@ class SparkSession(SparkConversionMixin):
 
         And substitude named parameters with the `:` prefix by SQL literals.
 
-        >>> from pyspark.sql.functions import create_map
-        >>> spark.sql(
-        ...   "SELECT *, element_at(:m, 'a') AS C FROM {df} WHERE {df[B]} > :minB",
-        ...   {"minB" : 5, "m" : create_map(lit('a'), lit(1))}, df=mydf).show()
-        +---+---+---+
-        |  A|  B|  C|
-        +---+---+---+
-        |  3|  6|  1|
-        +---+---+---+
+        >>> spark.sql("SELECT * FROM {df} WHERE {df[B]} > :minB", {"minB" : 5}, df=mydf).show()
+        +---+---+
+        |  A|  B|
+        +---+---+
+        |  3|  6|
+        +---+---+
 
         Or positional parameters marked by `?` in the SQL query by SQL literals.
 
-        >>> from pyspark.sql.functions import array
         >>> spark.sql(
-        ...   "SELECT *, element_at(?, 1) AS C FROM {df} WHERE {df[B]} > ? and ? < {df[A]}",
-        ...   args=[array(lit(1), lit(2), lit(3)), 5, 2], df=mydf).show()
-        +---+---+---+
-        |  A|  B|  C|
-        +---+---+---+
-        |  3|  6|  1|
-        +---+---+---+
+        ...   "SELECT * FROM {df} WHERE {df[B]} > ? and ? < {df[A]}",
+        ...   args=[5, 2], df=mydf).show()
+        +---+---+
+        |  A|  B|
+        +---+---+
+        |  3|  6|
+        +---+---+
         """
 
         formatter = SQLStringFormatter(self)
@@ -2025,19 +2005,11 @@ class SparkSession(SparkConversionMixin):
         """
         Add a tag to be assigned to all the operations started by this thread in this session.
 
-        Often, a unit of execution in an application consists of multiple Spark executions.
-        Application programmers can use this method to group all those jobs together and give a
-        group tag. The application can use :meth:`SparkSession.interruptTag` to cancel all running
-        executions with this tag.
-
-        There may be multiple tags present at the same time, so different parts of application may
-        use different tags to perform cancellation at different levels of granularity.
-
         .. versionadded:: 3.5.0
 
         Parameters
         ----------
-        tag : str
+        tag : list of str
             The tag to be added. Cannot contain ',' (comma) character or be an empty string.
         """
         raise RuntimeError(

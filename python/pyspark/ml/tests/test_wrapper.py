@@ -63,7 +63,7 @@ class JavaWrapperMemoryTests(SparkSessionTestCase):
             self.assertIn("LinearRegressionTrainingSummary", summary._java_obj.toString())
             return True
 
-        eventually(timeout=10, catch_assertions=True)(condition)()
+        eventually(condition, timeout=10, catch_assertions=True)
 
         try:
             summary.__del__()
@@ -77,7 +77,7 @@ class JavaWrapperMemoryTests(SparkSessionTestCase):
                 summary._java_obj.toString()
             return True
 
-        eventually(timeout=10, catch_assertions=True)(condition)()
+        eventually(condition, timeout=10, catch_assertions=True)
 
 
 class WrapperTests(MLlibTestCase):

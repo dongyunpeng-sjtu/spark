@@ -69,7 +69,8 @@ public class FinalizeShuffleMerge extends BlockTransferMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof FinalizeShuffleMerge o) {
+    if (other instanceof FinalizeShuffleMerge) {
+      FinalizeShuffleMerge o = (FinalizeShuffleMerge) other;
       return Objects.equal(appId, o.appId)
         && appAttemptId == o.appAttemptId
         && shuffleId == o.shuffleId

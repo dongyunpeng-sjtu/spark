@@ -16,8 +16,7 @@
  */
 package org.apache.spark.mllib.api.python
 
-import scala.collection.immutable
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters
 
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.clustering.LDAModel
@@ -36,11 +35,11 @@ private[python] class LDAModelWrapper(model: LDAModel) {
 
   def describeTopics(maxTermsPerTopic: Int): Array[Byte] = {
     val topics = model.describeTopics(maxTermsPerTopic).map { case (terms, termWeights) =>
-      val jTerms = immutable.ArraySeq.unsafeWrapArray(terms).asJava
-      val jTermWeights = immutable.ArraySeq.unsafeWrapArray(termWeights).asJava
+      val jTerms = JavaConverters.seqAsJavaListConverter(terms).asJava
+      val jTermWeights = JavaConverters.seqAsJavaListConverter(termWeights).asJava
       Array[Any](jTerms, jTermWeights)
     }
-    SerDe.dumps(immutable.ArraySeq.unsafeWrapArray(topics).asJava)
+    SerDe.dumps(JavaConverters.seqAsJavaListConverter(topics).asJava)
   }
 
   def save(sc: SparkContext, path: String): Unit = model.save(sc, path)

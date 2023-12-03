@@ -19,9 +19,9 @@ package org.apache.spark.launcher;
 
 import java.time.Duration;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.After;
 import org.slf4j.bridge.SLF4JBridgeHandler;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 /**
  * Handles configuring the JUL -> SLF4J bridge, and provides some utility methods for tests.
@@ -33,7 +33,7 @@ class BaseSuite {
     SLF4JBridgeHandler.install();
   }
 
-  @AfterEach
+  @After
   public void postChecks() {
     LauncherServer server = LauncherServer.getServer();
     if (server != null) {
@@ -50,7 +50,7 @@ class BaseSuite {
   protected void waitFor(final SparkAppHandle handle) throws Exception {
     try {
       eventually(Duration.ofSeconds(10), Duration.ofMillis(10), () -> {
-        assertTrue(handle.getState().isFinal(), "Handle is not in final state.");
+        assertTrue("Handle is not in final state.", handle.getState().isFinal());
       });
     } finally {
       if (!handle.getState().isFinal()) {
@@ -62,7 +62,7 @@ class BaseSuite {
     // have been performed.
     AbstractAppHandle ahandle = (AbstractAppHandle) handle;
     eventually(Duration.ofSeconds(10), Duration.ofMillis(10), () -> {
-      assertTrue(ahandle.isDisposed(), "Handle is still not marked as disposed.");
+      assertTrue("Handle is still not marked as disposed.", ahandle.isDisposed());
     });
   }
 
@@ -71,7 +71,7 @@ class BaseSuite {
    * elapses.
    */
   protected void eventually(Duration timeout, Duration period, Runnable check) throws Exception {
-    assertTrue(timeout.compareTo(period) > 0, "Timeout needs to be larger than period.");
+    assertTrue("Timeout needs to be larger than period.", timeout.compareTo(period) > 0);
     long deadline = System.nanoTime() + timeout.toNanos();
     int count = 0;
     while (true) {

@@ -303,15 +303,8 @@ case class Filter(condition: Expression, child: LogicalPlan)
   extends OrderPreservingUnaryNode with PredicateHelper {
   override def output: Seq[Attribute] = child.output
 
-  override def maxRows: Option[Long] = condition match {
-    case Literal.FalseLiteral => Some(0L)
-    case _ => child.maxRows
-  }
-
-  override def maxRowsPerPartition: Option[Long] = condition match {
-    case Literal.FalseLiteral => Some(0L)
-    case _ => child.maxRowsPerPartition
-  }
+  override def maxRows: Option[Long] = child.maxRows
+  override def maxRowsPerPartition: Option[Long] = child.maxRowsPerPartition
 
   final override val nodePatterns: Seq[TreePattern] = Seq(FILTER)
 
@@ -684,7 +677,7 @@ case class InsertIntoDir(
     provider: Option[String],
     child: LogicalPlan,
     overwrite: Boolean = true)
-  extends UnaryNode with CTEInChildren {
+  extends UnaryNode {
 
   override def output: Seq[Attribute] = Seq.empty
   override def metadataOutput: Seq[Attribute] = Nil
@@ -762,7 +755,7 @@ object View {
     // as optimization configs but they are still needed during the view resolution.
     // TODO: remove this `retainedConfigs` after the `RelationConversions` is moved to
     // optimization phase.
-    val retainedConfigs = activeConf.getAllConfs.view.filterKeys(key =>
+    val retainedConfigs = activeConf.getAllConfs.filterKeys(key =>
       Seq(
         "spark.sql.hive.convertMetastoreParquet",
         "spark.sql.hive.convertMetastoreOrc",
@@ -893,16 +886,6 @@ case class WithCTE(plan: LogicalPlan, cteDefs: Seq[CTERelationDef]) extends Logi
     withNewChildren(children.init :+ newPlan).asInstanceOf[WithCTE]
   }
 }
-
-/**
- * The logical node which is able to place the `WithCTE` node on its children.
- */
-trait CTEInChildren extends LogicalPlan {
-  def withCTEDefs(cteDefs: Seq[CTERelationDef]): LogicalPlan = {
-    withNewChildren(children.map(WithCTE(_, cteDefs)))
-  }
-}
-
 
 case class WithWindowDefinition(
     windowDefinitions: Map[String, WindowSpecDefinition],
@@ -1332,9 +1315,9 @@ object Expand {
     // grouping expression or null, so here we create new instance of it.
     val output = if (hasDuplicateGroupingSets) {
       val gpos = AttributeReference("_gen_grouping_pos", IntegerType, false)()
-      child.output ++ groupByAttrs.map(_.newInstance()) :+ gid :+ gpos
+      child.output ++ groupByAttrs.map(_.newInstance) :+ gid :+ gpos
     } else {
-      child.output ++ groupByAttrs.map(_.newInstance()) :+ gid
+      child.output ++ groupByAttrs.map(_.newInstance) :+ gid
     }
     Expand(projections, output, Project(child.output ++ groupByAliases, child))
   }
@@ -1422,7 +1405,7 @@ case class Pivot(
         pivotValues.map(value => AttributeReference(value.toString, agg.dataType)())
       case _ =>
         pivotValues.flatMap { value =>
-          aggregates.map(agg => AttributeReference(s"${value}_${agg.sql}", agg.dataType)())
+          aggregates.map(agg => AttributeReference(value + "_" + agg.sql, agg.dataType)())
         }
     }
     groupByExprsOpt.getOrElse(Seq.empty).map(_.toAttribute) ++ pivotAgg
@@ -1969,8 +1952,7 @@ trait SupportsSubquery extends LogicalPlan
 case class CollectMetrics(
     name: String,
     metrics: Seq[NamedExpression],
-    child: LogicalPlan,
-    dataframeId: Long)
+    child: LogicalPlan)
   extends UnaryNode {
 
   override lazy val resolved: Boolean = {
@@ -1983,10 +1965,6 @@ case class CollectMetrics(
 
   override protected def withNewChildInternal(newChild: LogicalPlan): CollectMetrics =
     copy(child = newChild)
-
-  override def doCanonicalize(): LogicalPlan = {
-    super.doCanonicalize().asInstanceOf[CollectMetrics].copy(dataframeId = 0L)
-  }
 }
 
 /**

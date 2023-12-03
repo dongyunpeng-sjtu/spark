@@ -28,7 +28,6 @@ from pyspark.sql import Row
 from pyspark.sql import functions as F
 from pyspark.errors import AnalysisException, PySparkTypeError, PySparkValueError
 from pyspark.sql.types import (
-    DataType,
     ByteType,
     ShortType,
     IntegerType,
@@ -37,7 +36,6 @@ from pyspark.sql.types import (
     TimestampType,
     DayTimeIntervalType,
     YearMonthIntervalType,
-    CalendarIntervalType,
     MapType,
     StringType,
     CharType,
@@ -1165,7 +1163,6 @@ class TypesTestsMixin:
             IntegerType(),
             LongType(),
             ShortType(),
-            CalendarIntervalType(),
             ArrayType(StringType()),
             MapType(StringType(), IntegerType()),
             StructField("f1", StringType(), True),
@@ -1274,31 +1271,6 @@ class TypesTestsMixin:
 
         schema3 = self.spark.sql("SELECT INTERVAL '8' MONTH AS interval").schema
         self.assertEqual(schema3.fields[0].dataType, YearMonthIntervalType(1, 1))
-
-    def test_calendar_interval_type_constructor(self):
-        self.assertEqual(CalendarIntervalType().simpleString(), "interval")
-
-        with self.assertRaisesRegex(TypeError, "takes 1 positional argument but 2 were given"):
-            CalendarIntervalType(3)
-
-    def test_calendar_interval_type(self):
-        schema1 = self.spark.sql("SELECT make_interval(100, 11, 1, 1, 12, 30, 01.001001)").schema
-        self.assertEqual(schema1.fields[0].dataType, CalendarIntervalType())
-
-    def test_calendar_interval_type_with_sf(self):
-        schema1 = self.spark.range(1).select(F.make_interval(F.lit(1))).schema
-        self.assertEqual(schema1.fields[0].dataType, CalendarIntervalType())
-
-    def test_from_ddl(self):
-        self.assertEqual(DataType.fromDDL("long"), LongType())
-        self.assertEqual(
-            DataType.fromDDL("a: int, b: string"),
-            StructType([StructField("a", IntegerType()), StructField("b", StringType())]),
-        )
-        self.assertEqual(
-            DataType.fromDDL("a int, b string"),
-            StructType([StructField("a", IntegerType()), StructField("b", StringType())]),
-        )
 
 
 class DataTypeTests(unittest.TestCase):
@@ -1578,13 +1550,6 @@ class DataTypeVerificationTests(unittest.TestCase, PySparkErrorTestUtils):
 
         self.assertEqual(r, expected)
         self.assertEqual(repr(r), "Row(b=1, a=2)")
-
-    def test_struct_field_from_json(self):
-        # SPARK-40820: fromJson with only name and type
-        json = {"name": "c1", "type": "string"}
-        struct_field = StructField.fromJson(json)
-
-        self.assertEqual(repr(struct_field), "StructField('c1', StringType(), True)")
 
 
 class TypesTests(TypesTestsMixin, ReusedSQLTestCase):

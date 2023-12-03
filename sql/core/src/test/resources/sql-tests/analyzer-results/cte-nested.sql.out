@@ -96,7 +96,6 @@ SELECT * FROM t2
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",
@@ -160,7 +159,6 @@ SELECT * FROM t2
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",
@@ -268,7 +266,6 @@ SELECT (
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",
@@ -289,7 +286,6 @@ SELECT (
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",
@@ -311,7 +307,6 @@ SELECT (
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",
@@ -331,7 +326,6 @@ WHERE c IN (
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",
@@ -380,7 +374,6 @@ SELECT * FROM t
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",
@@ -399,7 +392,6 @@ SELECT (
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "AMBIGUOUS_ALIAS_IN_NESTED_CTE",
-  "sqlState" : "42KD0",
   "messageParameters" : {
     "config" : "\"spark.sql.legacy.ctePrecedencePolicy\"",
     "docroot" : "https://spark.apache.org/docs/latest",

@@ -196,8 +196,8 @@ class SparkConnectPluginRegistrySuite extends SharedSparkSession with SparkConne
         .build()
 
       val executeHolder = buildExecutePlanHolder(plan)
-      new SparkConnectPlanner(executeHolder)
-        .process(plan, new MockObserver())
+      new SparkConnectPlanner(executeHolder.sessionHolder)
+        .process(plan, new MockObserver(), executeHolder)
       assert(spark.sparkContext.getLocalProperty("testingProperty").equals("Martin"))
     }
   }
@@ -226,7 +226,7 @@ class SparkConnectPluginRegistrySuite extends SharedSparkSession with SparkConne
     }
   }
 
-  test("Empty registries are really empty and work") {
+  test("Emtpy registries are really empty and work") {
     assert(SparkConnectPluginRegistry.loadRelationPlugins().isEmpty)
     assert(SparkConnectPluginRegistry.loadExpressionPlugins().isEmpty)
     assert(SparkConnectPluginRegistry.loadCommandPlugins().isEmpty)

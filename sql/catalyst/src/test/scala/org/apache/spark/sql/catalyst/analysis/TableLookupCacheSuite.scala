@@ -19,7 +19,7 @@ package org.apache.spark.sql.catalyst.analysis
 
 import java.io.File
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._

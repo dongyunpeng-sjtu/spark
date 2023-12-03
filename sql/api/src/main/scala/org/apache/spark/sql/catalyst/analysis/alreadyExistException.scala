@@ -31,7 +31,7 @@ class DatabaseAlreadyExistsException(db: String)
   extends NamespaceAlreadyExistsException(Array(db))
 
 // any changes to this class should be backward compatible as it may be used by external connectors
-class NamespaceAlreadyExistsException private[sql](
+class NamespaceAlreadyExistsException private(
     message: String,
     errorClass: Option[String],
     messageParameters: Map[String, String])
@@ -61,7 +61,7 @@ class NamespaceAlreadyExistsException private[sql](
 }
 
 // any changes to this class should be backward compatible as it may be used by external connectors
-class TableAlreadyExistsException private[sql](
+class TableAlreadyExistsException private(
     message: String,
     cause: Option[Throwable],
     errorClass: Option[String],
@@ -115,7 +115,7 @@ class TableAlreadyExistsException private[sql](
   }
 }
 
-class TempTableAlreadyExistsException private[sql](
+class TempTableAlreadyExistsException private(
   message: String,
   cause: Option[Throwable],
   errorClass: Option[String],

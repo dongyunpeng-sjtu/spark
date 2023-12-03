@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.streaming
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql._

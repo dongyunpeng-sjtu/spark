@@ -19,7 +19,7 @@ license: |
   limitations under the License.
 ---
 
-[SQLSTATE: 0A000](sql-error-conditions-sqlstates.html#class-0A-feature-not-supported)
+SQLSTATE: none assigned
 
 Cannot update `<table>` field `<fieldName>` type:
 

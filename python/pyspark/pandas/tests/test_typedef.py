@@ -19,6 +19,7 @@ import sys
 import unittest
 import datetime
 import decimal
+from distutils.version import LooseVersion
 from typing import List
 
 import pandas
@@ -361,7 +362,7 @@ class TypeHintTestsMixin:
             )
 
             # For NumPy typing, NumPy version should be 1.21+ and Python version should be 3.8+
-            if sys.version_info >= (3, 8):
+            if sys.version_info >= (3, 8) and LooseVersion(np.__version__) >= LooseVersion("1.21"):
                 import numpy.typing as ntp
 
                 self.assertEqual(

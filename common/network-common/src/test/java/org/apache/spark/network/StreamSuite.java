@@ -30,10 +30,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.io.Files;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import static org.junit.Assert.*;
 
 import org.apache.spark.network.buffer.ManagedBuffer;
 import org.apache.spark.network.client.RpcResponseCallback;
@@ -63,7 +63,7 @@ public class StreamSuite {
     return buf;
   }
 
-  @BeforeAll
+  @BeforeClass
   public static void setUp() throws Exception {
     testData = new StreamTestHelper();
 
@@ -98,7 +98,7 @@ public class StreamSuite {
     clientFactory = context.createClientFactory();
   }
 
-  @AfterAll
+  @AfterClass
   public static void tearDown() {
     server.close();
     clientFactory.close();
@@ -154,7 +154,7 @@ public class StreamSuite {
       }
 
       executor.shutdown();
-      assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS), "Timed out waiting for tasks.");
+      assertTrue("Timed out waiting for tasks.", executor.awaitTermination(30, TimeUnit.SECONDS));
       for (StreamTask task : tasks) {
         task.check();
       }
@@ -213,7 +213,7 @@ public class StreamSuite {
         callback.waitForCompletion(timeoutMs);
 
         if (srcBuffer == null) {
-          assertTrue(Files.equal(testData.testFile, outFile), "File stream did not match.");
+          assertTrue("File stream did not match.", Files.equal(testData.testFile, outFile));
         } else {
           ByteBuffer base;
           synchronized (srcBuffer) {
@@ -223,7 +223,7 @@ public class StreamSuite {
           byte[] expected = new byte[base.remaining()];
           base.get(expected);
           assertEquals(expected.length, result.length);
-          assertArrayEquals(expected, result, "buffers don't match");
+          assertArrayEquals("buffers don't match", expected, result);
         }
       } catch (Throwable t) {
         error = t;
@@ -297,7 +297,7 @@ public class StreamSuite {
           now = System.currentTimeMillis();
         }
       }
-      assertTrue(completed, "Timed out waiting for stream.");
+      assertTrue("Timed out waiting for stream.", completed);
       assertNull(error);
     }
   }

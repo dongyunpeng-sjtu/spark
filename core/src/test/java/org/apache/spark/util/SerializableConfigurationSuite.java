@@ -19,25 +19,25 @@ package org.apache.spark.util;
 import java.util.Arrays;
 
 import org.apache.hadoop.conf.Configuration;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 
 public class SerializableConfigurationSuite {
   private transient JavaSparkContext sc;
 
-  @BeforeEach
+  @Before
   public void setUp() {
     sc = new JavaSparkContext("local", "SerializableConfigurationSuite");
   }
 
-  @AfterEach
+  @After
   public void tearDown() {
     sc.stop();
     sc = null;

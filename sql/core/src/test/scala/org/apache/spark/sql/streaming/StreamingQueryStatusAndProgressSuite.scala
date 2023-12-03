@@ -19,7 +19,7 @@ package org.apache.spark.sql.streaming
 
 import java.util.UUID
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.json4s.jackson.JsonMethods._
 import org.scalatest.concurrent.Eventually
@@ -48,7 +48,6 @@ class StreamingQueryStatusAndProgressSuite extends StreamTest with Eventually {
         |  "name" : "myName",
         |  "timestamp" : "2016-12-05T20:54:20.827Z",
         |  "batchId" : 2,
-        |  "batchDuration" : 0,
         |  "numInputRows" : 678,
         |  "inputRowsPerSecond" : 10.0,
         |  "durationMs" : {
@@ -115,7 +114,6 @@ class StreamingQueryStatusAndProgressSuite extends StreamTest with Eventually {
          |  "name" : null,
          |  "timestamp" : "2016-12-05T20:54:20.827Z",
          |  "batchId" : 2,
-         |  "batchDuration" : 0,
          |  "numInputRows" : 678,
          |  "durationMs" : {
          |    "total" : 0
@@ -391,7 +389,7 @@ object StreamingQueryStatusAndProgressSuite {
     timestamp = "2016-12-05T20:54:20.827Z",
     batchId = 2L,
     batchDuration = 0L,
-    durationMs = new java.util.HashMap(Map("total" -> 0L).view.mapValues(long2Long).toMap.asJava),
+    durationMs = new java.util.HashMap(Map("total" -> 0L).mapValues(long2Long).toMap.asJava),
     eventTime = new java.util.HashMap(Map(
       "max" -> "2016-12-05T20:54:20.827Z",
       "min" -> "2016-12-05T20:54:20.827Z",
@@ -403,7 +401,7 @@ object StreamingQueryStatusAndProgressSuite {
       numShufflePartitions = 2, numStateStoreInstances = 2,
       customMetrics = new java.util.HashMap(Map("stateOnCurrentVersionSizeBytes" -> 2L,
         "loadedMapCacheHitCount" -> 1L, "loadedMapCacheMissCount" -> 0L)
-        .view.mapValues(long2Long).toMap.asJava)
+        .mapValues(long2Long).toMap.asJava)
     )),
     sources = Array(
       new SourceProgress(
@@ -429,7 +427,7 @@ object StreamingQueryStatusAndProgressSuite {
     timestamp = "2016-12-05T20:54:20.827Z",
     batchId = 2L,
     batchDuration = 0L,
-    durationMs = new java.util.HashMap(Map("total" -> 0L).view.mapValues(long2Long).toMap.asJava),
+    durationMs = new java.util.HashMap(Map("total" -> 0L).mapValues(long2Long).toMap.asJava),
     // empty maps should be handled correctly
     eventTime = new java.util.HashMap(Map.empty[String, String].asJava),
     stateOperators = Array(new StateOperatorProgress(operatorName = "op2",

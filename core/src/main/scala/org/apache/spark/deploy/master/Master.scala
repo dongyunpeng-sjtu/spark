@@ -59,7 +59,6 @@ private[deploy] class Master(
   private val workerTimeoutMs = conf.get(WORKER_TIMEOUT) * 1000
   private val retainedApplications = conf.get(RETAINED_APPLICATIONS)
   private val retainedDrivers = conf.get(RETAINED_DRIVERS)
-  private val maxDrivers = conf.get(MAX_DRIVERS)
   private val reaperIterations = conf.get(REAPER_ITERATIONS)
   private val recoveryMode = conf.get(RECOVERY_MODE)
   private val maxExecutorRetries = conf.get(MAX_EXECUTOR_RETRIES)
@@ -97,7 +96,7 @@ private[deploy] class Master(
   private val masterUrl = address.toSparkURL
   private var masterWebUiUrl: String = _
 
-  private[master] var state = RecoveryState.STANDBY
+  private var state = RecoveryState.STANDBY
 
   private var persistenceEngine: PersistenceEngine = _
 
@@ -845,8 +844,8 @@ private[deploy] class Master(
       // We assign workers to each waiting driver in a round-robin fashion. For each driver, we
       // start from the last worker that was assigned a driver, and continue onwards until we have
       // explored all alive workers.
-      var launched = (drivers.size - waitingDrivers.size) >= maxDrivers
-      var isClusterIdle = !launched
+      var launched = false
+      var isClusterIdle = true
       var numWorkersVisited = 0
       while (numWorkersVisited < numWorkersAlive && !launched) {
         val worker = shuffledAliveWorkers(curPos)
@@ -917,7 +916,6 @@ private[deploy] class Master(
   private def decommissionWorkersOnHosts(hostnames: Seq[String]): Integer = {
     val hostnamesSet = hostnames.map(_.toLowerCase(Locale.ROOT)).toSet
     val workersToRemove = addressToWorker
-      .view
       .filterKeys(addr => hostnamesSet.contains(addr.host.toLowerCase(Locale.ROOT)))
       .values
 
@@ -1042,7 +1040,7 @@ private[deploy] class Master(
         completedApps.take(toRemove).foreach { a =>
           applicationMetricsSystem.removeSource(a.appSource)
         }
-        completedApps.dropInPlace(toRemove)
+        completedApps.trimStart(toRemove)
       }
       completedApps += app // Remember it in our history
       waitingApps -= app
@@ -1204,7 +1202,7 @@ private[deploy] class Master(
         drivers -= driver
         if (completedDrivers.size >= retainedDrivers) {
           val toRemove = math.max(retainedDrivers / 10, 1)
-          completedDrivers.dropInPlace(toRemove)
+          completedDrivers.trimStart(toRemove)
         }
         completedDrivers += driver
         persistenceEngine.removeDriver(driver)

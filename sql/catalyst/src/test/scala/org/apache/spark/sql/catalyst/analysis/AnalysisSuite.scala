@@ -19,7 +19,7 @@ package org.apache.spark.sql.catalyst.analysis
 
 import java.util.TimeZone
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
@@ -562,16 +562,14 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       ).select(star())
     }
     assertAnalysisSuccess(tableColumnsWithAliases("col1" :: "col2" :: "col3" :: "col4" :: Nil))
-    assertAnalysisErrorClass(
+    assertAnalysisError(
       tableColumnsWithAliases("col1" :: Nil),
-      "ASSIGNMENT_ARITY_MISMATCH",
-      Map("numExpr" -> "1", "numTarget" -> "4")
-    )
-    assertAnalysisErrorClass(
+      Seq("Number of column aliases does not match number of columns. " +
+        "Number of column aliases: 1; number of columns: 4."))
+    assertAnalysisError(
       tableColumnsWithAliases("col1" :: "col2" :: "col3" :: "col4" :: "col5" :: Nil),
-      "ASSIGNMENT_ARITY_MISMATCH",
-      Map("numExpr" -> "5", "numTarget" -> "4")
-    )
+      Seq("Number of column aliases does not match number of columns. " +
+        "Number of column aliases: 5; number of columns: 4."))
   }
 
   test("SPARK-20962 Support subquery column aliases in FROM clause") {
@@ -584,16 +582,14 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       ).select(star())
     }
     assertAnalysisSuccess(tableColumnsWithAliases("col1" :: "col2" :: "col3" :: "col4" :: Nil))
-    assertAnalysisErrorClass(
+    assertAnalysisError(
       tableColumnsWithAliases("col1" :: Nil),
-      "ASSIGNMENT_ARITY_MISMATCH",
-      Map("numExpr" -> "1", "numTarget" -> "4")
-    )
-    assertAnalysisErrorClass(
+      Seq("Number of column aliases does not match number of columns. " +
+        "Number of column aliases: 1; number of columns: 4."))
+    assertAnalysisError(
       tableColumnsWithAliases("col1" :: "col2" :: "col3" :: "col4" :: "col5" :: Nil),
-      "ASSIGNMENT_ARITY_MISMATCH",
-      Map("numExpr" -> "5", "numTarget" -> "4")
-    )
+      Seq("Number of column aliases does not match number of columns. " +
+        "Number of column aliases: 5; number of columns: 4."))
   }
 
   test("SPARK-20963 Support aliases for join relations in FROM clause") {
@@ -608,16 +604,14 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       ).select(star())
     }
     assertAnalysisSuccess(joinRelationWithAliases("col1" :: "col2" :: "col3" :: "col4" :: Nil))
-    assertAnalysisErrorClass(
+    assertAnalysisError(
       joinRelationWithAliases("col1" :: Nil),
-      "ASSIGNMENT_ARITY_MISMATCH",
-      Map("numExpr" -> "1", "numTarget" -> "4")
-    )
-    assertAnalysisErrorClass(
+      Seq("Number of column aliases does not match number of columns. " +
+        "Number of column aliases: 1; number of columns: 4."))
+    assertAnalysisError(
       joinRelationWithAliases("col1" :: "col2" :: "col3" :: "col4" :: "col5" :: Nil),
-        "ASSIGNMENT_ARITY_MISMATCH",
-        Map("numExpr" -> "5", "numTarget" -> "4")
-      )
+      Seq("Number of column aliases does not match number of columns. " +
+        "Number of column aliases: 5; number of columns: 4."))
   }
 
   test("SPARK-22614 RepartitionByExpression partitioning") {
@@ -759,11 +753,9 @@ class AnalysisSuite extends AnalysisTest with Matchers {
   }
 
   test("CTE with non-matching column alias") {
-    assertAnalysisErrorClass(parsePlan("WITH t(x, y) AS (SELECT 1) SELECT * FROM t WHERE x = 1"),
-      "ASSIGNMENT_ARITY_MISMATCH",
-      Map("numExpr" -> "2", "numTarget" -> "1"),
-      Array(ExpectedContext("t(x, y) AS (SELECT 1)", 5, 25))
-    )
+    assertAnalysisError(parsePlan("WITH t(x, y) AS (SELECT 1) SELECT * FROM t WHERE x = 1"),
+      Seq("Number of column aliases does not match number of columns. Number of column aliases: " +
+        "2; number of columns: 1."))
   }
 
   test("SPARK-28251: Insert into non-existing table error message is user friendly") {
@@ -779,35 +771,34 @@ class AnalysisSuite extends AnalysisTest with Matchers {
     val literal = Literal(1).as("lit")
 
     // Ok
-    assert(CollectMetrics("event", literal :: sum :: random_sum :: Nil, testRelation, 0).resolved)
+    assert(CollectMetrics("event", literal :: sum :: random_sum :: Nil, testRelation).resolved)
 
     // Bad name
-    assert(!CollectMetrics("", sum :: Nil, testRelation, 0).resolved)
+    assert(!CollectMetrics("", sum :: Nil, testRelation).resolved)
     assertAnalysisErrorClass(
-      CollectMetrics("", sum :: Nil, testRelation, 0),
+      CollectMetrics("", sum :: Nil, testRelation),
       expectedErrorClass = "INVALID_OBSERVED_METRICS.MISSING_NAME",
       expectedMessageParameters = Map(
-        "operator" ->
-          "'CollectMetrics , [sum(a#x) AS sum#xL], 0\n+- LocalRelation <empty>, [a#x]\n")
+        "operator" -> "'CollectMetrics , [sum(a#x) AS sum#xL]\n+- LocalRelation <empty>, [a#x]\n")
     )
 
     // No columns
-    assert(!CollectMetrics("evt", Nil, testRelation, 0).resolved)
+    assert(!CollectMetrics("evt", Nil, testRelation).resolved)
 
     def checkAnalysisError(exprs: Seq[NamedExpression], errors: String*): Unit = {
-      assertAnalysisError(CollectMetrics("event", exprs, testRelation, 0), errors)
+      assertAnalysisError(CollectMetrics("event", exprs, testRelation), errors)
     }
 
     // Unwrapped attribute
     assertAnalysisErrorClass(
-      CollectMetrics("event", a :: Nil, testRelation, 0),
+      CollectMetrics("event", a :: Nil, testRelation),
       expectedErrorClass = "INVALID_OBSERVED_METRICS.NON_AGGREGATE_FUNC_ARG_IS_ATTRIBUTE",
       expectedMessageParameters = Map("expr" -> "\"a\"")
     )
 
     // Unwrapped non-deterministic expression
     assertAnalysisErrorClass(
-      CollectMetrics("event", Rand(10).as("rnd") :: Nil, testRelation, 0),
+      CollectMetrics("event", Rand(10).as("rnd") :: Nil, testRelation),
       expectedErrorClass = "INVALID_OBSERVED_METRICS.NON_AGGREGATE_FUNC_ARG_IS_NON_DETERMINISTIC",
       expectedMessageParameters = Map("expr" -> "\"rand(10) AS rnd\"")
     )
@@ -817,7 +808,7 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       CollectMetrics(
         "event",
         Sum(a).toAggregateExpression(isDistinct = true).as("sum") :: Nil,
-        testRelation, 0),
+        testRelation),
       expectedErrorClass =
         "INVALID_OBSERVED_METRICS.AGGREGATE_EXPRESSION_WITH_DISTINCT_UNSUPPORTED",
       expectedMessageParameters = Map("expr" -> "\"sum(DISTINCT a) AS sum\"")
@@ -828,7 +819,7 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       CollectMetrics(
         "event",
         Sum(Sum(a).toAggregateExpression()).toAggregateExpression().as("sum") :: Nil,
-        testRelation, 0),
+        testRelation),
       expectedErrorClass = "INVALID_OBSERVED_METRICS.NESTED_AGGREGATES_UNSUPPORTED",
       expectedMessageParameters = Map("expr" -> "\"sum(sum(a)) AS sum\"")
     )
@@ -839,7 +830,7 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       WindowSpecDefinition(Nil, a.asc :: Nil,
         SpecifiedWindowFrame(RowFrame, UnboundedPreceding, CurrentRow)))
     assertAnalysisErrorClass(
-      CollectMetrics("event", windowExpr.as("rn") :: Nil, testRelation, 0),
+      CollectMetrics("event", windowExpr.as("rn") :: Nil, testRelation),
       expectedErrorClass = "INVALID_OBSERVED_METRICS.WINDOW_EXPRESSIONS_UNSUPPORTED",
       expectedMessageParameters = Map(
         "expr" ->
@@ -857,14 +848,14 @@ class AnalysisSuite extends AnalysisTest with Matchers {
 
     // Same result - duplicate names are allowed
     assertAnalysisSuccess(Union(
-      CollectMetrics("evt1", count :: Nil, testRelation, 0) ::
-      CollectMetrics("evt1", count :: Nil, testRelation, 0) :: Nil))
+      CollectMetrics("evt1", count :: Nil, testRelation) ::
+      CollectMetrics("evt1", count :: Nil, testRelation) :: Nil))
 
     // Same children, structurally different metrics - fail
     assertAnalysisErrorClass(
       Union(
-        CollectMetrics("evt1", count :: Nil, testRelation, 0) ::
-          CollectMetrics("evt1", sum :: Nil, testRelation, 1) :: Nil),
+        CollectMetrics("evt1", count :: Nil, testRelation) ::
+          CollectMetrics("evt1", sum :: Nil, testRelation) :: Nil),
       expectedErrorClass = "DUPLICATED_METRICS_NAME",
       expectedMessageParameters = Map("metricName" -> "evt1")
     )
@@ -874,17 +865,17 @@ class AnalysisSuite extends AnalysisTest with Matchers {
     val tblB = LocalRelation(b)
     assertAnalysisErrorClass(
       Union(
-        CollectMetrics("evt1", count :: Nil, testRelation, 0) ::
-          CollectMetrics("evt1", count :: Nil, tblB, 1) :: Nil),
+        CollectMetrics("evt1", count :: Nil, testRelation) ::
+          CollectMetrics("evt1", count :: Nil, tblB) :: Nil),
       expectedErrorClass = "DUPLICATED_METRICS_NAME",
       expectedMessageParameters = Map("metricName" -> "evt1")
     )
 
     // Subquery different tree - fail
-    val subquery = Aggregate(Nil, sum :: Nil, CollectMetrics("evt1", count :: Nil, testRelation, 0))
+    val subquery = Aggregate(Nil, sum :: Nil, CollectMetrics("evt1", count :: Nil, testRelation))
     val query = Project(
       b :: ScalarSubquery(subquery, Nil).as("sum") :: Nil,
-      CollectMetrics("evt1", count :: Nil, tblB, 1))
+      CollectMetrics("evt1", count :: Nil, tblB))
     assertAnalysisErrorClass(
       query,
       expectedErrorClass = "DUPLICATED_METRICS_NAME",
@@ -896,16 +887,11 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       case a: AggregateExpression => a.copy(filter = Some(true))
     }.asInstanceOf[NamedExpression]
     assertAnalysisErrorClass(
-      CollectMetrics("evt1", sumWithFilter :: Nil, testRelation, 0),
+      CollectMetrics("evt1", sumWithFilter :: Nil, testRelation),
       expectedErrorClass =
         "INVALID_OBSERVED_METRICS.AGGREGATE_EXPRESSION_WITH_FILTER_UNSUPPORTED",
       expectedMessageParameters = Map("expr" -> "\"sum(a) FILTER (WHERE true) AS sum\"")
     )
-  }
-
-  test("Canonicalize CollectMetrics") {
-    assert(CollectMetrics("", Seq(Rand(10).as("rnd")), testRelation, 1).canonicalized ==
-      CollectMetrics("", Seq(Rand(10).as("rnd")), testRelation, 2).canonicalized)
   }
 
   test("Analysis exceed max iterations") {
@@ -1438,7 +1424,7 @@ class AnalysisSuite extends AnalysisTest with Matchers {
     CTERelationDef.curId.set(0)
     val actual1 = PosParameterizedQuery(
       child = parsePlan("WITH a AS (SELECT 1 c) SELECT * FROM a LIMIT ?"),
-      args = Seq(Literal(10))).analyze
+      args = Array(Literal(10))).analyze
     CTERelationDef.curId.set(0)
     val expected1 = parsePlan("WITH a AS (SELECT 1 c) SELECT * FROM a LIMIT 10").analyze
     comparePlans(actual1, expected1)
@@ -1446,7 +1432,7 @@ class AnalysisSuite extends AnalysisTest with Matchers {
     CTERelationDef.curId.set(0)
     val actual2 = PosParameterizedQuery(
       child = parsePlan("WITH a AS (SELECT 1 c) SELECT c FROM a WHERE c < ?"),
-      args = Seq(Literal(20), Literal(10))).analyze
+      args = Array(Literal(20), Literal(10))).analyze
     CTERelationDef.curId.set(0)
     val expected2 = parsePlan("WITH a AS (SELECT 1 c) SELECT c FROM a WHERE c < 20").analyze
     comparePlans(actual2, expected2)
@@ -1471,7 +1457,7 @@ class AnalysisSuite extends AnalysisTest with Matchers {
       Iterator.empty
     }
 
-    implicit val intEncoder = ExpressionEncoder[Int]()
+    implicit val intEncoder = ExpressionEncoder[Int]
 
     val left = testRelation2.select($"e").analyze
     val right = testRelation3.select($"e").analyze

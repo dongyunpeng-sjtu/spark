@@ -26,6 +26,7 @@ except ImportError:
     have_torch = False
 
 from pyspark.sql import SparkSession
+
 from pyspark.ml.torch.tests.test_distributor import (
     TorchDistributorBaselineUnitTestsMixin,
     TorchDistributorLocalUnitTestsMixin,

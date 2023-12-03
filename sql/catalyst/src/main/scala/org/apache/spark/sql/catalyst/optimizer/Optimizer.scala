@@ -55,8 +55,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
     Set(
       "PartitionPruning",
       "RewriteSubquery",
-      "Extract Python UDFs",
-      "Infer Filters")
+      "Extract Python UDFs")
 
   protected def fixedPoint =
     FixedPoint(
@@ -179,8 +178,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
     // Subquery batch applies the optimizer rules recursively. Therefore, it makes no sense
     // to enforce idempotence on it and we change this batch from Once to FixedPoint(1).
     Batch("Subquery", FixedPoint(1),
-      OptimizeSubqueries,
-      OptimizeOneRowRelationSubquery) ::
+      OptimizeSubqueries) ::
     Batch("Replace Operators", fixedPoint,
       RewriteExceptAll,
       RewriteIntersectAll,
@@ -1055,7 +1053,6 @@ object CollapseProject extends Rule[LogicalPlan] with AliasHelper {
       .filter(_.references.exists(producerMap.contains))
       .flatMap(collectReferences)
       .groupBy(identity)
-      .view
       .mapValues(_.size)
       .forall {
         case (reference, count) =>

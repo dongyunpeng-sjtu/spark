@@ -42,13 +42,10 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
 
   // the executionObserver object is used as a synchronization lock between the
   // ExecuteGrpcResponseSender consumer and ExecuteResponseObserver producer.
-  private val executionObserver = executeHolder.responseObserver
+  private var executionObserver = executeHolder.responseObserver
     .asInstanceOf[ExecuteResponseObserver[T]]
 
   private var interrupted = false
-
-  // Time at which this sender should finish if the response stream is not finished by then.
-  private var deadlineTimeMillis = Long.MaxValue
 
   // Signal to wake up when grpcCallObserver.isReady()
   private val grpcCallObserverReadySignal = new Object
@@ -63,15 +60,9 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
   /**
    * Interrupt this sender and make it exit.
    */
-  def interrupt(): Unit = {
+  def interrupt(): Unit = executionObserver.synchronized {
     interrupted = true
-    wakeUp()
-  }
-
-  // For testing
-  private[connect] def setDeadline(deadlineMs: Long) = {
-    deadlineTimeMillis = deadlineMs
-    wakeUp()
+    executionObserver.notifyAll()
   }
 
   def run(lastConsumedStreamIndex: Long): Unit = {
@@ -124,9 +115,11 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
         execute(lastConsumedStreamIndex)
       } finally {
         executeHolder.removeGrpcResponseSender(this)
-        // Non reattachable executions release here immediately.
-        // (Reattachable executions release with ReleaseExecute RPC.)
-        SparkConnectService.executionManager.removeExecuteHolder(executeHolder.key)
+        if (!executeHolder.reattachable) {
+          // Non reattachable executions release here immediately.
+          // (Reattachable executions release with ReleaseExecute RPC.)
+          SparkConnectService.executionManager.removeExecuteHolder(executeHolder.key)
+        }
       }
     }
   }
@@ -150,11 +143,14 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
         s"lastConsumedStreamIndex=$lastConsumedStreamIndex")
     val startTime = System.nanoTime()
 
+    // register to be notified about available responses.
+    executionObserver.attachConsumer(this)
+
     var nextIndex = lastConsumedStreamIndex + 1
     var finished = false
 
     // Time at which this sender should finish if the response stream is not finished by then.
-    deadlineTimeMillis = if (!executeHolder.reattachable) {
+    val deadlineTimeMillis = if (!executeHolder.reattachable) {
       Long.MaxValue
     } else {
       val confSize =
@@ -186,7 +182,7 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
         sentResponsesSize > maximumResponseSize || deadlineTimeMillis < System.currentTimeMillis()
 
       logTrace(s"Trying to get next response with index=$nextIndex.")
-      executionObserver.responseLock.synchronized {
+      executionObserver.synchronized {
         logTrace(s"Acquired executionObserver lock.")
         val sleepStart = System.nanoTime()
         var sleepEnd = 0L
@@ -203,7 +199,7 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
           if (response.isEmpty) {
             val timeout = Math.max(1, deadlineTimeMillis - System.currentTimeMillis())
             logTrace(s"Wait for response to become available with timeout=$timeout ms.")
-            executionObserver.responseLock.wait(timeout)
+            executionObserver.wait(timeout)
             logTrace(s"Reacquired executionObserver lock after waiting.")
             sleepEnd = System.nanoTime()
           }
@@ -236,8 +232,8 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
           assert(finished == false)
         } else {
           // If it wasn't sent, time deadline must have been reached before stream became available,
-          // or it was intterupted. Will exit in the next loop iterattion.
-          assert(deadlineLimitReached || interrupted)
+          // will exit in the enxt loop iterattion.
+          assert(deadlineLimitReached)
         }
       } else if (streamFinished) {
         // Stream is finished and all responses have been sent
@@ -305,7 +301,7 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
         val sleepStart = System.nanoTime()
         var sleepEnd = 0L
         // Conditions for exiting the inner loop
-        // 1. was interrupted
+        // 1. was detached
         // 2. grpcCallObserver is ready to send more data
         // 3. time deadline is reached
         while (!interrupted &&
@@ -332,17 +328,6 @@ private[connect] class ExecuteGrpcResponseSender[T <: Message](
           false
         }
       }
-    }
-  }
-
-  private def wakeUp(): Unit = {
-    // Can be sleeping on either of these two locks, wake them up.
-    // (Neither of these locks is ever taken for extended period of time, so this won't block)
-    executionObserver.responseLock.synchronized {
-      executionObserver.responseLock.notifyAll()
-    }
-    grpcCallObserverReadySignal.synchronized {
-      grpcCallObserverReadySignal.notifyAll()
     }
   }
 }

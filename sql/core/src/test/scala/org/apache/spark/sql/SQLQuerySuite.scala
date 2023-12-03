@@ -283,7 +283,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
   }
 
   test("SPARK-43522: Fix creating struct column name with index of array") {
-    val df = Seq("a=b,c=d,d=f").toDF().withColumn("key_value", split(Symbol("value"), ","))
+    val df = Seq("a=b,c=d,d=f").toDF.withColumn("key_value", split('value, ","))
       .withColumn("map_entry", transform(col("key_value"), x => struct(split(x, "=")
         .getItem(0), split(x, "=").getItem(1)))).select("map_entry")
 
@@ -1920,10 +1920,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
           dfNoCols.select($"b.*")
         },
         errorClass = "CANNOT_RESOLVE_STAR_EXPAND",
-        parameters = Map("targetString" -> "`b`", "columns" -> ""),
-        context = ExpectedContext(
-          fragment = "$",
-          callSitePattern = getCurrentClassCallSitePattern))
+        parameters = Map("targetString" -> "`b`", "columns" -> ""))
     }
   }
 
@@ -2548,7 +2545,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
   test("SPARK-18053: ARRAY equality is broken") {
     withTable("array_tbl") {
       spark.range(10).select(array($"id").as("arr")).write.saveAsTable("array_tbl")
-      assert(sql("SELECT * FROM array_tbl where arr = ARRAY(1L)").count() == 1)
+      assert(sql("SELECT * FROM array_tbl where arr = ARRAY(1L)").count == 1)
     }
   }
 
@@ -2884,7 +2881,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     withTable("fact_stats", "dim_stats") {
       val factData = Seq((1, 1, 99, 1), (2, 2, 99, 2), (3, 1, 99, 3), (4, 2, 99, 4))
       val storeData = Seq((1, "BW", "DE"), (2, "AZ", "US"))
-      spark.udf.register("filterND", udf((value: Int) => value > 2).asNondeterministic())
+      spark.udf.register("filterND", udf((value: Int) => value > 2).asNondeterministic)
       factData.toDF("date_id", "store_id", "product_id", "units_sold")
         .write.mode("overwrite").partitionBy("store_id").format("parquet").saveAsTable("fact_stats")
       storeData.toDF("store_id", "state_province", "country")
@@ -2941,14 +2938,14 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       val distributeExprs = (0 until 100).map(c => s"id$c").mkString(",")
       df.selectExpr(columns : _*).createTempView("spark_25084")
       assert(
-        spark.sql(s"select * from spark_25084 distribute by ($distributeExprs)").count() === count)
+        spark.sql(s"select * from spark_25084 distribute by ($distributeExprs)").count === count)
     }
   }
 
   test("SPARK-25144 'distinct' causes memory leak") {
-    val ds = List(Foo(Some("bar"))).toDS()
-    val result = ds.flatMap(_.bar).distinct()
-    result.rdd.isEmpty()
+    val ds = List(Foo(Some("bar"))).toDS
+    val result = ds.flatMap(_.bar).distinct
+    result.rdd.isEmpty
   }
 
   test("SPARK-25454: decimal division with negative scale") {
@@ -4252,7 +4249,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
 
   test("SPARK-35749: Parse multiple unit fields interval literals as day-time interval types") {
     def evalAsSecond(query: String): Long = {
-      spark.sql(query).map(_.getAs[Duration](0)).collect().head.getSeconds
+      spark.sql(query).map(_.getAs[Duration](0)).collect.head.getSeconds
     }
 
     Seq(
@@ -4275,7 +4272,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
 
   test("SPARK-35749: Parse multiple unit fields interval literals as year-month interval types") {
     def evalAsYearAndMonth(query: String): (Int, Int) = {
-      val result = spark.sql(query).map(_.getAs[Period](0)).collect().head
+      val result = spark.sql(query).map(_.getAs[Period](0)).collect.head
       (result.getYears, result.getMonths)
     }
 
@@ -4545,8 +4542,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
         .parquet(dir.getCanonicalPath)
       checkAnswer(res,
         Seq(
-          Row(1, false, mutable.ArraySeq.make(binary1)),
-          Row(2, true, mutable.ArraySeq.make(binary2))
+          Row(1, false, mutable.WrappedArray.make(binary1)),
+          Row(2, true, mutable.WrappedArray.make(binary2))
         ))
     }
   }
@@ -4670,12 +4667,6 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
         |  z(r) AS (SELECT * FROM x)
         |SELECT * FROM z
         |""".stripMargin).collect()
-  }
-
-  test("SPARK-44763: Do not promote strings in binary arithmetic with intervals") {
-    val df = sql("SELECT concat(DATE'2020-12-31', ' 09:03:00') +" +
-      " (INTERVAL '03' HOUR)")
-    checkAnswer(df, Row("2020-12-31 12:03:00"))
   }
 
   test("SPARK-43979: CollectedMetrics should be treated as the same one for self-join") {

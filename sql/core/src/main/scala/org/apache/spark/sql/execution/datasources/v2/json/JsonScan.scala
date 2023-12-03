@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.json
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.hadoop.fs.Path
 

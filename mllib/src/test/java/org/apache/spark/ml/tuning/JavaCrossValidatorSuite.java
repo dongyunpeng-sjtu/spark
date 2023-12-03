@@ -20,9 +20,8 @@ package org.apache.spark.ml.tuning;
 import java.io.IOException;
 import java.util.List;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.apache.spark.SharedSparkSession;
 import org.apache.spark.ml.classification.LogisticRegression;
@@ -39,7 +38,6 @@ public class JavaCrossValidatorSuite extends SharedSparkSession {
   private transient Dataset<Row> dataset;
 
   @Override
-  @BeforeEach
   public void setUp() throws IOException {
     super.setUp();
     List<LabeledPoint> points = generateLogisticInputAsList(1.0, 1.0, 100, 42);
@@ -61,7 +59,7 @@ public class JavaCrossValidatorSuite extends SharedSparkSession {
       .setNumFolds(3);
     CrossValidatorModel cvModel = cv.fit(dataset);
     LogisticRegression parent = (LogisticRegression) cvModel.bestModel().parent();
-    Assertions.assertEquals(0.001, parent.getRegParam(), 0.0);
-    Assertions.assertEquals(10, parent.getMaxIter());
+    Assert.assertEquals(0.001, parent.getRegParam(), 0.0);
+    Assert.assertEquals(10, parent.getMaxIter());
   }
 }

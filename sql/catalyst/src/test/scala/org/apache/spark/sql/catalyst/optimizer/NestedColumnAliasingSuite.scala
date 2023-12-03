@@ -821,15 +821,15 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
       "b struct<c: struct<d: int, e: int>, c2 int>"
     )
     val input = LocalRelation(
-      Symbol("id").int,
-      Symbol("col1").array(ArrayType(inputType)))
+      'id.int,
+      'col1.array(ArrayType(inputType)))
 
     val query = input
-      .generate(Explode(Symbol("col1")))
+      .generate(Explode('col1))
       .select(
         UnresolvedExtractValue(
           UnresolvedExtractValue(
-            CaseWhen(Seq((Symbol("col").getField("a") === 1,
+            CaseWhen(Seq(('col.getField("a") === 1,
               Literal.default(simpleStruct)))),
             Literal("b")),
           Literal("c")).as("result"))
@@ -840,10 +840,10 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
 
     // Only the inner-most col.a should be pushed down.
     val expected = input
-      .select(Symbol("col1").getField("a").as(aliases(0)))
+      .select('col1.getField("a").as(aliases(0)))
       .generate(Explode($"${aliases(0)}"), unrequiredChildIndex = Seq(0))
       .select(UnresolvedExtractValue(UnresolvedExtractValue(
-        CaseWhen(Seq((Symbol("col") === 1,
+        CaseWhen(Seq(('col === 1,
           Literal.default(simpleStruct)))), Literal("b")), Literal("c")).as("result"))
       .analyze
 
@@ -853,12 +853,10 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
   test("SPARK-38529: GeneratorNestedColumnAliasing does not pushdown for non-Explode") {
     val employer = StructType.fromDDL("id int, company struct<name:string, address:string>")
     val input = LocalRelation(
-      Symbol("col1").int,
-      Symbol("col2").array(
-        ArrayType(StructType.fromDDL("field1 struct<col1: int, col2: int>, field2 int")))
+      'col1.int,
+      'col2.array(ArrayType(StructType.fromDDL("field1 struct<col1: int, col2: int>, field2 int")))
     )
-    val plan = input.generate(
-      Inline(Symbol("col2"))).select(Symbol("field1").getField("col1")).analyze
+    val plan = input.generate(Inline('col2)).select('field1.getField("col1")).analyze
     val optimized = GeneratorNestedColumnAliasing.unapply(plan)
     // The plan is expected to be unchanged.
     comparePlans(plan, RemoveNoopOperators.apply(optimized.get))

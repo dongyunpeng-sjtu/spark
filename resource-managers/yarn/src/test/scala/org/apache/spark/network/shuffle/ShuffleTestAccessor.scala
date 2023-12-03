@@ -72,7 +72,7 @@ object ShuffleTestAccessor {
     resolver.db
   }
 
-  def mergeManagerDB(mergeManager: RemoteBlockPushResolver): DB = {
+  def mergeManagerLevelDB(mergeManager: RemoteBlockPushResolver): DB = {
     mergeManager.db
   }
 
@@ -187,7 +187,7 @@ object ShuffleTestAccessor {
   }
 
   def closePartitionFiles(partitionInfo: AppShufflePartitionInfo): Unit = {
-    partitionInfo.getCleanable.clean()
+    partitionInfo.closeAllFilesAndDeleteIfNeeded(false)
   }
 
   def clearAppShuffleInfo(mergeMgr: RemoteBlockPushResolver): Unit = {

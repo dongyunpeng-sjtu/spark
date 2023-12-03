@@ -60,10 +60,11 @@ class PandasMapOpsMixin:
         schema : :class:`pyspark.sql.types.DataType` or str
             the return type of the `func` in PySpark. The value can be either a
             :class:`pyspark.sql.types.DataType` object or a DDL-formatted type string.
-        barrier : bool, optional, default False
+        barrier : bool, optional, default True
             Use barrier mode execution.
 
-            .. versionadded: 3.5.0
+            .. versionchanged: 3.5.0
+                Added ``barrier`` argument.
 
         Examples
         --------
@@ -138,10 +139,11 @@ class PandasMapOpsMixin:
         schema : :class:`pyspark.sql.types.DataType` or str
             the return type of the `func` in PySpark. The value can be either a
             :class:`pyspark.sql.types.DataType` object or a DDL-formatted type string.
-        barrier : bool, optional, default False
+        barrier : bool, optional, default True
             Use barrier mode execution.
 
-            .. versionadded: 3.5.0
+            .. versionchanged: 3.5.0
+                Added ``barrier`` argument.
 
         Examples
         --------

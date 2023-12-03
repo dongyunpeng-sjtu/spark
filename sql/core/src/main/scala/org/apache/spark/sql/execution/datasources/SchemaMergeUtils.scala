@@ -64,7 +64,6 @@ object SchemaMergeUtils extends Logging {
 
     val ignoreCorruptFiles =
       new FileSourceOptions(CaseInsensitiveMap(parameters)).ignoreCorruptFiles
-    val caseSensitive = sparkSession.sessionState.conf.caseSensitiveAnalysis
 
     // Issues a Spark job to read Parquet/ORC schema in parallel.
     val partiallyMergedSchemas =
@@ -85,7 +84,7 @@ object SchemaMergeUtils extends Logging {
             var mergedSchema = schemas.head
             schemas.tail.foreach { schema =>
               try {
-                mergedSchema = mergedSchema.merge(schema, caseSensitive)
+                mergedSchema = mergedSchema.merge(schema)
               } catch { case cause: SparkException =>
                 throw QueryExecutionErrors.failedMergingSchemaError(mergedSchema, schema, cause)
               }
@@ -100,7 +99,7 @@ object SchemaMergeUtils extends Logging {
       var finalSchema = partiallyMergedSchemas.head
       partiallyMergedSchemas.tail.foreach { schema =>
         try {
-          finalSchema = finalSchema.merge(schema, caseSensitive)
+          finalSchema = finalSchema.merge(schema)
         } catch { case cause: SparkException =>
           throw QueryExecutionErrors.failedMergingSchemaError(finalSchema, schema, cause)
         }

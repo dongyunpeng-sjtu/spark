@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.connect.service
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import io.grpc.stub.StreamObserver
 

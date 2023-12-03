@@ -124,6 +124,7 @@ class MockTransformer(Transformer, HasFake):
 
 
 class MockUnaryTransformer(UnaryTransformer, DefaultParamsReadable, DefaultParamsWritable):
+
     shift = Param(
         Params._dummy(),
         "shift",

@@ -17,7 +17,7 @@
 
 package org.apache.spark.storage
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkFunSuite
 

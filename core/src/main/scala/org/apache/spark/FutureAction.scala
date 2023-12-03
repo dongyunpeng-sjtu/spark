@@ -255,7 +255,7 @@ private[spark]
 class JavaFutureActionWrapper[S, T](futureAction: FutureAction[S], converter: S => T)
   extends JavaFutureAction[T] {
 
-  import scala.jdk.CollectionConverters._
+  import scala.collection.JavaConverters._
 
   override def isCancelled: Boolean = futureAction.isCancelled
 

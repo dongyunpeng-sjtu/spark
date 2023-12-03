@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.orc
 
-import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path

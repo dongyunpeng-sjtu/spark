@@ -22,7 +22,9 @@ from pyspark.testing.pandasutils import PandasOnSparkTestUtils
 
 
 class ReshapeParityTests(ReshapeTestsMixin, PandasOnSparkTestUtils, ReusedConnectTestCase):
-    pass
+    @unittest.skip("TODO(SPARK-43662): Enable ReshapeParityTests.test_merge_asof.")
+    def test_merge_asof(self):
+        super().test_merge_asof()
 
 
 if __name__ == "__main__":

@@ -30,9 +30,13 @@ public enum NullOrdering {
 
   @Override
   public String toString() {
-    return switch (this) {
-      case NULLS_FIRST -> "NULLS FIRST";
-      case NULLS_LAST -> "NULLS LAST";
-    };
+    switch (this) {
+      case NULLS_FIRST:
+        return "NULLS FIRST";
+      case NULLS_LAST:
+        return "NULLS LAST";
+      default:
+        throw new IllegalArgumentException("Unexpected null order: " + this);
+    }
   }
 }

@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.streaming.state
 
 import java.io.File
 
-import scala.jdk.CollectionConverters.SetHasAsScala
+import scala.collection.JavaConverters
 
 import org.scalatest.time.{Minute, Span}
 
@@ -40,7 +40,7 @@ class RocksDBStateStoreIntegrationSuite extends StreamTest
       val conf = Map(SQLConf.STATE_STORE_PROVIDER_CLASS.key ->
         classOf[RocksDBStateStoreProvider].getName)
 
-      testStream(input.toDF().groupBy().count(), outputMode = OutputMode.Update)(
+      testStream(input.toDF.groupBy().count(), outputMode = OutputMode.Update)(
         StartStream(checkpointLocation = dir.getAbsolutePath, additionalConfs = conf),
         AddData(input, 1, 2, 3),
         CheckAnswer(3),
@@ -49,9 +49,9 @@ class RocksDBStateStoreIntegrationSuite extends StreamTest
           val storeCheckpointDir = StateStoreId(
             dir.getAbsolutePath + "/state", 0, 0).storeCheckpointLocation()
           val storeCheckpointFile = if (isChangelogCheckpointingEnabled) {
-            s"$storeCheckpointDir/1.changelog"
+            storeCheckpointDir + "/1.changelog"
           } else {
-            s"$storeCheckpointDir/1.zip"
+            storeCheckpointDir + "/1.zip"
           }
           new File(storeCheckpointFile).exists()
         }
@@ -92,10 +92,10 @@ class RocksDBStateStoreIntegrationSuite extends StreamTest
             assert(nextProgress != null, "progress is not yet available")
             assert(nextProgress.stateOperators.length > 0, "state operators are missing in metrics")
             val stateOperatorMetrics = nextProgress.stateOperators(0)
-            assert(stateOperatorMetrics.customMetrics.keySet.asScala === Set(
+            assert(JavaConverters.asScalaSet(stateOperatorMetrics.customMetrics.keySet) === Set(
               "rocksdbGetLatency", "rocksdbCommitCompactLatency", "rocksdbBytesCopied",
-              "rocksdbPutLatency", "rocksdbFilesReused",
-              "rocksdbFilesCopied", "rocksdbSstFileSize",
+              "rocksdbPutLatency", "rocksdbCommitPauseLatency", "rocksdbFilesReused",
+              "rocksdbCommitWriteBatchLatency", "rocksdbFilesCopied", "rocksdbSstFileSize",
               "rocksdbCommitCheckpointLatency", "rocksdbZipFileBytesUncompressed",
               "rocksdbCommitFlushLatency", "rocksdbCommitFileSyncLatencyMs", "rocksdbGetCount",
               "rocksdbPutCount", "rocksdbTotalBytesRead", "rocksdbTotalBytesWritten",

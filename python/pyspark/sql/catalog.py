@@ -129,7 +129,8 @@ class Catalog:
         pattern : str
             The pattern that the catalog name needs to match.
 
-            .. versionadded: 3.5.0
+            .. versionchanged: 3.5.0
+                Added ``pattern`` argument.
 
         Returns
         -------
@@ -200,7 +201,8 @@ class Catalog:
         pattern : str
             The pattern that the database name needs to match.
 
-            .. versionadded: 3.5.0
+            .. versionchanged: 3.5.0
+                Adds ``pattern`` argument.
 
         Returns
         -------
@@ -323,7 +325,8 @@ class Catalog:
         pattern : str
             The pattern that the database name needs to match.
 
-            .. versionadded: 3.5.0
+            .. versionchanged: 3.5.0
+                Adds ``pattern`` argument.
 
         Returns
         -------
@@ -452,7 +455,8 @@ class Catalog:
         pattern : str
             The pattern that the function name needs to match.
 
-            .. versionadded: 3.5.0
+            .. versionchanged: 3.5.0
+                Adds ``pattern`` argument.
 
         Returns
         -------

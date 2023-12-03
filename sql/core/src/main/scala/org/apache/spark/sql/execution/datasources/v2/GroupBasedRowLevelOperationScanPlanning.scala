@@ -51,13 +51,9 @@ object GroupBasedRowLevelOperationScanPlanning extends Rule[LogicalPlan] with Pr
         pushFilters(cond, relation.output, scanBuilder)
 
       val pushedFiltersStr = if (pushedFilters.isLeft) {
-        pushedFilters.swap
-          .getOrElse(throw new NoSuchElementException("The left node doesn't have pushedFilters"))
-          .mkString(", ")
+        pushedFilters.left.get.mkString(", ")
       } else {
-        pushedFilters
-          .getOrElse(throw new NoSuchElementException("The right node doesn't have pushedFilters"))
-          .mkString(", ")
+        pushedFilters.right.get.mkString(", ")
       }
 
       val (scan, output) = PushDownUtils.pruneColumns(scanBuilder, relation, relation.output, Nil)

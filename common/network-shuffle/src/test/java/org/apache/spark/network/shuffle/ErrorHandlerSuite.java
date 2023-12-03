@@ -19,12 +19,12 @@ package org.apache.spark.network.shuffle;
 
 import java.net.ConnectException;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import org.apache.spark.network.server.BlockPushNonFatalFailure;
 import org.apache.spark.network.server.BlockPushNonFatalFailure.ReturnCode;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 /**
  * Test suite for {@link ErrorHandler}

@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.{AnalysisException, DataFrame, QueryTest, Row}
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
@@ -27,7 +27,6 @@ import org.apache.spark.sql.catalyst.plans.logical.Repartition
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.withDefaultTimeZone
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.catalog.CatalogManager.SESSION_CATALOG_NAME
-import org.apache.spark.sql.errors.DataTypeErrors.toSQLId
 import org.apache.spark.sql.internal.SQLConf._
 import org.apache.spark.sql.test.{SharedSparkSession, SQLTestUtils}
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
@@ -226,17 +225,13 @@ abstract class SQLViewTestSuite extends QueryTest with SQLTestUtils {
           exception = intercept[AnalysisException] {
             sql(s"SELECT * FROM ${viewNames.last}")
           },
-          errorClass = "VIEW_EXCEED_MAX_NESTED_DEPTH",
+          errorClass = "_LEGACY_ERROR_TEMP_1009",
           parameters = Map(
-            "viewName" -> tableIdentifier("view0").quotedString,
-            "maxNestedDepth" -> "10"),
-          context = ExpectedContext(
-            "VIEW",
-            tableIdentifier("view1").unquotedString,
-            14,
-            13 + formattedViewName("view0").length,
-            formattedViewName("view0")
-          )
+            "identifier" -> tableIdentifier("view0").quotedString,
+            "maxNestedViewDepth" -> "10",
+            "config" -> s"${MAX_NESTED_VIEW_DEPTH.key}"),
+          context = ExpectedContext("VIEW", tableIdentifier("view1").unquotedString,
+            14, 13 + formattedViewName("view0").length, formattedViewName("view0"))
         )
       }
     }
@@ -488,10 +483,10 @@ abstract class TempViewTestSuite extends SQLViewTestSuite {
         exception = intercept[AnalysisException] {
           sql(s"SHOW CREATE TABLE ${formattedViewName(viewName)}")
         },
-        errorClass = "EXPECT_PERMANENT_VIEW_NOT_TEMP",
+        errorClass = "_LEGACY_ERROR_TEMP_1016",
         parameters = Map(
-          "viewName" -> toSQLId(tableIdentifier(viewName).nameParts),
-          "operation" -> "SHOW CREATE TABLE"),
+          "nameParts" -> formattedViewName(viewName),
+          "cmd" -> "SHOW CREATE TABLE"),
         context = ExpectedContext(
           fragment = formattedViewName(viewName),
           start = 18,
@@ -629,7 +624,7 @@ class PersistedViewTestSuite extends SQLViewTestSuite with SharedSparkSession {
         val meta = catalog.getTableRawMetadata(TableIdentifier("test_view", Some("default")))
         // simulate a view meta with incompatible schema change
         val newProp = meta.properties
-          .view.mapValues(_.replace("col_i", "col_j")).toMap
+          .mapValues(_.replace("col_i", "col_j")).toMap
         val newSchema = StructType(Seq(StructField("col_j", IntegerType)))
         catalog.alterTable(meta.copy(properties = newProp, schema = newSchema))
         val e = intercept[AnalysisException] {

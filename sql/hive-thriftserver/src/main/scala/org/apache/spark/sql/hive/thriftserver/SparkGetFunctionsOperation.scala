@@ -19,7 +19,7 @@ package org.apache.spark.sql.hive.thriftserver
 
 import java.sql.DatabaseMetaData
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters.seqAsJavaListConverter
 
 import org.apache.hadoop.hive.ql.security.authorization.plugin.{HiveOperationType, HivePrivilegeObjectUtils}
 import org.apache.hive.service.cli._
@@ -68,7 +68,7 @@ private[hive] class SparkGetFunctionsOperation(
     if (isAuthV2Enabled) {
       // authorize this call on the schema objects
       val privObjs =
-        HivePrivilegeObjectUtils.getHivePrivDbObjects(matchingDbs.asJava)
+        HivePrivilegeObjectUtils.getHivePrivDbObjects(seqAsJavaListConverter(matchingDbs).asJava)
       authorizeMetaGets(HiveOperationType.GET_FUNCTIONS, privObjs, cmdStr)
     }
 

@@ -177,7 +177,6 @@ object CheckConnectJvmClientCompatibility {
         "org.apache.spark.sql.SparkSessionExtensionsProvider"),
       ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.sql.UDTFRegistration"),
       ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.sql.UDFRegistration$"),
-      ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.sql.DataSourceRegistration"),
 
       // DataFrame Reader & Writer
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.DataFrameReader.json"), // rdd
@@ -201,6 +200,7 @@ object CheckConnectJvmClientCompatibility {
       ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.sql.ObservationListener$"),
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.Dataset.queryExecution"),
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.Dataset.sqlContext"),
+      ProblemFilters.exclude[Problem]("org.apache.spark.sql.Dataset.metadataColumn"),
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.Dataset.selectUntyped"), // protected
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.Dataset.rdd"),
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.Dataset.toJavaRDD"),
@@ -228,7 +228,6 @@ object CheckConnectJvmClientCompatibility {
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.SparkSession.listenerManager"),
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.SparkSession.experimental"),
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.SparkSession.udtf"),
-      ProblemFilters.exclude[Problem]("org.apache.spark.sql.SparkSession.dataSource"),
       ProblemFilters.exclude[Problem]("org.apache.spark.sql.SparkSession.createDataFrame"),
       ProblemFilters.exclude[Problem](
         "org.apache.spark.sql.SparkSession.baseRelationToDataFrame"),
@@ -255,6 +254,18 @@ object CheckConnectJvmClientCompatibility {
       ProblemFilters.exclude[Problem](
         "org.apache.spark.sql.streaming.DataStreamWriter.SOURCE*" // These are constant vals.
       ),
+
+      // StreamingQueryException
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "org.apache.spark.sql.streaming.StreamingQueryException.message"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "org.apache.spark.sql.streaming.StreamingQueryException.cause"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "org.apache.spark.sql.streaming.StreamingQueryException.startOffset"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "org.apache.spark.sql.streaming.StreamingQueryException.endOffset"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "org.apache.spark.sql.streaming.StreamingQueryException.time"),
 
       // Classes missing from streaming API
       ProblemFilters.exclude[MissingClassProblem](
@@ -325,14 +336,6 @@ object CheckConnectJvmClientCompatibility {
           "org.apache.spark.sql.expressions.ScalarUserDefinedFunction"),
       ProblemFilters.exclude[MissingClassProblem](
         "org.apache.spark.sql.expressions.ScalarUserDefinedFunction$"),
-
-      // New private API added in the client
-      ProblemFilters
-        .exclude[MissingClassProblem](
-          "org.apache.spark.sql.expressions.SparkConnectClosureCleaner"),
-      ProblemFilters
-        .exclude[MissingClassProblem](
-          "org.apache.spark.sql.expressions.SparkConnectClosureCleaner$"),
 
       // Dataset
       ProblemFilters.exclude[DirectMissingMethodProblem](

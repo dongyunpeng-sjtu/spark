@@ -62,9 +62,8 @@ trait DataSourceV2ScanExecBase extends LeafExecNode {
     redact(result)
   }
 
-  def partitions: Seq[Seq[InputPartition]] = {
-    groupedPartitions.map(_.groupedParts.map(_.parts)).getOrElse(inputPartitions.map(Seq(_)))
-  }
+  def partitions: Seq[Seq[InputPartition]] =
+    groupedPartitions.map(_.map(_._2)).getOrElse(inputPartitions.map(Seq(_)))
 
   /**
    * Shorthand for calling redact() without specifying redacting rules
@@ -95,10 +94,8 @@ trait DataSourceV2ScanExecBase extends LeafExecNode {
     keyGroupedPartitioning match {
       case Some(exprs) if KeyGroupedPartitioning.supportsExpressions(exprs) =>
         groupedPartitions
-          .map { keyGroupedPartsInfo =>
-            val keyGroupedParts = keyGroupedPartsInfo.groupedParts
-            KeyGroupedPartitioning(exprs, keyGroupedParts.size, keyGroupedParts.map(_.value),
-              keyGroupedPartsInfo.originalParts.map(_.partitionKey()))
+          .map { partitionValues =>
+            KeyGroupedPartitioning(exprs, partitionValues.size, partitionValues.map(_._1))
           }
           .getOrElse(super.outputPartitioning)
       case _ =>
@@ -106,7 +103,7 @@ trait DataSourceV2ScanExecBase extends LeafExecNode {
     }
   }
 
-  @transient lazy val groupedPartitions: Option[KeyGroupedPartitionInfo] = {
+  @transient lazy val groupedPartitions: Option[Seq[(InternalRow, Seq[InputPartition])]] = {
     // Early check if we actually need to materialize the input partitions.
     keyGroupedPartitioning match {
       case Some(_) => groupPartitions(inputPartitions)
@@ -120,21 +117,24 @@ trait DataSourceV2ScanExecBase extends LeafExecNode {
    *   - all input partitions implement [[HasPartitionKey]]
    *   - `keyGroupedPartitioning` is set
    *
-   * The result, if defined, is a [[KeyGroupedPartitionInfo]] which contains a list of
-   * [[KeyGroupedPartition]], as well as a list of partition values from the original input splits,
-   * sorted according to the partition keys in ascending order.
+   * The result, if defined, is a list of tuples where the first element is a partition value,
+   * and the second element is a list of input partitions that share the same partition value.
    *
    * A non-empty result means each partition is clustered on a single key and therefore eligible
    * for further optimizations to eliminate shuffling in some operations such as join and aggregate.
    */
-  def groupPartitions(inputPartitions: Seq[InputPartition]): Option[KeyGroupedPartitionInfo] = {
-    if (!SQLConf.get.v2BucketingEnabled) return None
+  def groupPartitions(
+      inputPartitions: Seq[InputPartition],
+      groupSplits: Boolean = !conf.v2BucketingPushPartValuesEnabled ||
+          !conf.v2BucketingPartiallyClusteredDistributionEnabled):
+    Option[Seq[(InternalRow, Seq[InputPartition])]] = {
 
+    if (!SQLConf.get.v2BucketingEnabled) return None
     keyGroupedPartitioning.flatMap { expressions =>
       val results = inputPartitions.takeWhile {
         case _: HasPartitionKey => true
         case _ => false
-      }.map(p => (p.asInstanceOf[HasPartitionKey].partitionKey(), p.asInstanceOf[HasPartitionKey]))
+      }.map(p => (p.asInstanceOf[HasPartitionKey].partitionKey(), p))
 
       if (results.length != inputPartitions.length || inputPartitions.isEmpty) {
         // Not all of the `InputPartitions` implements `HasPartitionKey`, therefore skip here.
@@ -143,24 +143,32 @@ trait DataSourceV2ScanExecBase extends LeafExecNode {
         // also sort the input partitions according to their partition key order. This ensures
         // a canonical order from both sides of a bucketed join, for example.
         val partitionDataTypes = expressions.map(_.dataType)
-        val rowOrdering = RowOrdering.createNaturalAscendingOrdering(partitionDataTypes)
-        val sortedKeyToPartitions = results.sorted(rowOrdering.on((t: (InternalRow, _)) => t._1))
-        val sortedGroupedPartitions = sortedKeyToPartitions
+        val partitionOrdering: Ordering[(InternalRow, Seq[InputPartition])] = {
+          RowOrdering.createNaturalAscendingOrdering(partitionDataTypes).on(_._1)
+        }
+
+        val partitions = if (groupSplits) {
+          // Group the splits by their partition value
+          results
             .map(t => (InternalRowComparableWrapper(t._1, expressions), t._2))
             .groupBy(_._1)
             .toSeq
-            .map { case (key, s) => KeyGroupedPartition(key.row, s.map(_._2)) }
-            .sorted(rowOrdering.on((k: KeyGroupedPartition) => k.value))
+            .map {
+              case (key, s) => (key.row, s.map(_._2))
+            }
+        } else {
+          // No splits grouping, each split will become a separate Spark partition
+          results.map(t => (t._1, Seq(t._2)))
+        }
 
-        Some(KeyGroupedPartitionInfo(sortedGroupedPartitions, sortedKeyToPartitions.map(_._2)))
+        Some(partitions.sorted(partitionOrdering))
       }
     }
   }
 
   override def outputOrdering: Seq[SortOrder] = {
     // when multiple partitions are grouped together, ordering inside partitions is not preserved
-    val partitioningPreservesOrdering = groupedPartitions
-        .forall(_.groupedParts.forall(_.parts.length <= 1))
+    val partitioningPreservesOrdering = groupedPartitions.forall(_.forall(_._2.length <= 1))
     ordering.filter(_ => partitioningPreservesOrdering).getOrElse(super.outputOrdering)
   }
 
@@ -209,19 +217,3 @@ trait DataSourceV2ScanExecBase extends LeafExecNode {
     }
   }
 }
-
-/**
- * A key-grouped Spark partition, which could consist of multiple input splits
- *
- * @param value the partition value shared by all the input splits
- * @param parts the input splits that are grouped into a single Spark partition
- */
-private[v2] case class KeyGroupedPartition(value: InternalRow, parts: Seq[InputPartition])
-
-/**
- * Information about key-grouped partitions, which contains a list of grouped partitions as well
- * as the original input partitions before the grouping.
- */
-private[v2] case class KeyGroupedPartitionInfo(
-    groupedParts: Seq[KeyGroupedPartition],
-    originalParts: Seq[HasPartitionKey])

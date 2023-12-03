@@ -30,7 +30,8 @@ public class CustomType2 {
 
   @Override
   public boolean equals(Object o) {
-    if (o instanceof CustomType2 other) {
+    if (o instanceof CustomType2) {
+      CustomType2 other = (CustomType2) o;
       return id.equals(other.id) && parentId.equals(other.parentId);
     }
     return false;

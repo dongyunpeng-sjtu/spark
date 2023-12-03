@@ -21,7 +21,7 @@ import java.{util => ju}
 import java.lang.{Long => JLong}
 import java.util.UUID
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
 import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
@@ -165,7 +165,6 @@ class StreamingQueryProgress private[spark](
     ("name" -> JString(name)) ~
     ("timestamp" -> JString(timestamp)) ~
     ("batchId" -> JInt(batchId)) ~
-    ("batchDuration" -> JInt(batchDuration)) ~
     ("numInputRows" -> JInt(numInputRows)) ~
     ("inputRowsPerSecond" -> safeDoubleToJValue(inputRowsPerSecond)) ~
     ("processedRowsPerSecond" -> safeDoubleToJValue(processedRowsPerSecond)) ~

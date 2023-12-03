@@ -25,6 +25,8 @@ import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleReadMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.types.{StructType, StructField}
 
 sealed trait ShufflePartitionSpec
 
@@ -130,7 +132,8 @@ class CoalescedPartitioner(val parent: Partitioner, val partitionStartIndices: A
 class ShuffledRowRDD(
     var dependency: ShuffleDependency[Int, InternalRow, InternalRow],
     metrics: Map[String, SQLMetric],
-    partitionSpecs: Array[ShufflePartitionSpec])
+    partitionSpecs: Array[ShufflePartitionSpec],
+    output: Option[Seq[Attribute]] = None)
   extends RDD[InternalRow](dependency.rdd.context, Nil) {
 
   def this(
@@ -189,7 +192,16 @@ class ShuffledRowRDD(
     val tempMetrics = context.taskMetrics().createTempShuffleReadMetrics()
     // `SQLShuffleReadMetricsReporter` will update its own metrics for SQL exchange operator,
     // as well as the `tempMetrics` for basic shuffle metrics.
+    //val schema = StructType(output.map(attr => StructField(attr.name, attr.dataType, attr.nullable, attr.metadata)))
     val sqlMetricsReporter = new SQLShuffleReadMetricsReporter(tempMetrics, metrics)
+    // 获取 SparkPlan 的输出列
+    val outputAttributes: Seq[Attribute] = output.getOrElse(Seq.empty[Attribute])
+
+    // 将输出列转换为 StructField
+    val structFields = outputAttributes.map(attr => StructField(attr.name, attr.dataType, attr.nullable, attr.metadata))
+
+    // 构建 StructType
+    val schema = StructType(structFields)
     val reader = split.asInstanceOf[ShuffledRowRDDPartition].spec match {
       case CoalescedPartitionSpec(startReducerIndex, endReducerIndex, _) =>
         SparkEnv.get.shuffleManager.getReader(
@@ -229,7 +241,11 @@ class ShuffledRowRDD(
           context,
           sqlMetricsReporter)
     }
-    reader.read().asInstanceOf[Iterator[Product2[Int, InternalRow]]].map(_._2)
+    reader.read().asInstanceOf[Iterator[Product2[Int, InternalRow]]].map { case (_, internalRow) =>
+      val outputSeq = internalRow.toSeq(schema)
+      println(outputSeq)
+      internalRow
+    }
   }
 
   override def clearDependencies(): Unit = {

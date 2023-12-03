@@ -19,11 +19,10 @@ package org.apache.spark.sql
 
 import java.{lang => jl, util => ju}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.annotation.Stable
-import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, CountMinSketchAgg}
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.stat._
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types._
@@ -72,7 +71,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
   def approxQuantile(
       col: String,
       probabilities: Array[Double],
-      relativeError: Double): Array[Double] = withOrigin {
+      relativeError: Double): Array[Double] = {
     approxQuantile(Array(col), probabilities, relativeError).head
   }
 
@@ -97,7 +96,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
   def approxQuantile(
       cols: Array[String],
       probabilities: Array[Double],
-      relativeError: Double): Array[Array[Double]] = withOrigin {
+      relativeError: Double): Array[Array[Double]] = {
     StatFunctions.multipleApproxQuantiles(
       df.select(cols.map(col): _*),
       cols,
@@ -132,7 +131,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 1.4.0
    */
-  def cov(col1: String, col2: String): Double = withOrigin {
+  def cov(col1: String, col2: String): Double = {
     StatFunctions.calculateCov(df, Seq(col1, col2))
   }
 
@@ -154,7 +153,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 1.4.0
    */
-  def corr(col1: String, col2: String, method: String): Double = withOrigin {
+  def corr(col1: String, col2: String, method: String): Double = {
     require(method == "pearson", "Currently only the calculation of the Pearson Correlation " +
       "coefficient is supported.")
     StatFunctions.pearsonCorrelation(df, Seq(col1, col2))
@@ -210,7 +209,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 1.4.0
    */
-  def crosstab(col1: String, col2: String): DataFrame = withOrigin {
+  def crosstab(col1: String, col2: String): DataFrame = {
     StatFunctions.crossTabulate(df, col1, col2)
   }
 
@@ -257,7 +256,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 1.4.0
    */
-  def freqItems(cols: Array[String], support: Double): DataFrame = withOrigin {
+  def freqItems(cols: Array[String], support: Double): DataFrame = {
     FrequentItems.singlePassFreqItems(df, cols, support)
   }
 
@@ -276,7 +275,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 1.4.0
    */
-  def freqItems(cols: Array[String]): DataFrame = withOrigin {
+  def freqItems(cols: Array[String]): DataFrame = {
     FrequentItems.singlePassFreqItems(df, cols, 0.01)
   }
 
@@ -320,7 +319,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 1.4.0
    */
-  def freqItems(cols: Seq[String], support: Double): DataFrame = withOrigin {
+  def freqItems(cols: Seq[String], support: Double): DataFrame = {
     FrequentItems.singlePassFreqItems(df, cols, support)
   }
 
@@ -339,7 +338,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 1.4.0
    */
-  def freqItems(cols: Seq[String]): DataFrame = withOrigin {
+  def freqItems(cols: Seq[String]): DataFrame = {
     FrequentItems.singlePassFreqItems(df, cols, 0.01)
   }
 
@@ -415,7 +414,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    *
    * @since 3.0.0
    */
-  def sampleBy[T](col: Column, fractions: Map[T, Double], seed: Long): DataFrame = withOrigin {
+  def sampleBy[T](col: Column, fractions: Map[T, Double], seed: Long): DataFrame = {
     require(fractions.values.forall(p => p >= 0.0 && p <= 1.0),
       s"Fractions must be in [0, 1], but got $fractions.")
     import org.apache.spark.sql.functions.{rand, udf}
@@ -482,9 +481,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    * @since 2.0.0
    */
   def countMinSketch(col: Column, depth: Int, width: Int, seed: Int): CountMinSketch = {
-    val eps = 2.0 / width
-    val confidence = 1 - 1 / Math.pow(2, depth)
-    countMinSketch(col, eps, confidence, seed)
+    countMinSketch(col, CountMinSketch.create(depth, width, seed))
   }
 
   /**
@@ -497,21 +494,36 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    * @return a `CountMinSketch` over column `colName`
    * @since 2.0.0
    */
-  def countMinSketch(
-      col: Column,
-      eps: Double,
-      confidence: Double,
-      seed: Int): CountMinSketch = withOrigin {
-    val countMinSketchAgg = new CountMinSketchAgg(
-      col.expr,
-      Literal(eps, DoubleType),
-      Literal(confidence, DoubleType),
-      Literal(seed, IntegerType)
+  def countMinSketch(col: Column, eps: Double, confidence: Double, seed: Int): CountMinSketch = {
+    countMinSketch(col, CountMinSketch.create(eps, confidence, seed))
+  }
+
+  private def countMinSketch(col: Column, zero: CountMinSketch): CountMinSketch = {
+    val singleCol = df.select(col)
+    val colType = singleCol.schema.head.dataType
+
+    val updater: (CountMinSketch, InternalRow) => Unit = colType match {
+      // For string type, we can get bytes of our `UTF8String` directly, and call the `addBinary`
+      // instead of `addString` to avoid unnecessary conversion.
+      case StringType => (sketch, row) => sketch.addBinary(row.getUTF8String(0).getBytes)
+      case ByteType => (sketch, row) => sketch.addLong(row.getByte(0))
+      case ShortType => (sketch, row) => sketch.addLong(row.getShort(0))
+      case IntegerType => (sketch, row) => sketch.addLong(row.getInt(0))
+      case LongType => (sketch, row) => sketch.addLong(row.getLong(0))
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Count-min Sketch only supports string type and integral types, " +
+            s"and does not support type $colType."
+        )
+    }
+
+    singleCol.queryExecution.toRdd.aggregate(zero)(
+      (sketch: CountMinSketch, row: InternalRow) => {
+        updater(sketch, row)
+        sketch
+      },
+      (sketch1, sketch2) => sketch1.mergeInPlace(sketch2)
     )
-    val bytes = df.select(
-      Column(countMinSketchAgg.toAggregateExpression(false))
-    ).head().getAs[Array[Byte]](0)
-    countMinSketchAgg.deserialize(bytes)
   }
 
   /**
@@ -523,7 +535,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    * @since 2.0.0
    */
   def bloomFilter(colName: String, expectedNumItems: Long, fpp: Double): BloomFilter = {
-    bloomFilter(Column(colName), expectedNumItems, fpp)
+    buildBloomFilter(Column(colName), expectedNumItems, -1L, fpp)
   }
 
   /**
@@ -535,8 +547,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    * @since 2.0.0
    */
   def bloomFilter(col: Column, expectedNumItems: Long, fpp: Double): BloomFilter = {
-    val numBits = BloomFilter.optimalNumOfBits(expectedNumItems, fpp)
-    bloomFilter(col, expectedNumItems, numBits)
+    buildBloomFilter(col, expectedNumItems, -1L, fpp)
   }
 
   /**
@@ -548,7 +559,7 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    * @since 2.0.0
    */
   def bloomFilter(colName: String, expectedNumItems: Long, numBits: Long): BloomFilter = {
-    bloomFilter(Column(colName), expectedNumItems, numBits)
+    buildBloomFilter(Column(colName), expectedNumItems, numBits, Double.NaN)
   }
 
   /**
@@ -559,15 +570,58 @@ final class DataFrameStatFunctions private[sql](df: DataFrame) {
    * @param numBits expected number of bits of the filter.
    * @since 2.0.0
    */
-  def bloomFilter(col: Column, expectedNumItems: Long, numBits: Long): BloomFilter = withOrigin {
-    val bloomFilterAgg = new BloomFilterAggregate(
-      col.expr,
-      Literal(expectedNumItems, LongType),
-      Literal(numBits, LongType)
+  def bloomFilter(col: Column, expectedNumItems: Long, numBits: Long): BloomFilter = {
+    buildBloomFilter(col, expectedNumItems, numBits, Double.NaN)
+  }
+
+  private def buildBloomFilter(col: Column, expectedNumItems: Long,
+                               numBits: Long,
+                               fpp: Double): BloomFilter = {
+    val singleCol = df.select(col)
+    val colType = singleCol.schema.head.dataType
+
+    require(colType == StringType || colType.isInstanceOf[IntegralType],
+      s"Bloom filter only supports string type and integral types, but got $colType.")
+
+    val updater: (BloomFilter, InternalRow) => Unit = colType match {
+      // For string type, we can get bytes of our `UTF8String` directly, and call the `putBinary`
+      // instead of `putString` to avoid unnecessary conversion.
+      case StringType => (filter, row) => filter.putBinary(row.getUTF8String(0).getBytes)
+      case ByteType => (filter, row) => filter.putLong(row.getByte(0))
+      case ShortType => (filter, row) => filter.putLong(row.getShort(0))
+      case IntegerType => (filter, row) => filter.putLong(row.getInt(0))
+      case LongType => (filter, row) => filter.putLong(row.getLong(0))
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Bloom filter only supports string type and integral types, " +
+            s"and does not support type $colType."
+        )
+    }
+
+    singleCol.queryExecution.toRdd.treeAggregate(null.asInstanceOf[BloomFilter])(
+      (filter: BloomFilter, row: InternalRow) => {
+        val theFilter =
+          if (filter == null) {
+            if (fpp.isNaN) {
+              BloomFilter.create(expectedNumItems, numBits)
+            } else {
+              BloomFilter.create(expectedNumItems, fpp)
+            }
+          } else {
+            filter
+          }
+        updater(theFilter, row)
+        theFilter
+      },
+      (filter1, filter2) => {
+        if (filter1 == null) {
+          filter2
+        } else if (filter2 == null) {
+          filter1
+        } else {
+          filter1.mergeInPlace(filter2)
+        }
+      }
     )
-    val bytes = df.select(
-      Column(bloomFilterAgg.toAggregateExpression(false))
-    ).head().getAs[Array[Byte]](0)
-    bloomFilterAgg.deserialize(bytes)
   }
 }

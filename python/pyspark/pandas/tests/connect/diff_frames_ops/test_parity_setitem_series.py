@@ -24,7 +24,9 @@ from pyspark.testing.pandasutils import PandasOnSparkTestUtils
 class DiffFramesParitySetItemSeriesTests(
     DiffFramesSetItemSeriesMixin, PandasOnSparkTestUtils, ReusedConnectTestCase
 ):
-    @unittest.skip("TODO(SPARK-44826): Resolve testing timeout issue from Spark Connect.")
+    @unittest.skip(
+        "TODO(SPARK-43658): Fix unexpected `SparkConnectGrpcException` from Spark Connect client."
+    )
     def test_series_iloc_setitem(self):
         super().test_series_iloc_setitem()
 

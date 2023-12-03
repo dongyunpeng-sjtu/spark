@@ -17,13 +17,12 @@
 
 package org.apache.spark.sql.execution.python
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.{JobArtifactSet, TaskContext}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.python.EvalPythonExec.ArgumentMetadata
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -53,7 +52,7 @@ case class ArrowEvalPythonUDTFExec(
   private[this] val jobArtifactUUID = JobArtifactSet.getCurrentJobArtifactState.map(_.uuid)
 
   override protected def evaluate(
-      argMetas: Array[ArgumentMetadata],
+      argOffsets: Array[Int],
       iter: Iterator[InternalRow],
       schema: StructType,
       context: TaskContext): Iterator[Iterator[InternalRow]] = {
@@ -65,7 +64,7 @@ case class ArrowEvalPythonUDTFExec(
     val columnarBatchIter = new ArrowPythonUDTFRunner(
       udtf,
       evalType,
-      argMetas,
+      argOffsets,
       schema,
       sessionLocalTimeZone,
       largeVarTypes,

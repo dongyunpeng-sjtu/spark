@@ -24,6 +24,7 @@ from pyspark.testing.pandasutils import PandasOnSparkTestUtils
 class SeriesParityMissingDataTests(
     SeriesMissingDataMixin, PandasOnSparkTestUtils, ReusedConnectTestCase
 ):
+
     pass
 
 

@@ -184,9 +184,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
         "sqlExpr" -> (""""\(ORDER BY key ASC NULLS FIRST, value ASC NULLS FIRST RANGE """ +
           """BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING\)"""")
       ),
-      matchPVals = true,
-      queryContext =
-        Array(ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern))
+      matchPVals = true
     )
 
     checkError(
@@ -200,9 +198,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
         "sqlExpr" -> (""""\(ORDER BY key ASC NULLS FIRST, value ASC NULLS FIRST RANGE """ +
           """BETWEEN -1 FOLLOWING AND UNBOUNDED FOLLOWING\)"""")
       ),
-      matchPVals = true,
-      queryContext =
-        Array(ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern))
+      matchPVals = true
     )
 
     checkError(
@@ -216,9 +212,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
         "sqlExpr" -> (""""\(ORDER BY key ASC NULLS FIRST, value ASC NULLS FIRST RANGE """ +
           """BETWEEN -1 FOLLOWING AND 1 FOLLOWING\)"""")
       ),
-      matchPVals = true,
-      queryContext =
-        Array(ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern))
+      matchPVals = true
     )
 
   }
@@ -246,8 +240,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
         "expectedType" -> ("(\"NUMERIC\" or \"INTERVAL DAY TO SECOND\" or \"INTERVAL YEAR " +
           "TO MONTH\" or \"INTERVAL\")"),
         "sqlExpr" -> "\"RANGE BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING\""
-      ),
-      context = ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern)
+      )
     )
 
     checkError(
@@ -262,8 +255,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
         "expectedType" -> ("(\"NUMERIC\" or \"INTERVAL DAY TO SECOND\" or \"INTERVAL YEAR " +
           "TO MONTH\" or \"INTERVAL\")"),
         "sqlExpr" -> "\"RANGE BETWEEN -1 FOLLOWING AND UNBOUNDED FOLLOWING\""
-      ),
-      context = ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern)
+      )
     )
 
     checkError(
@@ -278,8 +270,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
         "expectedType" -> ("(\"NUMERIC\" or \"INTERVAL DAY TO SECOND\" or \"INTERVAL YEAR " +
           "TO MONTH\" or \"INTERVAL\")"),
         "sqlExpr" -> "\"RANGE BETWEEN -1 FOLLOWING AND 1 FOLLOWING\""
-      ),
-      context = ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern)
+      )
     )
   }
 
@@ -471,8 +462,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
         "upper" -> "\"2\"",
         "lowerType" -> "\"INTERVAL\"",
         "upperType" -> "\"BIGINT\""
-      ),
-      context = ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern)
+      )
     )
   }
 
@@ -491,8 +481,7 @@ class DataFrameWindowFramesSuite extends QueryTest with SharedSparkSession {
       parameters = Map(
         "sqlExpr" -> "\"RANGE BETWEEN nonfoldableliteral() FOLLOWING AND 2 FOLLOWING\"",
         "location" -> "lower",
-        "expression" -> "\"nonfoldableliteral()\""),
-      context = ExpectedContext(fragment = "over", callSitePattern = getCurrentClassCallSitePattern)
+        "expression" -> "\"nonfoldableliteral()\"")
     )
   }
 

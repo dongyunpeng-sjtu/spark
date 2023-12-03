@@ -19,7 +19,7 @@ package org.apache.spark.sql.connect.client
 
 import java.nio.file.{Files, LinkOption, Path, Paths}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.connect.client.Artifact.LocalFile
 

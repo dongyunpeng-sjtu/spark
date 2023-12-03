@@ -20,7 +20,7 @@ package org.apache.spark.errors
 import java.io.{File, IOException}
 import java.util.concurrent.TimeoutException
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.hadoop.fs.Path
 
@@ -97,7 +97,7 @@ private[spark] object SparkCoreErrors {
 
   def checkpointRDDBlockIdNotFoundError(rddBlockId: RDDBlockId): Throwable = {
     new SparkException(
-      errorClass = "CHECKPOINT_RDD_BLOCK_ID_NOT_FOUND",
+      errorClass = "_LEGACY_ERROR_TEMP_3007",
       messageParameters = Map("rddBlockId" -> s"$rddBlockId"),
       cause = null
     )

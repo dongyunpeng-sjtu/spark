@@ -1411,7 +1411,7 @@ class StringExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
       DataTypeMismatch(
         errorSubClass = "NON_FOLDABLE_INPUT",
         messageParameters = Map(
-          "inputName" -> toSQLId("attributereference"),
+          "inputName" -> "`attributereference`",
           "inputType" -> toSQLType(right.dataType),
           "inputExpr" -> toSQLExpr(right)
         )
@@ -1433,7 +1433,7 @@ class StringExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
       DataTypeMismatch(
         errorSubClass = "NON_FOLDABLE_INPUT",
         messageParameters = Map(
-          "inputName" -> toSQLId("fmt"),
+          "inputName" -> "fmt",
           "inputType" -> toSQLType(wrongFmt.dataType),
           "inputExpr" -> toSQLExpr(wrongFmt)
         )
@@ -1495,7 +1495,7 @@ class StringExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
       DataTypeMismatch(
         errorSubClass = "NON_FOLDABLE_INPUT",
         messageParameters = Map(
-          "inputName" -> toSQLId("attributereference"),
+          "inputName" -> "`attributereference`",
           "inputType" -> toSQLType(right.dataType),
           "inputExpr" -> toSQLExpr(right)
         )

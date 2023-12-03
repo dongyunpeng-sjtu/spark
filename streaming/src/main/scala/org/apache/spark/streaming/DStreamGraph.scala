@@ -52,9 +52,7 @@ final private[streaming] class DStreamGraph extends Serializable with Logging {
       outputStreams.foreach(_.validateAtStart())
       numReceivers = inputStreams.count(_.isInstanceOf[ReceiverInputDStream[_]])
       inputStreamNameAndID = inputStreams.map(is => (is.name, is.id)).toSeq
-      // scalastyle:off parvector
       new ParVector(inputStreams.toVector).foreach(_.start())
-      // scalastyle:on parvector
     }
   }
 
@@ -64,9 +62,7 @@ final private[streaming] class DStreamGraph extends Serializable with Logging {
 
   def stop(): Unit = {
     this.synchronized {
-      // scalastyle:off parvector
       new ParVector(inputStreams.toVector).foreach(_.stop())
-      // scalastyle:on parvector
     }
   }
 

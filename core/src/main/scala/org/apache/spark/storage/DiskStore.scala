@@ -184,14 +184,6 @@ private class DiskBlockData(
   */
   override def toNetty(): AnyRef = new DefaultFileRegion(file, 0, size)
 
-  /**
-   * Returns a Netty-friendly wrapper for the block's data.
-   *
-   * Please see `ManagedBuffer.convertToNettyForSsl()` for more details.
-   */
-  override def toNettyForSsl(): AnyRef =
-    toChunkedByteBuffer(ByteBuffer.allocate).toNettyForSsl
-
   override def toChunkedByteBuffer(allocator: (Int) => ByteBuffer): ChunkedByteBuffer = {
     Utils.tryWithResource(open()) { channel =>
       var remaining = blockSize
@@ -241,9 +233,6 @@ private[spark] class EncryptedBlockData(
   override def toInputStream(): InputStream = Channels.newInputStream(open())
 
   override def toNetty(): Object = new ReadableChannelFileRegion(open(), blockSize)
-
-  override def toNettyForSsl(): AnyRef =
-    toChunkedByteBuffer(ByteBuffer.allocate).toNettyForSsl
 
   override def toChunkedByteBuffer(allocator: Int => ByteBuffer): ChunkedByteBuffer = {
     val source = open()
@@ -307,8 +296,6 @@ private[spark] class EncryptedManagedBuffer(
   override def nioByteBuffer(): ByteBuffer = blockData.toByteBuffer()
 
   override def convertToNetty(): AnyRef = blockData.toNetty()
-
-  override def convertToNettyForSsl(): AnyRef = blockData.toNettyForSsl()
 
   override def createInputStream(): InputStream = blockData.toInputStream()
 

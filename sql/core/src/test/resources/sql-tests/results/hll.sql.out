@@ -107,7 +107,6 @@ struct<>
 org.apache.spark.SparkRuntimeException
 {
   "errorClass" : "HLL_INVALID_LG_K",
-  "sqlState" : "22546",
   "messageParameters" : {
     "function" : "`hll_sketch_agg`",
     "max" : "21",
@@ -126,7 +125,6 @@ struct<>
 org.apache.spark.SparkRuntimeException
 {
   "errorClass" : "HLL_INVALID_LG_K",
-  "sqlState" : "22546",
   "messageParameters" : {
     "function" : "`hll_sketch_agg`",
     "max" : "21",
@@ -152,7 +150,6 @@ struct<>
 org.apache.spark.SparkRuntimeException
 {
   "errorClass" : "HLL_UNION_DIFFERENT_LG_K",
-  "sqlState" : "22000",
   "messageParameters" : {
     "function" : "`hll_union`",
     "left" : "12",
@@ -174,7 +171,6 @@ struct<>
 org.apache.spark.SparkRuntimeException
 {
   "errorClass" : "HLL_UNION_DIFFERENT_LG_K",
-  "sqlState" : "22000",
   "messageParameters" : {
     "function" : "`hll_union_agg`",
     "left" : "12",
@@ -223,7 +219,6 @@ struct<>
 org.apache.spark.SparkRuntimeException
 {
   "errorClass" : "HLL_INVALID_INPUT_SKETCH_BUFFER",
-  "sqlState" : "22546",
   "messageParameters" : {
     "function" : "`hll_sketch_estimate`"
   }
@@ -238,7 +233,6 @@ struct<>
 org.apache.spark.SparkRuntimeException
 {
   "errorClass" : "HLL_INVALID_INPUT_SKETCH_BUFFER",
-  "sqlState" : "22546",
   "messageParameters" : {
     "function" : "`hll_union`"
   }
@@ -254,7 +248,6 @@ struct<>
 org.apache.spark.SparkRuntimeException
 {
   "errorClass" : "HLL_INVALID_INPUT_SKETCH_BUFFER",
-  "sqlState" : "22546",
   "messageParameters" : {
     "function" : "`hll_union_agg`"
   }

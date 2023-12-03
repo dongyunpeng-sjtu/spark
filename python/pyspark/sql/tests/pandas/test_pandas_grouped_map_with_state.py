@@ -319,7 +319,7 @@ class GroupedApplyInPandasWithStateTestsMixin:
                 return False
 
         try:
-            eventually(timeout=120)(assert_test)()
+            eventually(assert_test, timeout=120)
         finally:
             q.stop()
 

@@ -17,7 +17,7 @@
 
 package org.apache.spark.mllib.util
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.spark.SparkContext

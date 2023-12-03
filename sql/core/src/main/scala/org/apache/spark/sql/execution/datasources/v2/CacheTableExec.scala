@@ -38,19 +38,25 @@ trait BaseCacheTableExec extends LeafV2CommandExec {
 
   override def run(): Seq[InternalRow] = {
     val storageLevelKey = "storagelevel"
-    val storageLevel = CaseInsensitiveMap(options).get(storageLevelKey)
-      .map(s => StorageLevel.fromString(s.toUpperCase(Locale.ROOT)))
-      .getOrElse(conf.defaultCacheStorageLevel)
-    val withoutStorageLevel = options.view.filterKeys(_.toLowerCase(Locale.ROOT) != storageLevelKey)
+    val storageLevelValue =
+      CaseInsensitiveMap(options).get(storageLevelKey).map(_.toUpperCase(Locale.ROOT))
+    val withoutStorageLevel = options.filterKeys(_.toLowerCase(Locale.ROOT) != storageLevelKey)
     if (withoutStorageLevel.nonEmpty) {
       logWarning(s"Invalid options: ${withoutStorageLevel.mkString(", ")}")
     }
 
-    session.sharedState.cacheManager.cacheQuery(
-      session,
-      planToCache,
-      Some(relationName),
-      storageLevel)
+    if (storageLevelValue.nonEmpty) {
+      session.sharedState.cacheManager.cacheQuery(
+        session,
+        planToCache,
+        Some(relationName),
+        StorageLevel.fromString(storageLevelValue.get))
+    } else {
+      session.sharedState.cacheManager.cacheQuery(
+        session,
+        planToCache,
+        Some(relationName))
+    }
 
     if (!isLazy) {
       // Performs eager caching.

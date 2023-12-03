@@ -16,25 +16,22 @@
 # limitations under the License.
 #
 import unittest
+import numpy as np
 import tempfile
 
-import numpy as np
-
+from pyspark.ml.connect.evaluation import (
+    RegressionEvaluator,
+    BinaryClassificationEvaluator,
+    MulticlassClassificationEvaluator,
+)
 from pyspark.sql import SparkSession
-from pyspark.testing.connectutils import should_test_connect, connect_requirement_message
+
 
 have_torcheval = True
 try:
     import torcheval  # noqa: F401
 except ImportError:
     have_torcheval = False
-
-if should_test_connect:
-    from pyspark.ml.connect.evaluation import (
-        RegressionEvaluator,
-        BinaryClassificationEvaluator,
-        MulticlassClassificationEvaluator,
-    )
 
 
 class EvaluationTestsMixin:
@@ -176,10 +173,7 @@ class EvaluationTestsMixin:
             assert loaded_evaluator.getMetricName() == "accuracy"
 
 
-@unittest.skipIf(
-    not should_test_connect or not have_torcheval,
-    connect_requirement_message or "torcheval is required",
-)
+@unittest.skipIf(not have_torcheval, "torcheval is required")
 class EvaluationTests(EvaluationTestsMixin, unittest.TestCase):
     def setUp(self) -> None:
         self.spark = SparkSession.builder.master("local[2]").getOrCreate()

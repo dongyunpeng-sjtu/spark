@@ -18,8 +18,8 @@ package org.apache.spark.sql
 
 import java.util.{Collections, Locale}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
@@ -1041,22 +1041,6 @@ class Dataset[T] private[sql] (
    */
   def col(colName: String): Column = {
     Column.apply(colName, getPlanId)
-  }
-
-  /**
-   * Selects a metadata column based on its logical column name, and returns it as a [[Column]].
-   *
-   * A metadata column can be accessed this way even if the underlying data source defines a data
-   * column with a conflicting name.
-   *
-   * @group untypedrel
-   * @since 3.5.0
-   */
-  def metadataColumn(colName: String): Column = Column { builder =>
-    val attributeBuilder = builder.getUnresolvedAttributeBuilder
-      .setUnparsedIdentifier(colName)
-      .setIsMetadataColumn(true)
-    getPlanId.foreach(attributeBuilder.setPlanId)
   }
 
   /**
@@ -2733,7 +2717,7 @@ class Dataset[T] private[sql] (
    * @group typedrel
    * @since 3.5.0
    */
-  def flatMap[U: Encoder](func: T => IterableOnce[U]): Dataset[U] =
+  def flatMap[U: Encoder](func: T => TraversableOnce[U]): Dataset[U] =
     mapPartitions(UdfUtils.flatMapFuncToMapPartitionsAdaptor(func))
 
   /**
@@ -2775,9 +2759,9 @@ class Dataset[T] private[sql] (
    * @since 3.5.0
    */
   @deprecated("use flatMap() or select() with functions.explode() instead", "3.5.0")
-  def explode[A <: Product: TypeTag](input: Column*)(f: Row => IterableOnce[A]): DataFrame = {
+  def explode[A <: Product: TypeTag](input: Column*)(f: Row => TraversableOnce[A]): DataFrame = {
     val generator = ScalarUserDefinedFunction(
-      UdfUtils.iterableOnceToSeq(f),
+      UdfUtils.traversableOnceToSeq(f),
       UnboundRowEncoder :: Nil,
       ScalaReflection.encoderFor[Seq[A]])
     select(col("*"), functions.inline(generator(struct(input: _*))))
@@ -2807,9 +2791,9 @@ class Dataset[T] private[sql] (
    */
   @deprecated("use flatMap() or select() with functions.explode() instead", "3.5.0")
   def explode[A, B: TypeTag](inputColumn: String, outputColumn: String)(
-      f: A => IterableOnce[B]): DataFrame = {
+      f: A => TraversableOnce[B]): DataFrame = {
     val generator = ScalarUserDefinedFunction(
-      UdfUtils.iterableOnceToSeq(f),
+      UdfUtils.traversableOnceToSeq(f),
       Nil,
       ScalaReflection.encoderFor[Seq[B]])
     select(col("*"), functions.explode(generator(col(inputColumn))).as((outputColumn)))

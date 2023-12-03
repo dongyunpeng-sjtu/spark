@@ -65,7 +65,8 @@ class IdentifierImpl implements Identifier {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof IdentifierImpl that)) return false;
+    if (!(o instanceof IdentifierImpl)) return false;
+    IdentifierImpl that = (IdentifierImpl) o;
     return Arrays.equals(namespace, that.namespace) && name.equals(that.name);
   }
 

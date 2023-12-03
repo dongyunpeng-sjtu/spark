@@ -19,7 +19,7 @@ package org.apache.spark.network.netty
 
 import java.nio.ByteBuffer
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 import org.apache.spark.SparkException

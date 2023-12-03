@@ -20,8 +20,17 @@ import shutil
 import tempfile
 import warnings
 from contextlib import contextmanager
+from distutils.version import LooseVersion
 import decimal
-from typing import Any, Union
+from typing import Any, Union, TYPE_CHECKING
+
+import pyspark.pandas as ps
+from pyspark.pandas.frame import DataFrame
+from pyspark.pandas.indexes import Index
+from pyspark.pandas.series import Series
+from pyspark.pandas.utils import SPARK_CONF_ARROW_ENABLED
+from pyspark.testing.sqlutils import ReusedSQLTestCase
+from pyspark.errors import PySparkAssertionError
 
 tabulate_requirement_message = None
 try:
@@ -55,15 +64,6 @@ try:
 except ImportError:
     pass
 
-import pyspark.pandas as ps
-from pyspark.pandas.frame import DataFrame
-from pyspark.pandas.indexes import Index
-from pyspark.pandas.series import Series
-from pyspark.pandas.utils import SPARK_CONF_ARROW_ENABLED
-from pyspark.testing.sqlutils import ReusedSQLTestCase
-from pyspark.errors import PySparkAssertionError
-
-
 __all__ = ["assertPandasOnSparkEqual"]
 
 
@@ -77,7 +77,18 @@ def _assert_pandas_equal(
 
     if isinstance(left, pd.DataFrame) and isinstance(right, pd.DataFrame):
         try:
-            kwargs = dict(check_freq=False)
+            if LooseVersion(pd.__version__) >= LooseVersion("1.1"):
+                kwargs = dict(check_freq=False)
+            else:
+                kwargs = dict()
+
+            if LooseVersion(pd.__version__) < LooseVersion("1.1.1"):
+                # Due to https://github.com/pandas-dev/pandas/issues/35446
+                checkExact = (
+                    checkExact
+                    and all([is_numeric_dtype(dtype) for dtype in left.dtypes])
+                    and all([is_numeric_dtype(dtype) for dtype in right.dtypes])
+                )
 
             assert_frame_equal(
                 left,
@@ -99,7 +110,15 @@ def _assert_pandas_equal(
             )
     elif isinstance(left, pd.Series) and isinstance(right, pd.Series):
         try:
-            kwargs = dict(check_freq=False)
+            if LooseVersion(pd.__version__) >= LooseVersion("1.1"):
+                kwargs = dict(check_freq=False)
+            else:
+                kwargs = dict()
+            if LooseVersion(pd.__version__) < LooseVersion("1.1.1"):
+                # Due to https://github.com/pandas-dev/pandas/issues/35446
+                checkExact = (
+                    checkExact and is_numeric_dtype(left.dtype) and is_numeric_dtype(right.dtype)
+                )
             assert_series_equal(
                 left,
                 right,
@@ -119,6 +138,11 @@ def _assert_pandas_equal(
             )
     elif isinstance(left, pd.Index) and isinstance(right, pd.Index):
         try:
+            if LooseVersion(pd.__version__) < LooseVersion("1.1.1"):
+                # Due to https://github.com/pandas-dev/pandas/issues/35446
+                checkExact = (
+                    checkExact and is_numeric_dtype(left.dtype) and is_numeric_dtype(right.dtype)
+                )
             assert_index_equal(left, right, check_exact=checkExact)
         except AssertionError:
             raise PySparkAssertionError(
@@ -341,11 +365,6 @@ def assertPandasOnSparkEqual(
 
     .. versionadded:: 3.5.0
 
-    .. deprecated:: 3.5.1
-        `assertPandasOnSparkEqual` will be removed in Spark 4.0.0.
-        Use `ps.testing.assert_frame_equal`, `ps.testing.assert_series_equal`
-        and `ps.testing.assert_index_equal` instead.
-
     Parameters
     ----------
     actual: pandas-on-Spark DataFrame, Series, or Index
@@ -398,12 +417,6 @@ def assertPandasOnSparkEqual(
     >>> s2 = ps.Index([212.3, 100.0001])
     >>> assertPandasOnSparkEqual(s1, s2, almost=True)  # pass, ps.Index obj are almost equal
     """
-    warnings.warn(
-        "`assertPandasOnSparkEqual` will be removed in Spark 4.0.0. "
-        "Use `ps.testing.assert_frame_equal`, `ps.testing.assert_series_equal` "
-        "and `ps.testing.assert_index_equal` instead.",
-        FutureWarning,
-    )
     if actual is None and expected is None:
         return True
     elif actual is None or expected is None:
@@ -572,6 +585,7 @@ class ComparisonTestBase(PandasOnSparkTestCase):
 
 
 def compare_both(f=None, almost=True):
+
     if f is None:
         return functools.partial(compare_both, almost=almost)
     elif isinstance(f, bool):
@@ -655,6 +669,7 @@ def assert_produces_warning(
     __tracebackhide__ = True
 
     with warnings.catch_warnings(record=True) as w:
+
         saw_warning = False
         warnings.simplefilter(filter_level)
         yield w

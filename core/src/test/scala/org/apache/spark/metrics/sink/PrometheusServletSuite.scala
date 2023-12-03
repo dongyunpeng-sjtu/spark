@@ -19,7 +19,7 @@ package org.apache.spark.metrics.sink
 
 import java.util.Properties
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import com.codahale.metrics.{Counter, Gauge, MetricRegistry}
 import org.scalatest.PrivateMethodTester

@@ -19,44 +19,16 @@ import unittest
 
 from pyspark.sql.tests.streaming.test_streaming_foreach_batch import StreamingTestsForeachBatchMixin
 from pyspark.testing.connectutils import ReusedConnectTestCase
-from pyspark.errors import PySparkPicklingError
 
 
 class StreamingForeachBatchParityTests(StreamingTestsForeachBatchMixin, ReusedConnectTestCase):
+    @unittest.skip("SPARK-44463: Error handling needs improvement in connect foreachBatch")
     def test_streaming_foreach_batch_propagates_python_errors(self):
         super().test_streaming_foreach_batch_propagates_python_errors()
 
     @unittest.skip("This seems specific to py4j and pinned threads. The intention is unclear")
     def test_streaming_foreach_batch_graceful_stop(self):
         super().test_streaming_foreach_batch_graceful_stop()
-
-    def test_accessing_spark_session(self):
-        spark = self.spark
-
-        def func(df, _):
-            spark.createDataFrame([("do", "not"), ("serialize", "spark")]).collect()
-
-        error_thrown = False
-        try:
-            self.spark.readStream.format("rate").load().writeStream.foreachBatch(func).start()
-        except PySparkPicklingError as e:
-            self.assertEqual(e.getErrorClass(), "STREAMING_CONNECT_SERIALIZATION_ERROR")
-            error_thrown = True
-        self.assertTrue(error_thrown)
-
-    def test_accessing_spark_session_through_df(self):
-        dataframe = self.spark.createDataFrame([("do", "not"), ("serialize", "dataframe")])
-
-        def func(df, _):
-            dataframe.collect()
-
-        error_thrown = False
-        try:
-            self.spark.readStream.format("rate").load().writeStream.foreachBatch(func).start()
-        except PySparkPicklingError as e:
-            self.assertEqual(e.getErrorClass(), "STREAMING_CONNECT_SERIALIZATION_ERROR")
-            error_thrown = True
-        self.assertTrue(error_thrown)
 
 
 if __name__ == "__main__":

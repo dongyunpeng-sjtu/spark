@@ -348,7 +348,6 @@ GroupedData.__doc__ = PySparkGroupedData.__doc__
 
 class PandasCogroupedOps:
     def __init__(self, gd1: "GroupedData", gd2: "GroupedData"):
-        gd1._df._check_same_session(gd2._df)
         self._gd1 = gd1
         self._gd2 = gd2
 

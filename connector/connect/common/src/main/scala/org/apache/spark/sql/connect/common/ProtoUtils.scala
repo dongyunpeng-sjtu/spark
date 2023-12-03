@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.connect.common
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import com.google.protobuf.{ByteString, Message}
 import com.google.protobuf.Descriptors.FieldDescriptor
@@ -43,12 +43,9 @@ private[connect] object ProtoUtils {
       case (field: FieldDescriptor, byteString: ByteString)
           if field.getJavaType == FieldDescriptor.JavaType.BYTE_STRING && byteString != null =>
         val size = byteString.size
-        if (size > MAX_BYTES_SIZE) {
-          builder.setField(
-            field,
-            byteString
-              .substring(0, MAX_BYTES_SIZE)
-              .concat(createTruncatedByteString(size)))
+        if (size > maxStringSize) {
+          val prefix = Array.tabulate(maxStringSize)(byteString.byteAt)
+          builder.setField(field, createByteString(prefix, size))
         } else {
           builder.setField(field, byteString)
         }
@@ -57,11 +54,8 @@ private[connect] object ProtoUtils {
           if field.getJavaType == FieldDescriptor.JavaType.BYTE_STRING && byteArray != null =>
         val size = byteArray.size
         if (size > MAX_BYTES_SIZE) {
-          builder.setField(
-            field,
-            ByteString
-              .copyFrom(byteArray, 0, MAX_BYTES_SIZE)
-              .concat(createTruncatedByteString(size)))
+          val prefix = byteArray.take(MAX_BYTES_SIZE)
+          builder.setField(field, createByteString(prefix, size))
         } else {
           builder.setField(field, byteArray)
         }
@@ -69,7 +63,7 @@ private[connect] object ProtoUtils {
       // TODO(SPARK-43117): should also support 1, repeated msg; 2, map<xxx, msg>
       case (field: FieldDescriptor, msg: Message)
           if field.getJavaType == FieldDescriptor.JavaType.MESSAGE && msg != null =>
-        builder.setField(field, abbreviate(msg, maxStringSize))
+        builder.setField(field, abbreviate(msg))
 
       case (field: FieldDescriptor, value: Any) => builder.setField(field, value)
     }
@@ -77,8 +71,11 @@ private[connect] object ProtoUtils {
     builder.build()
   }
 
-  private def createTruncatedByteString(size: Int): ByteString = {
-    ByteString.copyFromUtf8(s"[truncated(size=${format.format(size)})]")
+  private def createByteString(prefix: Array[Byte], size: Int): ByteString = {
+    ByteString.copyFrom(
+      List(
+        ByteString.copyFrom(prefix),
+        ByteString.copyFromUtf8(s"[truncated(size=${format.format(size)})]")).asJava)
   }
 
   private def createString(prefix: String, size: Int): String = {

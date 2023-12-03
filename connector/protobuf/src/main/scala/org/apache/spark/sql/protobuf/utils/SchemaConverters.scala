@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.protobuf.utils
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import com.google.protobuf.Descriptors.{Descriptor, FieldDescriptor}
 

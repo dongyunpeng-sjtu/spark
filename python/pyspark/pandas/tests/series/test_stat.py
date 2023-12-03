@@ -15,10 +15,11 @@
 # limitations under the License.
 #
 import unittest
-from decimal import Decimal
+from distutils.version import LooseVersion
 
 import numpy as np
 import pandas as pd
+from decimal import Decimal
 
 from pyspark import pandas as ps
 from pyspark.testing.pandasutils import ComparisonTestBase
@@ -52,6 +53,10 @@ class SeriesStatMixin:
         self.assertEqual(ps.Series(range(100)).nunique(approx=True), 103)
         self.assertEqual(ps.Series(range(100)).nunique(approx=True, rsd=0.01), 100)
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43464): Enable SeriesTests.test_value_counts for pandas 2.0.0.",
+    )
     def test_value_counts(self):
         # this is also containing test for Index & MultiIndex
         pser = pd.Series(
@@ -320,6 +325,10 @@ class SeriesStatMixin:
         with self.assertRaisesRegex(TypeError, "accuracy must be an integer; however"):
             ps.Series([24.0, 21.0, 25.0, 33.0, 26.0]).median(accuracy="a")
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43463): Enable SeriesTests.test_rank for pandas 2.0.0.",
+    )
     def test_rank(self):
         pser = pd.Series([1, 2, 3, 1], name="x")
         psser = ps.from_pandas(pser)
@@ -334,6 +343,10 @@ class SeriesStatMixin:
         non_numeric_pser = pd.Series(["a", "c", "b", "d"], name="x", index=[10, 11, 12, 13])
         non_numeric_psser = ps.from_pandas(non_numeric_pser)
         self.assert_eq(
+            non_numeric_pser.rank(numeric_only=True),
+            non_numeric_psser.rank(numeric_only=True),
+        )
+        self.assert_eq(
             non_numeric_pser.rank(numeric_only=None),
             non_numeric_psser.rank(numeric_only=None).sort_index(),
         )
@@ -341,14 +354,10 @@ class SeriesStatMixin:
             non_numeric_pser.rank(numeric_only=False),
             non_numeric_psser.rank(numeric_only=False).sort_index(),
         )
-
-        msg = "Series.rank does not allow numeric_only=True with non-numeric dtype."
-        with self.assertRaisesRegex(TypeError, msg):
-            non_numeric_psser.rank(numeric_only=True)
-
-        msg = "Series.rank does not allow numeric_only=True with non-numeric dtype."
-        with self.assertRaisesRegex(TypeError, msg):
-            (non_numeric_psser + "x").rank(numeric_only=True)
+        self.assert_eq(
+            (non_numeric_pser + "x").rank(numeric_only=True),
+            (non_numeric_psser + "x").rank(numeric_only=True),
+        )
 
         msg = "method must be one of 'average', 'min', 'max', 'first', 'dense'"
         with self.assertRaisesRegex(ValueError, msg):
@@ -373,6 +382,10 @@ class SeriesStatMixin:
         with self.assertRaisesRegex(TypeError, msg):
             psser.round(1.5)
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43469): Enable SeriesTests.test_quantile for pandas 2.0.0.",
+    )
     def test_quantile(self):
         pser = pd.Series([])
         psser = ps.from_pandas(pser)
@@ -473,7 +486,12 @@ class SeriesStatMixin:
 
         pser.name = "x"
         psser = ps.from_pandas(pser)
-        self.assert_eq(psser.mode(), pser.mode())
+        if LooseVersion(pd.__version__) < LooseVersion("1.4"):
+            # Due to pandas bug: https://github.com/pandas-dev/pandas/issues/46737
+            psser.name = None
+            self.assert_eq(psser.mode(), pser.mode())
+        else:
+            self.assert_eq(psser.mode(), pser.mode())
         self.assert_eq(
             psser.mode(dropna=False).sort_values().reset_index(drop=True),
             pser.mode(dropna=False).sort_values().reset_index(drop=True),
@@ -506,6 +524,45 @@ class SeriesStatMixin:
         self.assert_eq(pser // 0, psser // 0)
         self.assert_eq(pser.floordiv(np.nan), psser.floordiv(np.nan))
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43468): Enable SeriesTests.test_mad for pandas 2.0.0.",
+    )
+    def test_mad(self):
+        pser = pd.Series([1, 2, 3, 4], name="Koalas")
+        psser = ps.from_pandas(pser)
+
+        self.assert_eq(pser.mad(), psser.mad())
+
+        pser = pd.Series([None, -2, 5, 10, 50, np.nan, -20], name="Koalas")
+        psser = ps.from_pandas(pser)
+
+        self.assert_eq(pser.mad(), psser.mad())
+
+        pmidx = pd.MultiIndex.from_tuples(
+            [("a", "1"), ("a", "2"), ("b", "1"), ("b", "2"), ("c", "1")]
+        )
+        pser = pd.Series([1, 2, 3, 4, 5], name="Koalas")
+        pser.index = pmidx
+        psser = ps.from_pandas(pser)
+
+        self.assert_eq(pser.mad(), psser.mad())
+
+        pmidx = pd.MultiIndex.from_tuples(
+            [("a", "1"), ("a", "2"), ("b", "1"), ("b", "2"), ("c", "1")]
+        )
+        pser = pd.Series([None, -2, 5, 50, np.nan], name="Koalas")
+        pser.index = pmidx
+        psser = ps.from_pandas(pser)
+
+        # Mark almost as True to avoid precision issue like:
+        # "21.555555555555554 != 21.555555555555557"
+        self.assert_eq(pser.mad(), psser.mad(), almost=True)
+
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43481): Enable SeriesTests.test_product for pandas 2.0.0.",
+    )
     def test_product(self):
         pser = pd.Series([10, 20, 30, 40, 50])
         psser = ps.from_pandas(pser)
@@ -521,18 +578,23 @@ class SeriesStatMixin:
         psser = ps.from_pandas(pser)
         self.assert_eq(pser.prod(), psser.prod())
 
+        # Empty Series
+        pser = pd.Series([])
+        psser = ps.from_pandas(pser)
+        self.assert_eq(pser.prod(), psser.prod())
+
         # Boolean Series
         pser = pd.Series([True, True, True])
         psser = ps.from_pandas(pser)
-        self.assert_eq(pser.prod(numeric_only=True), psser.prod())
+        self.assert_eq(pser.prod(), psser.prod())
 
         pser = pd.Series([False, False, False])
         psser = ps.from_pandas(pser)
-        self.assert_eq(pser.prod(numeric_only=True), psser.prod())
+        self.assert_eq(pser.prod(), psser.prod())
 
         pser = pd.Series([True, False, True])
         psser = ps.from_pandas(pser)
-        self.assert_eq(pser.prod(numeric_only=True), psser.prod())
+        self.assert_eq(pser.prod(), psser.prod())
 
         # With `min_count` parameter
         pser = pd.Series([10, 20, 30, 40, 50])
@@ -549,10 +611,10 @@ class SeriesStatMixin:
         psser = ps.from_pandas(pser)
         self.assert_eq(pser.prod(min_count=1), psser.prod(min_count=1))
 
-        with self.assertRaisesRegex(TypeError, "Could not convert object \\(void\\) to numeric"):
-            ps.Series([]).prod(numeric_only=True)
-        with self.assertRaisesRegex(TypeError, "Could not convert object \\(void\\) to numeric"):
-            ps.Series([]).prod(min_count=1)
+        pser = pd.Series([])
+        psser = ps.from_pandas(pser)
+        self.assert_eq(pser.prod(min_count=1), psser.prod(min_count=1))
+
         with self.assertRaisesRegex(TypeError, "Could not convert object \\(string\\) to numeric"):
             ps.Series(["a", "b", "c"]).prod()
         with self.assertRaisesRegex(

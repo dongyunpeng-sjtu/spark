@@ -19,10 +19,11 @@ package org.apache.spark.sql.avro
 import java.io.{FileNotFoundException, IOException}
 import java.util.Locale
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.avro.Schema
 import org.apache.avro.file.{DataFileReader, FileReader}
+import org.apache.avro.file.DataFileConstants.{BZIP2_CODEC, DEFLATE_CODEC, SNAPPY_CODEC, XZ_CODEC, ZSTANDARD_CODEC}
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
 import org.apache.avro.mapred.{AvroOutputFormat, FsInput}
 import org.apache.avro.mapreduce.AvroJob
@@ -33,7 +34,6 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.SparkException
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.avro.AvroCompressionCodec._
 import org.apache.spark.sql.avro.AvroOptions.IGNORE_EXTENSION
 import org.apache.spark.sql.catalyst.{FileSourceOptions, InternalRow}
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
@@ -61,7 +61,7 @@ private[sql] object AvroUtils extends Logging {
           new FileSourceOptions(CaseInsensitiveMap(options)).ignoreCorruptFiles)
       }
 
-    SchemaConverters.toSqlType(avroSchema, parsedOptions.useStableIdForUnionType).dataType match {
+    SchemaConverters.toSqlType(avroSchema, options).dataType match {
       case t: StructType => Some(t)
       case _ => throw new RuntimeException(
         s"""Avro schema cannot be converted to a Spark SQL StructType:
@@ -100,19 +100,18 @@ private[sql] object AvroUtils extends Logging {
 
     AvroJob.setOutputKeySchema(job, outputAvroSchema)
 
-    if (parsedOptions.compression == UNCOMPRESSED.lowerCaseName()) {
+    if (parsedOptions.compression == "uncompressed") {
       job.getConfiguration.setBoolean("mapred.output.compress", false)
     } else {
       job.getConfiguration.setBoolean("mapred.output.compress", true)
       logInfo(s"Compressing Avro output using the ${parsedOptions.compression} codec")
-      val codec = AvroCompressionCodec.fromString(parsedOptions.compression) match {
-        case DEFLATE =>
+      val codec = parsedOptions.compression match {
+        case DEFLATE_CODEC =>
           val deflateLevel = sqlConf.avroDeflateLevel
-          logInfo(s"Avro compression level $deflateLevel will be used for " +
-            s"${DEFLATE.getCodecName()} codec.")
+          logInfo(s"Avro compression level $deflateLevel will be used for $DEFLATE_CODEC codec.")
           job.getConfiguration.setInt(AvroOutputFormat.DEFLATE_LEVEL_KEY, deflateLevel)
-          DEFLATE.getCodecName()
-        case codec @ (SNAPPY | BZIP2 | XZ | ZSTANDARD) => codec.getCodecName()
+          DEFLATE_CODEC
+        case codec @ (SNAPPY_CODEC | BZIP2_CODEC | XZ_CODEC | ZSTANDARD_CODEC) => codec
         case unknown => throw new IllegalArgumentException(s"Invalid compression codec: $unknown")
       }
       job.getConfiguration.set(AvroJob.CONF_OUTPUT_CODEC, codec)
@@ -242,7 +241,6 @@ private[sql] object AvroUtils extends Logging {
     private[this] val avroFieldArray = avroSchema.getFields.asScala.toArray
     private[this] val fieldMap = avroSchema.getFields.asScala
       .groupBy(_.name.toLowerCase(Locale.ROOT))
-      .view
       .mapValues(_.toSeq) // toSeq needed for scala 2.13
 
     /** The fields which have matching equivalents in both Avro and Catalyst schemas. */

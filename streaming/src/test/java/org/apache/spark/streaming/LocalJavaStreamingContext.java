@@ -19,14 +19,14 @@ package org.apache.spark.streaming;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.After;
+import org.junit.Before;
 
 public abstract class LocalJavaStreamingContext {
 
     protected transient JavaStreamingContext ssc;
 
-    @BeforeEach
+    @Before
     public void setUp() {
         SparkConf conf = new SparkConf()
             .setMaster("local[2]")
@@ -36,7 +36,7 @@ public abstract class LocalJavaStreamingContext {
         ssc.checkpoint("checkpoint");
     }
 
-    @AfterEach
+    @After
     public void tearDown() {
         ssc.stop();
         ssc = null;

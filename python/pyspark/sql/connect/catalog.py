@@ -21,7 +21,7 @@ check_dependencies(__name__)
 from typing import Any, Callable, List, Optional, TYPE_CHECKING
 
 import warnings
-import pyarrow as pa
+import pandas as pd
 
 from pyspark.storagelevel import StorageLevel
 from pyspark.sql.types import StructType
@@ -45,14 +45,15 @@ class Catalog:
     def __init__(self, sparkSession: "SparkSession") -> None:
         self._sparkSession = sparkSession
 
-    def _execute_and_fetch(self, catalog: plan.LogicalPlan) -> pa.Table:
-        table, _ = DataFrame.withPlan(catalog, session=self._sparkSession)._to_table()
-        assert table is not None
-        return table
+    def _execute_and_fetch(self, catalog: plan.LogicalPlan) -> pd.DataFrame:
+        pdf = DataFrame.withPlan(catalog, session=self._sparkSession).toPandas()
+        assert pdf is not None
+        return pdf
 
     def currentCatalog(self) -> str:
-        table = self._execute_and_fetch(plan.CurrentCatalog())
-        return table[0][0].as_py()
+        pdf = self._execute_and_fetch(plan.CurrentCatalog())
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     currentCatalog.__doc__ = PySparkCatalog.currentCatalog.__doc__
 
@@ -62,20 +63,17 @@ class Catalog:
     setCurrentCatalog.__doc__ = PySparkCatalog.setCurrentCatalog.__doc__
 
     def listCatalogs(self, pattern: Optional[str] = None) -> List[CatalogMetadata]:
-        table = self._execute_and_fetch(plan.ListCatalogs(pattern=pattern))
+        pdf = self._execute_and_fetch(plan.ListCatalogs(pattern=pattern))
         return [
-            CatalogMetadata(
-                name=table[0][i].as_py(),
-                description=table[1][i].as_py(),
-            )
-            for i in range(table.num_rows)
+            CatalogMetadata(name=row.iloc[0], description=row.iloc[1]) for _, row in pdf.iterrows()
         ]
 
     listCatalogs.__doc__ = PySparkCatalog.listCatalogs.__doc__
 
     def currentDatabase(self) -> str:
-        table = self._execute_and_fetch(plan.CurrentDatabase())
-        return table[0][0].as_py()
+        pdf = self._execute_and_fetch(plan.CurrentDatabase())
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     currentDatabase.__doc__ = PySparkCatalog.currentDatabase.__doc__
 
@@ -85,63 +83,70 @@ class Catalog:
     setCurrentDatabase.__doc__ = PySparkCatalog.setCurrentDatabase.__doc__
 
     def listDatabases(self, pattern: Optional[str] = None) -> List[Database]:
-        table = self._execute_and_fetch(plan.ListDatabases(pattern=pattern))
+        pdf = self._execute_and_fetch(plan.ListDatabases(pattern=pattern))
         return [
             Database(
-                name=table[0][i].as_py(),
-                catalog=table[1][i].as_py(),
-                description=table[2][i].as_py(),
-                locationUri=table[3][i].as_py(),
+                name=row.iloc[0],
+                catalog=row.iloc[1],
+                description=row.iloc[2],
+                locationUri=row.iloc[3],
             )
-            for i in range(table.num_rows)
+            for _, row in pdf.iterrows()
         ]
 
     listDatabases.__doc__ = PySparkCatalog.listDatabases.__doc__
 
     def getDatabase(self, dbName: str) -> Database:
-        table = self._execute_and_fetch(plan.GetDatabase(db_name=dbName))
+        pdf = self._execute_and_fetch(plan.GetDatabase(db_name=dbName))
+        assert pdf is not None
+        row = pdf.iloc[0]
         return Database(
-            name=table[0][0].as_py(),
-            catalog=table[1][0].as_py(),
-            description=table[2][0].as_py(),
-            locationUri=table[3][0].as_py(),
+            name=row[0],
+            catalog=row[1],
+            description=row[2],
+            locationUri=row[3],
         )
 
     getDatabase.__doc__ = PySparkCatalog.getDatabase.__doc__
 
     def databaseExists(self, dbName: str) -> bool:
-        table = self._execute_and_fetch(plan.DatabaseExists(db_name=dbName))
-        return table[0][0].as_py()
+        pdf = self._execute_and_fetch(plan.DatabaseExists(db_name=dbName))
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     databaseExists.__doc__ = PySparkCatalog.databaseExists.__doc__
 
     def listTables(
         self, dbName: Optional[str] = None, pattern: Optional[str] = None
     ) -> List[Table]:
-        table = self._execute_and_fetch(plan.ListTables(db_name=dbName, pattern=pattern))
+        pdf = self._execute_and_fetch(plan.ListTables(db_name=dbName, pattern=pattern))
         return [
             Table(
-                name=table[0][i].as_py(),
-                catalog=table[1][i].as_py(),
-                namespace=table[2][i].as_py(),
-                description=table[3][i].as_py(),
-                tableType=table[4][i].as_py(),
-                isTemporary=table[5][i].as_py(),
+                name=row.iloc[0],
+                catalog=row.iloc[1],
+                # If None, returns None.
+                namespace=None if row.iloc[2] is None else list(row.iloc[2]),
+                description=row.iloc[3],
+                tableType=row.iloc[4],
+                isTemporary=row.iloc[5],
             )
-            for i in range(table.num_rows)
+            for _, row in pdf.iterrows()
         ]
 
     listTables.__doc__ = PySparkCatalog.listTables.__doc__
 
     def getTable(self, tableName: str) -> Table:
-        table = self._execute_and_fetch(plan.GetTable(table_name=tableName))
+        pdf = self._execute_and_fetch(plan.GetTable(table_name=tableName))
+        assert pdf is not None
+        row = pdf.iloc[0]
         return Table(
-            name=table[0][0].as_py(),
-            catalog=table[1][0].as_py(),
-            namespace=table[2][0].as_py(),
-            description=table[3][0].as_py(),
-            tableType=table[4][0].as_py(),
-            isTemporary=table[5][0].as_py(),
+            name=row.iloc[0],
+            catalog=row.iloc[1],
+            # If None, returns None.
+            namespace=None if row.iloc[2] is None else list(row.iloc[2]),
+            description=row.iloc[3],
+            tableType=row.iloc[4],
+            isTemporary=row.iloc[5],
         )
 
     getTable.__doc__ = PySparkCatalog.getTable.__doc__
@@ -149,61 +154,67 @@ class Catalog:
     def listFunctions(
         self, dbName: Optional[str] = None, pattern: Optional[str] = None
     ) -> List[Function]:
-        table = self._execute_and_fetch(plan.ListFunctions(db_name=dbName, pattern=pattern))
+        pdf = self._execute_and_fetch(plan.ListFunctions(db_name=dbName, pattern=pattern))
         return [
             Function(
-                name=table[0][i].as_py(),
-                catalog=table[1][i].as_py(),
-                namespace=table[2][i].as_py(),
-                description=table[3][i].as_py(),
-                className=table[4][i].as_py(),
-                isTemporary=table[5][i].as_py(),
+                name=row.iloc[0],
+                catalog=row.iloc[1],
+                # If None, returns None.
+                namespace=None if row.iloc[2] is None else list(row.iloc[2]),
+                description=row.iloc[3],
+                className=row.iloc[4],
+                isTemporary=row.iloc[5],
             )
-            for i in range(table.num_rows)
+            for _, row in pdf.iterrows()
         ]
 
     listFunctions.__doc__ = PySparkCatalog.listFunctions.__doc__
 
     def functionExists(self, functionName: str, dbName: Optional[str] = None) -> bool:
-        table = self._execute_and_fetch(
+        pdf = self._execute_and_fetch(
             plan.FunctionExists(function_name=functionName, db_name=dbName)
         )
-        return table[0][0].as_py()
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     functionExists.__doc__ = PySparkCatalog.functionExists.__doc__
 
     def getFunction(self, functionName: str) -> Function:
-        table = self._execute_and_fetch(plan.GetFunction(function_name=functionName))
+        pdf = self._execute_and_fetch(plan.GetFunction(function_name=functionName))
+        assert pdf is not None
+        row = pdf.iloc[0]
         return Function(
-            name=table[0][0].as_py(),
-            catalog=table[1][0].as_py(),
-            namespace=table[2][0].as_py(),
-            description=table[3][0].as_py(),
-            className=table[4][0].as_py(),
-            isTemporary=table[5][0].as_py(),
+            name=row.iloc[0],
+            catalog=row.iloc[1],
+            # If None, returns None.
+            namespace=None if row.iloc[2] is None else list(row.iloc[2]),
+            description=row.iloc[3],
+            className=row.iloc[4],
+            isTemporary=row.iloc[5],
         )
 
     getFunction.__doc__ = PySparkCatalog.getFunction.__doc__
 
     def listColumns(self, tableName: str, dbName: Optional[str] = None) -> List[Column]:
-        table = self._execute_and_fetch(plan.ListColumns(table_name=tableName, db_name=dbName))
+        pdf = self._execute_and_fetch(plan.ListColumns(table_name=tableName, db_name=dbName))
         return [
             Column(
-                name=table[0][i].as_py(),
-                description=table[1][i].as_py(),
-                dataType=table[2][i].as_py(),
-                nullable=table[3][i].as_py(),
-                isPartition=table[4][i].as_py(),
-                isBucket=table[5][i].as_py(),
+                name=row.iloc[0],
+                description=row.iloc[1],
+                dataType=row.iloc[2],
+                nullable=row.iloc[3],
+                isPartition=row.iloc[4],
+                isBucket=row.iloc[5],
             )
-            for i in range(table.num_rows)
+            for _, row in pdf.iterrows()
         ]
 
     listColumns.__doc__ = PySparkCatalog.listColumns.__doc__
 
     def tableExists(self, tableName: str, dbName: Optional[str] = None) -> bool:
-        table = self._execute_and_fetch(plan.TableExists(table_name=tableName, db_name=dbName))
-        return table[0][0].as_py()
+        pdf = self._execute_and_fetch(plan.TableExists(table_name=tableName, db_name=dbName))
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     tableExists.__doc__ = PySparkCatalog.tableExists.__doc__
 
@@ -252,20 +263,23 @@ class Catalog:
     createTable.__doc__ = PySparkCatalog.createTable.__doc__
 
     def dropTempView(self, viewName: str) -> bool:
-        table = self._execute_and_fetch(plan.DropTempView(view_name=viewName))
-        return table[0][0].as_py()
+        pdf = self._execute_and_fetch(plan.DropTempView(view_name=viewName))
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     dropTempView.__doc__ = PySparkCatalog.dropTempView.__doc__
 
     def dropGlobalTempView(self, viewName: str) -> bool:
-        table = self._execute_and_fetch(plan.DropGlobalTempView(view_name=viewName))
-        return table[0][0].as_py()
+        pdf = self._execute_and_fetch(plan.DropGlobalTempView(view_name=viewName))
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     dropGlobalTempView.__doc__ = PySparkCatalog.dropGlobalTempView.__doc__
 
     def isCached(self, tableName: str) -> bool:
-        table = self._execute_and_fetch(plan.IsCached(table_name=tableName))
-        return table[0][0].as_py()
+        pdf = self._execute_and_fetch(plan.IsCached(table_name=tableName))
+        assert pdf is not None
+        return pdf.iloc[0].iloc[0]
 
     isCached.__doc__ = PySparkCatalog.isCached.__doc__
 

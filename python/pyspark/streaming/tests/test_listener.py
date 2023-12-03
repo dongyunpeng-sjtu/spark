@@ -19,6 +19,7 @@ from pyspark.testing.streamingutils import PySparkStreamingTestCase
 
 
 class StreamingListenerTests(PySparkStreamingTestCase):
+
     duration = 0.5
 
     class BatchInfoCollector(StreamingListener):

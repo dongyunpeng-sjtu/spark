@@ -28,7 +28,7 @@ import org.apache.spark.SparkUnsupportedOperationException
 import org.apache.spark.sql.{AnalysisException, SaveMode}
 import org.apache.spark.sql.catalyst.{AliasIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.analysis.{AnalysisContext, AnalysisTest, Analyzer, EmptyFunctionRegistry, NoSuchTableException, ResolvedFieldName, ResolvedIdentifier, ResolvedTable, ResolveSessionCatalog, UnresolvedAttribute, UnresolvedInlineTable, UnresolvedRelation, UnresolvedSubqueryColumnAliases, UnresolvedTable}
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogStorageFormat, CatalogTable, CatalogTableType, InMemoryCatalog, SessionCatalog, TempVariableManager}
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogStorageFormat, CatalogTable, CatalogTableType, InMemoryCatalog, SessionCatalog}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, EqualTo, Expression, InSubquery, IntegerLiteral, ListQuery, Literal, StringLiteral}
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.parser.{CatalystSqlParser, ParseException}
@@ -184,8 +184,6 @@ class PlanResolutionSuite extends AnalysisTest {
     new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true))
   createTempView(v1SessionCatalog, "v", LocalRelation(Nil), false)
 
-  private val tempVariableManager = new TempVariableManager
-
   private val catalogManagerWithDefault = {
     val manager = mock(classOf[CatalogManager])
     when(manager.catalog(any())).thenAnswer((invocation: InvocationOnMock) => {
@@ -201,7 +199,6 @@ class PlanResolutionSuite extends AnalysisTest {
     when(manager.currentCatalog).thenReturn(testCat)
     when(manager.currentNamespace).thenReturn(Array.empty[String])
     when(manager.v1SessionCatalog).thenReturn(v1SessionCatalog)
-    when(manager.tempVariableManager).thenReturn(tempVariableManager)
     manager
   }
 
@@ -218,7 +215,6 @@ class PlanResolutionSuite extends AnalysisTest {
     when(manager.currentCatalog).thenReturn(v2SessionCatalog)
     when(manager.currentNamespace).thenReturn(Array("default"))
     when(manager.v1SessionCatalog).thenReturn(v1SessionCatalog)
-    when(manager.tempVariableManager).thenReturn(tempVariableManager)
     manager
   }
 
@@ -233,7 +229,7 @@ class PlanResolutionSuite extends AnalysisTest {
     }
     val analyzer = new Analyzer(catalogManager) {
       override val extendedResolutionRules: Seq[Rule[LogicalPlan]] = Seq(
-        new ResolveSessionCatalog(this.catalogManager))
+        new ResolveSessionCatalog(catalogManager))
     }
     // We don't check analysis here by default, as we expect the plan to be unresolved
     // such as `CreateTable`.
@@ -1961,7 +1957,7 @@ class PlanResolutionSuite extends AnalysisTest {
       exception = intercept[AnalysisException] {
         parseAndResolve(mergeWithDefaultReferenceAsPartOfComplexExpression)
       },
-      errorClass = "DEFAULT_PLACEMENT_INVALID",
+      errorClass = "_LEGACY_ERROR_TEMP_1343",
       parameters = Map.empty)
 
     val mergeWithDefaultReferenceForNonNullableCol =

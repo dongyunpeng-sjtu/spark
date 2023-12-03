@@ -20,16 +20,9 @@ import java.util.concurrent.TimeUnit
 
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.connect.common.config.ConnectCommon
-import org.apache.spark.sql.internal.SQLConf.buildConf
 
 object Connect {
   import org.apache.spark.sql.internal.SQLConf.buildStaticConf
-
-  val CONNECT_GRPC_BINDING_ADDRESS =
-    buildStaticConf("spark.connect.grpc.binding.address")
-      .version("4.0.0")
-      .stringConf
-      .createOptional
 
   val CONNECT_GRPC_BINDING_PORT =
     buildStaticConf("spark.connect.grpc.binding.port")
@@ -140,7 +133,7 @@ object Connect {
           "With any value greater than 0, the last sent response will always be buffered.")
       .version("3.5.0")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("10m")
+      .createWithDefaultString("1m")
 
   val CONNECT_EXTENSIONS_RELATION_CLASSES =
     buildStaticConf("spark.connect.extensions.relation.classes")
@@ -186,7 +179,7 @@ object Connect {
           |""".stripMargin)
       .version("3.5.0")
       .intConf
-      .createWithDefault(1024)
+      .createWithDefault(2048)
 
   val CONNECT_COPY_FROM_LOCAL_TO_FS_ALLOW_DEST_LOCAL =
     buildStaticConf("spark.connect.copyFromLocalToFs.allowDestLocal")
@@ -214,21 +207,4 @@ object Connect {
     .version("3.5.0")
     .intConf
     .createWithDefault(200)
-
-  val CONNECT_ENRICH_ERROR_ENABLED =
-    buildConf("spark.sql.connect.enrichError.enabled")
-      .doc("""
-          |When true, it enriches errors with full exception messages and optionally server-side
-          |stacktrace on the client side via an additional RPC.
-          |""".stripMargin)
-      .version("4.0.0")
-      .booleanConf
-      .createWithDefault(true)
-
-  val CONNECT_SERVER_STACKTRACE_ENABLED =
-    buildConf("spark.sql.connect.serverStacktrace.enabled")
-      .doc("When true, it sets the server-side stacktrace in the user-facing Spark exception.")
-      .version("4.0.0")
-      .booleanConf
-      .createWithDefault(true)
 }

@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources
 
 import java.util.{Locale, ServiceConfigurationError, ServiceLoader}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 import org.apache.hadoop.conf.Configuration
@@ -44,7 +44,6 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.FileDataSourceV2
 import org.apache.spark.sql.execution.datasources.v2.orc.OrcDataSourceV2
-import org.apache.spark.sql.execution.datasources.xml.XmlFileFormat
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.execution.streaming.sources.{RateStreamProvider, TextSocketSourceProvider}
 import org.apache.spark.sql.internal.SQLConf
@@ -105,7 +104,7 @@ case class DataSource(
     // [[FileDataSourceV2]] will still be used if we call the load()/save() method in
     // [[DataFrameReader]]/[[DataFrameWriter]], since they use method `lookupDataSource`
     // instead of `providingClass`.
-    cls.getDeclaredConstructor().newInstance() match {
+    cls.newInstance() match {
       case f: FileDataSourceV2 => f.fallbackFileFormat
       case _ => cls
     }
@@ -568,7 +567,6 @@ object DataSource extends Logging {
   private val backwardCompatibilityMap: Map[String, String] = {
     val jdbc = classOf[JdbcRelationProvider].getCanonicalName
     val json = classOf[JsonFileFormat].getCanonicalName
-    val xml = classOf[XmlFileFormat].getCanonicalName
     val parquet = classOf[ParquetFileFormat].getCanonicalName
     val csv = classOf[CSVFileFormat].getCanonicalName
     val libsvm = "org.apache.spark.ml.source.libsvm.LibSVMFileFormat"
@@ -597,8 +595,6 @@ object DataSource extends Logging {
       "org.apache.spark.ml.source.libsvm.DefaultSource" -> libsvm,
       "org.apache.spark.ml.source.libsvm" -> libsvm,
       "com.databricks.spark.csv" -> csv,
-      "com.databricks.spark.xml" -> xml,
-      "org.apache.spark.sql.execution.datasources.xml" -> xml,
       "org.apache.spark.sql.execution.streaming.TextSocketSourceProvider" -> socket,
       "org.apache.spark.sql.execution.streaming.RateSourceProvider" -> rate
     )
@@ -699,13 +695,7 @@ object DataSource extends Logging {
     val useV1Sources = conf.getConf(SQLConf.USE_V1_SOURCE_LIST).toLowerCase(Locale.ROOT)
       .split(",").map(_.trim)
     val cls = lookupDataSource(provider, conf)
-    val instance = try {
-      cls.getDeclaredConstructor().newInstance()
-    } catch {
-      // Throw the original error from the data source implementation.
-      case e: java.lang.reflect.InvocationTargetException => throw e.getCause
-    }
-    instance match {
+    cls.newInstance() match {
       case d: DataSourceRegister if useV1Sources.contains(d.shortName()) => None
       case t: TableProvider
           if !useV1Sources.contains(cls.getCanonicalName.toLowerCase(Locale.ROOT)) =>
@@ -796,7 +786,7 @@ object DataSource extends Logging {
    */
   def buildStorageFormatFromOptions(options: Map[String, String]): CatalogStorageFormat = {
     val path = CaseInsensitiveMap(options).get("path")
-    val optionsWithoutPath = options.view.filterKeys(_.toLowerCase(Locale.ROOT) != "path")
+    val optionsWithoutPath = options.filterKeys(_.toLowerCase(Locale.ROOT) != "path")
     CatalogStorageFormat.empty.copy(
       locationUri = path.map(CatalogUtils.stringToURI), properties = optionsWithoutPath.toMap)
   }

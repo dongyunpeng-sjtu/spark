@@ -16,6 +16,9 @@
 #
 
 from abc import ABCMeta, abstractmethod
+
+import pandas as pd
+
 from typing import (
     Any,
     Generic,
@@ -27,8 +30,6 @@ from typing import (
     Tuple,
     Callable,
 )
-
-import pandas as pd
 
 from pyspark import since
 from pyspark.ml.common import inherit_doc
@@ -134,10 +135,10 @@ class Transformer(Params, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def _get_transform_fn(self) -> Callable[..., Any]:
+    def _get_transform_fn(self) -> Callable[["pd.Series"], Any]:
         """
-        Return a transformation function that accepts one or more `pd.Series` instances as inputs
-        and returns transformed result as an instance of `pd.Series` or `pd.DataFrame`.
+        Return a transformation function that accepts an instance of `pd.Series` as input and
+        returns transformed result as an instance of `pd.Series` or `pd.DataFrame`.
         If there's only one output column, the transformed result must be an
         instance of `pd.Series`, if there are multiple output columns, the transformed result
         must be an instance of `pd.DataFrame` with column names matching output schema
@@ -150,11 +151,11 @@ class Transformer(Params, metaclass=ABCMeta):
     ) -> Union[DataFrame, pd.DataFrame]:
         """
         Transforms the input dataset.
-        The dataset can be either pandas dataframe or spark dataframe，
+        The dataset can be either pandas dataframe or spark dataframe,
         if it is a spark DataFrame, the result of transformation is a new spark DataFrame
-        that contains all existing columns and output columns with names,
-        If it is a pandas DataFrame, the result of transformation is a shallow copy
-        of the input pandas dataframe with output columns with names.
+        that contains all existing columns and output columns with names.
+        if it is a pandas DataFrame, the input pandas dataframe is appended with output
+        columns in place.
 
         Note: Transformers does not allow output column having the same name with
         existing columns.

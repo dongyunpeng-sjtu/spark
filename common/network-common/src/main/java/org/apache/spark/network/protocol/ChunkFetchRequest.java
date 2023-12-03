@@ -56,7 +56,8 @@ public final class ChunkFetchRequest extends AbstractMessage implements RequestM
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof ChunkFetchRequest o) {
+    if (other instanceof ChunkFetchRequest) {
+      ChunkFetchRequest o = (ChunkFetchRequest) other;
       return streamChunkId.equals(o.streamChunkId);
     }
     return false;

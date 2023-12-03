@@ -24,7 +24,7 @@ import java.lang.reflect.InvocationTargetException
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
-import java.nio.channels.Channels
+import java.nio.channels.{Channels, FileChannel, WritableByteChannel}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.security.SecureRandom
@@ -34,10 +34,10 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import java.util.zip.{GZIPInputStream, ZipInputStream}
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
-import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 import scala.util.control.{ControlThrowable, NonFatal}
@@ -61,7 +61,6 @@ import org.apache.hadoop.util.{RunJar, StringUtils}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.logging.log4j.{Level, LogManager}
 import org.apache.logging.log4j.core.LoggerContext
-import org.apache.logging.log4j.core.config.LoggerConfig
 import org.eclipse.jetty.util.MultiException
 import org.slf4j.Logger
 
@@ -95,11 +94,9 @@ private[spark] object CallSite {
 private[spark] object Utils
   extends Logging
   with SparkClassUtils
-  with SparkEnvUtils
   with SparkErrorUtils
   with SparkFileUtils
-  with SparkSerDeUtils
-  with SparkStreamUtils {
+  with SparkSerDeUtils {
 
   private val sparkUncaughtExceptionHandler = new SparkUncaughtExceptionHandler
   @volatile private var cachedLocalDir: String = ""
@@ -247,6 +244,49 @@ private[spark] object Utils
   }
 
   /**
+   * Copy all data from an InputStream to an OutputStream. NIO way of file stream to file stream
+   * copying is disabled by default unless explicitly set transferToEnabled as true,
+   * the parameter transferToEnabled should be configured by spark.file.transferTo = [true|false].
+   */
+  def copyStream(
+      in: InputStream,
+      out: OutputStream,
+      closeStreams: Boolean = false,
+      transferToEnabled: Boolean = false): Long = {
+    tryWithSafeFinally {
+      (in, out) match {
+        case (input: FileInputStream, output: FileOutputStream) if transferToEnabled =>
+          // When both streams are File stream, use transferTo to improve copy performance.
+          val inChannel = input.getChannel
+          val outChannel = output.getChannel
+          val size = inChannel.size()
+          copyFileStreamNIO(inChannel, outChannel, 0, size)
+          size
+        case (input, output) =>
+          var count = 0L
+          val buf = new Array[Byte](8192)
+          var n = 0
+          while (n != -1) {
+            n = input.read(buf)
+            if (n != -1) {
+              output.write(buf, 0, n)
+              count += n
+            }
+          }
+          count
+      }
+    } {
+      if (closeStreams) {
+        try {
+          in.close()
+        } finally {
+          out.close()
+        }
+      }
+    }
+  }
+
+  /**
    * Copy the first `maxSize` bytes of data from the InputStream to an in-memory
    * buffer, primarily to check for corruption.
    *
@@ -287,6 +327,43 @@ private[spark] object Utils
       out.toChunkedByteBuffer.toInputStream(dispose = true)
     } else {
       new SequenceInputStream( out.toChunkedByteBuffer.toInputStream(dispose = true), in)
+    }
+  }
+
+  def copyFileStreamNIO(
+      input: FileChannel,
+      output: WritableByteChannel,
+      startPosition: Long,
+      bytesToCopy: Long): Unit = {
+    val outputInitialState = output match {
+      case outputFileChannel: FileChannel =>
+        Some((outputFileChannel.position(), outputFileChannel))
+      case _ => None
+    }
+    var count = 0L
+    // In case transferTo method transferred less data than we have required.
+    while (count < bytesToCopy) {
+      count += input.transferTo(count + startPosition, bytesToCopy - count, output)
+    }
+    assert(count == bytesToCopy,
+      s"request to copy $bytesToCopy bytes, but actually copied $count bytes.")
+
+    // Check the position after transferTo loop to see if it is in the right position and
+    // give user information if not.
+    // Position will not be increased to the expected length after calling transferTo in
+    // kernel version 2.6.32, this issue can be seen in
+    // https://bugs.openjdk.java.net/browse/JDK-7052359
+    // This will lead to stream corruption issue when using sort-based shuffle (SPARK-3948).
+    outputInitialState.foreach { case (initialPos, outputFileChannel) =>
+      val finalPos = outputFileChannel.position()
+      val expectedPos = initialPos + bytesToCopy
+      assert(finalPos == expectedPos,
+        s"""
+           |Current position $finalPos do not equal to expected position $expectedPos
+           |after transferTo, please check your kernel version to see if it is 2.6.32,
+           |this is a kernel bug which will lead to unexpected behavior when using transferTo.
+           |You can set spark.file.transferTo = false to disable this NIO feature.
+         """.stripMargin)
     }
   }
 
@@ -779,7 +856,17 @@ private[spark] object Utils
       conf.getenv("SPARK_EXECUTOR_DIRS").split(File.pathSeparator)
     } else if (conf.getenv("SPARK_LOCAL_DIRS") != null) {
       conf.getenv("SPARK_LOCAL_DIRS").split(",")
+    } else if (conf.getenv("MESOS_SANDBOX") != null && !shuffleServiceEnabled) {
+      // Mesos already creates a directory per Mesos task. Spark should use that directory
+      // instead so all temporary files are automatically cleaned up when the Mesos task ends.
+      // Note that we don't want this if the shuffle service is enabled because we want to
+      // continue to serve shuffle files after the executors that wrote them have already exited.
+      Array(conf.getenv("MESOS_SANDBOX"))
     } else {
+      if (conf.getenv("MESOS_SANDBOX") != null && shuffleServiceEnabled) {
+        logInfo("MESOS_SANDBOX available but not using provided Mesos sandbox because " +
+          s"${config.SHUFFLE_SERVICE_ENABLED.key} is enabled.")
+      }
       // In non-Yarn mode (or for the driver in yarn-client mode), we cannot trust the user
       // configuration to point to a secure directory. So create a subdirectory with restricted
       // permissions under each listed directory.
@@ -838,8 +925,8 @@ private[spark] object Utils
    * result in a new collection. Unlike scala.util.Random.shuffle, this method
    * uses a local random number generator, avoiding inter-thread contention.
    */
-  def randomize[T: ClassTag](seq: IterableOnce[T]): Seq[T] = {
-    randomizeInPlace(seq.iterator.toArray)
+  def randomize[T: ClassTag](seq: TraversableOnce[T]): Seq[T] = {
+    randomizeInPlace(seq.toArray)
   }
 
   /**
@@ -904,7 +991,8 @@ private[spark] object Utils
   private var customHostname: Option[String] = sys.env.get("SPARK_LOCAL_HOSTNAME")
 
   /**
-   * Allow setting a custom host name
+   * Allow setting a custom host name because when we run on Mesos we need to use the same
+   * hostname it reports to the master.
    */
   def setCustomHostname(hostname: String): Unit = {
     // DEBUG code
@@ -1696,17 +1784,7 @@ private[spark] object Utils
   /**
    * Counts the number of elements of an iterator.
    */
-  def getIteratorSize(iterator: Iterator[_]): Long = {
-    if (iterator.knownSize >= 0) iterator.knownSize.toLong
-    else {
-      var count = 0L
-      while (iterator.hasNext) {
-        count += 1L
-        iterator.next()
-      }
-      count
-    }
-  }
+  def getIteratorSize(iterator: Iterator[_]): Long = Iterators.size(iterator)
 
   /**
    * Generate a zipWithIndex iterator, avoid index value overflowing problem
@@ -1790,6 +1868,15 @@ private[spark] object Utils
    * Pattern for matching a Windows drive, which contains only a single alphabet character.
    */
   val windowsDrive = "([a-zA-Z])".r
+
+  /**
+   * Indicates whether Spark is currently running unit tests.
+   */
+  def isTesting: Boolean = {
+    // Scala's `sys.env` creates a ton of garbage by constructing Scala immutable maps, so
+    // we directly use the Java APIs instead.
+    System.getenv("SPARK_TESTING") != null || System.getProperty(IS_TESTING.key) != null
+  }
 
   /**
    * Terminates a process waiting for at most the specified duration.
@@ -2020,8 +2107,10 @@ private[spark] object Utils
   private implicit class Lock(lock: LockInfo) {
     def lockString: String = {
       lock match {
-        case monitor: MonitorInfo => s"Monitor(${monitor.toString})"
-        case _ => s"Lock(${lock.toString})"
+        case monitor: MonitorInfo =>
+          s"Monitor(${lock.getClassName}@${monitor.getIdentityHashCode})"
+        case _ =>
+          s"Lock(${lock.getClassName}@${lock.getIdentityHashCode})"
       }
     }
   }
@@ -2051,7 +2140,8 @@ private[spark] object Utils
 
   /** Return a heap dump. Used to capture dumps for the web UI */
   def getHeapHistogram(): Array[String] = {
-    val pid = String.valueOf(ProcessHandle.current().pid())
+    // From Java 9+, we can use 'ProcessHandle.current().pid()'
+    val pid = getProcessName().split("@").head
     val jmap = System.getProperty("java.home") + "/bin/jmap"
     val builder = new ProcessBuilder(jmap, "-histo:live", pid)
     val p = builder.start()
@@ -2078,40 +2168,29 @@ private[spark] object Utils
   }
 
   private def threadInfoToThreadStackTrace(threadInfo: ThreadInfo): ThreadStackTrace = {
-    val threadState = threadInfo.getThreadState
-    val monitors = threadInfo.getLockedMonitors.map(m => m.getLockedStackDepth -> m.toString).toMap
-    val stackTrace = StackTrace(threadInfo.getStackTrace.zipWithIndex.map { case (frame, idx) =>
-      val locked = if (idx == 0 && threadInfo.getLockInfo != null) {
-        threadState match {
-          case Thread.State.BLOCKED =>
-            s"\t-  blocked on ${threadInfo.getLockInfo}\n"
-          case Thread.State.WAITING | Thread.State.TIMED_WAITING =>
-            s"\t-  waiting on ${threadInfo.getLockInfo}\n"
-          case _ => ""
-        }
-      } else ""
-      val locking = monitors.get(idx).map(mi => s"\t-  locked $mi\n").getOrElse("")
-      s"${frame.toString}\n$locked$locking"
+    val monitors = threadInfo.getLockedMonitors.map(m => m.getLockedStackFrame -> m).toMap
+    val stackTrace = StackTrace(threadInfo.getStackTrace.map { frame =>
+      monitors.get(frame) match {
+        case Some(monitor) =>
+          monitor.getLockedStackFrame.toString + s" => holding ${monitor.lockString}"
+        case None =>
+          frame.toString
+      }
     })
 
-    val synchronizers = threadInfo.getLockedSynchronizers.map(_.toString)
-    val monitorStrs = monitors.values.toSeq
+    // use a set to dedup re-entrant locks that are held at multiple places
+    val heldLocks =
+      (threadInfo.getLockedSynchronizers ++ threadInfo.getLockedMonitors).map(_.lockString).toSet
+
     ThreadStackTrace(
-      threadInfo.getThreadId,
-      threadInfo.getThreadName,
-      threadState,
-      stackTrace,
-      if (threadInfo.getLockOwnerId < 0) None else Some(threadInfo.getLockOwnerId),
-      Option(threadInfo.getLockInfo).map(_.lockString).getOrElse(""),
-      synchronizers ++ monitorStrs,
-      synchronizers,
-      monitorStrs,
-      Option(threadInfo.getLockName),
-      Option(threadInfo.getLockOwnerName),
-      threadInfo.isSuspended,
-      threadInfo.isInNative,
-      threadInfo.isDaemon,
-      threadInfo.getPriority)
+      threadId = threadInfo.getThreadId,
+      threadName = threadInfo.getThreadName,
+      threadState = threadInfo.getThreadState,
+      stackTrace = stackTrace,
+      blockedByThreadId =
+        if (threadInfo.getLockOwnerId < 0) None else Some(threadInfo.getLockOwnerId),
+      blockedByLock = Option(threadInfo.getLockInfo).map(_.lockString).getOrElse(""),
+      holdingLocks = heldLocks.toSeq)
   }
 
   /**
@@ -2236,32 +2315,14 @@ private[spark] object Utils
    * configure a new log4j level
    */
   def setLogLevel(l: Level): Unit = {
-    val (ctx, loggerConfig) = getLogContext
+    val ctx = LogManager.getContext(false).asInstanceOf[LoggerContext]
+    val config = ctx.getConfiguration()
+    val loggerConfig = config.getLoggerConfig(LogManager.ROOT_LOGGER_NAME)
     loggerConfig.setLevel(l)
     ctx.updateLoggers()
 
     // Setting threshold to null as rootLevel will define log level for spark-shell
     Logging.sparkShellThresholdLevel = null
-  }
-
-
-  def setLogLevelIfNeeded(newLogLevel: String): Unit = {
-    if (newLogLevel != Utils.getLogLevel) {
-      Utils.setLogLevel(Level.toLevel(newLogLevel))
-    }
-  }
-
-  private lazy val getLogContext: (LoggerContext, LoggerConfig) = {
-    val ctx = LogManager.getContext(false).asInstanceOf[LoggerContext]
-    (ctx, ctx.getConfiguration().getLoggerConfig(LogManager.ROOT_LOGGER_NAME))
-  }
-
-  /**
-   * Get current log level
-   */
-  def getLogLevel: String = {
-    val (_, loggerConfig) = getLogContext
-    loggerConfig.getLevel.name
   }
 
   /**

@@ -48,7 +48,7 @@ private[spark] class PrometheusServlet(
   }
 
   def getMetricsSnapshot(request: HttpServletRequest): String = {
-    import scala.jdk.CollectionConverters._
+    import scala.collection.JavaConverters._
 
     val gaugesLabel = """{type="gauges"}"""
     val countersLabel = """{type="counters"}"""

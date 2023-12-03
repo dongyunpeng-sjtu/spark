@@ -22,14 +22,13 @@ import java.util.Comparator
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-import org.apache.spark.QueryContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{TypeCheckResult, TypeCoercion, UnresolvedAttribute, UnresolvedSeed}
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult.DataTypeMismatch
 import org.apache.spark.sql.catalyst.expressions.ArraySortLike.NullOrder
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
-import org.apache.spark.sql.catalyst.trees.{BinaryLike, UnaryLike}
+import org.apache.spark.sql.catalyst.trees.{BinaryLike, SQLQueryContext, UnaryLike}
 import org.apache.spark.sql.catalyst.trees.TreePattern.{ARRAYS_ZIP, CONCAT, TreePattern}
 import org.apache.spark.sql.catalyst.types.{DataTypeUtils, PhysicalDataType, PhysicalIntegralType}
 import org.apache.spark.sql.catalyst.util._
@@ -160,7 +159,7 @@ object Size {
        4
   """,
   since = "3.3.0",
-  group = "array_funcs")
+  group = "collection_funcs")
 case class ArraySize(child: Expression)
   extends RuntimeReplaceable with ImplicitCastInputTypes with UnaryLike[Expression] {
 
@@ -1398,8 +1397,28 @@ case class ArrayContains(left: Expression, right: Expression)
     copy(left = newLeft, right = newRight)
 }
 
-trait ArrayPendBase extends RuntimeReplaceable
+@ExpressionDescription(
+  usage = """
+      _FUNC_(array, element) - Add the element at the beginning of the array passed as first
+      argument. Type of element should be the same as the type of the elements of the array.
+      Null element is also prepended to the array. But if the array passed is NULL
+      output is NULL
+    """,
+  examples = """
+    Examples:
+      > SELECT _FUNC_(array('b', 'd', 'c', 'a'), 'd');
+       ["d","b","d","c","a"]
+      > SELECT _FUNC_(array(1, 2, 3, null), null);
+       [null,1,2,3,null]
+      > SELECT _FUNC_(CAST(null as Array<Int>), 2);
+       NULL
+  """,
+  group = "array_funcs",
+  since = "3.5.0")
+case class ArrayPrepend(left: Expression, right: Expression) extends RuntimeReplaceable
   with ImplicitCastInputTypes with BinaryLike[Expression] with QueryErrorsBase {
+
+  override lazy val replacement: Expression = new ArrayInsert(left, Literal(1), right)
 
   override def inputTypes: Seq[AbstractDataType] = {
     (left.dataType, right.dataType) match {
@@ -1436,69 +1455,11 @@ trait ArrayPendBase extends RuntimeReplaceable
         )
     }
   }
-}
-
-@ExpressionDescription(
-  usage = """
-      _FUNC_(array, element) - Add the element at the beginning of the array passed as first
-      argument. Type of element should be the same as the type of the elements of the array.
-      Null element is also prepended to the array. But if the array passed is NULL
-      output is NULL
-    """,
-  examples = """
-    Examples:
-      > SELECT _FUNC_(array('b', 'd', 'c', 'a'), 'd');
-       ["d","b","d","c","a"]
-      > SELECT _FUNC_(array(1, 2, 3, null), null);
-       [null,1,2,3,null]
-      > SELECT _FUNC_(CAST(null as Array<Int>), 2);
-       NULL
-  """,
-  group = "array_funcs",
-  since = "3.5.0")
-case class ArrayPrepend(left: Expression, right: Expression) extends ArrayPendBase {
-
-  override lazy val replacement: Expression = new ArrayInsert(left, Literal(1), right)
 
   override def prettyName: String = "array_prepend"
 
   override protected def withNewChildrenInternal(
       newLeft: Expression, newRight: Expression): ArrayPrepend =
-    copy(left = newLeft, right = newRight)
-}
-
-
-/**
- * Given an array, and another element append the element at the end of the array.
- * This function does not return null when the elements are null. It appends null at
- * the end of the array. But returns null if the array passed is null.
- */
-@ExpressionDescription(
-  usage = """
-      _FUNC_(array, element) - Add the element at the end of the array passed as first
-      argument. Type of element should be similar to type of the elements of the array.
-      Null element is also appended into the array. But if the array passed, is NULL
-      output is NULL
-      """,
-  examples = """
-    Examples:
-      > SELECT _FUNC_(array('b', 'd', 'c', 'a'), 'd');
-       ["b","d","c","a","d"]
-      > SELECT _FUNC_(array(1, 2, 3, null), null);
-       [1,2,3,null,null]
-      > SELECT _FUNC_(CAST(null as Array<Int>), 2);
-       NULL
-  """,
-  since = "3.4.0",
-  group = "array_funcs")
-case class ArrayAppend(left: Expression, right: Expression) extends ArrayPendBase {
-
-  override lazy val replacement: Expression = new ArrayInsert(left, Literal(-1), right)
-
-  override def prettyName: String = "array_append"
-
-  override protected def withNewChildrenInternal(
-      newLeft: Expression, newRight: Expression): ArrayAppend =
     copy(left = newLeft, right = newRight)
 }
 
@@ -1769,7 +1730,7 @@ case class Slice(x: Expression, start: Expression, length: Expression)
       startInt - 1
     }
     if (lengthInt < 0) {
-      throw QueryExecutionErrors.unexpectedValueForLengthInFunctionError(prettyName, lengthInt)
+      throw QueryExecutionErrors.unexpectedValueForLengthInFunctionError(prettyName)
     }
     // startIndex can be negative if start is negative and its absolute value is greater than the
     // number of elements in the array
@@ -1797,8 +1758,7 @@ case class Slice(x: Expression, start: Expression, length: Expression)
          |  $startIdx = $start - 1;
          |}
          |if ($length < 0) {
-         |  throw QueryExecutionErrors.unexpectedValueForLengthInFunctionError(
-         |    "$prettyName", $length);
+         |  throw QueryExecutionErrors.unexpectedValueForLengthInFunctionError("$prettyName");
          |} else if ($length > $x.numElements() - $startIdx) {
          |  $resLength = $x.numElements() - $startIdx;
          |} else {
@@ -2004,8 +1964,8 @@ case class ArrayJoin(
          |${ev.value} = $buffer.build();""".stripMargin
 
     if (array.nullable || delimiter.nullable) {
-      arrayGen.code.toString + ctx.nullSafeExec(array.nullable, arrayGen.isNull) {
-        delimiterGen.code.toString + ctx.nullSafeExec(delimiter.nullable, delimiterGen.isNull) {
+      arrayGen.code + ctx.nullSafeExec(array.nullable, arrayGen.isNull) {
+        delimiterGen.code + ctx.nullSafeExec(delimiter.nullable, delimiterGen.isNull) {
           s"""
              |${ev.isNull} = false;
              |$resultCode""".stripMargin
@@ -2335,7 +2295,7 @@ case class Get(
        b
   """,
   since = "2.4.0",
-  group = "collection_funcs")
+  group = "map_funcs")
 case class ElementAt(
     left: Expression,
     right: Expression,
@@ -2527,7 +2487,7 @@ case class ElementAt(
   override protected def withNewChildrenInternal(
     newLeft: Expression, newRight: Expression): ElementAt = copy(left = newLeft, right = newRight)
 
-  override def initQueryContext(): Option[QueryContext] = {
+  override def initQueryContext(): Option[SQLQueryContext] = {
     if (failOnError && left.resolved && left.dataType.isInstanceOf[ArrayType]) {
       Some(origin.context)
     } else {
@@ -2559,7 +2519,7 @@ case class ElementAt(
        b
   """,
   since = "3.3.0",
-  group = "collection_funcs")
+  group = "map_funcs")
 case class TryElementAt(left: Expression, right: Expression, replacement: Expression)
   extends RuntimeReplaceable with InheritAnalysisRules {
   def this(left: Expression, right: Expression) =
@@ -2651,7 +2611,7 @@ case class Concat(children: Seq[Expression]) extends ComplexTypeMergingExpressio
       }
     case ArrayType(elementType, _) =>
       input => {
-        val inputs = children.to(LazyList).map(_.eval(input))
+        val inputs = children.toStream.map(_.eval(input))
         if (inputs.contains(null)) {
           null
         } else {
@@ -3088,9 +3048,9 @@ case class Sequence(
 
     if (nullable) {
       val nullSafeEval =
-        startGen.code.toString + ctx.nullSafeExec(start.nullable, startGen.isNull) {
-          stopGen.code.toString + ctx.nullSafeExec(stop.nullable, stopGen.isNull) {
-            stepGen.code.toString + ctx.nullSafeExec(stepOpt.exists(_.nullable), stepGen.isNull) {
+        startGen.code + ctx.nullSafeExec(start.nullable, startGen.isNull) {
+          stopGen.code + ctx.nullSafeExec(stop.nullable, stopGen.isNull) {
+            stepGen.code + ctx.nullSafeExec(stepOpt.exists(_.nullable), stepGen.isNull) {
               s"""
                  |${ev.isNull} = false;
                  |$resultCode
@@ -4751,6 +4711,7 @@ case class ArrayInsert(
         }
       case (e1, e2, e3) => Seq.empty
     }
+    Seq.empty
   }
 
   override def checkInputDataTypes(): TypeCheckResult = {
@@ -5007,8 +4968,8 @@ case class ArrayInsert(
 
     if (nullable) {
       val nullSafeEval =
-        leftGen.code.toString + ctx.nullSafeExec(first.nullable, leftGen.isNull) {
-          midGen.code.toString + ctx.nullSafeExec(second.nullable, midGen.isNull) {
+        leftGen.code + ctx.nullSafeExec(first.nullable, leftGen.isNull) {
+          midGen.code + ctx.nullSafeExec(second.nullable, midGen.isNull) {
             s"""
               ${rightGen.code}
               ${ev.isNull} = false;
@@ -5047,7 +5008,7 @@ case class ArrayInsert(
       newSrcArrayExpr: Expression, newPosExpr: Expression, newItemExpr: Expression): ArrayInsert =
     copy(srcArrayExpr = newSrcArrayExpr, posExpr = newPosExpr, itemExpr = newItemExpr)
 
-  override def initQueryContext(): Option[QueryContext] = Some(origin.context)
+  override def initQueryContext(): Option[SQLQueryContext] = Some(origin.context)
 }
 
 @ExpressionDescription(
@@ -5077,4 +5038,153 @@ case class ArrayCompact(child: Expression)
 
   override protected def withNewChildInternal(newChild: Expression): ArrayCompact =
     copy(child = newChild)
+}
+
+/**
+ * Given an array, and another element append the element at the end of the array.
+ * This function does not return null when the elements are null. It appends null at
+ * the end of the array. But returns null if the array passed is null.
+ */
+@ExpressionDescription(
+  usage = """
+      _FUNC_(array, element) - Add the element at the end of the array passed as first
+      argument. Type of element should be similar to type of the elements of the array.
+      Null element is also appended into the array. But if the array passed, is NULL
+      output is NULL
+      """,
+  examples = """
+    Examples:
+      > SELECT _FUNC_(array('b', 'd', 'c', 'a'), 'd');
+       ["b","d","c","a","d"]
+      > SELECT _FUNC_(array(1, 2, 3, null), null);
+       [1,2,3,null,null]
+      > SELECT _FUNC_(CAST(null as Array<Int>), 2);
+       NULL
+  """,
+  since = "3.4.0",
+  group = "array_funcs")
+case class ArrayAppend(left: Expression, right: Expression)
+  extends BinaryExpression
+    with ImplicitCastInputTypes
+    with ComplexTypeMergingExpression
+    with QueryErrorsBase {
+  override def prettyName: String = "array_append"
+
+  @transient protected lazy val elementType: DataType =
+    inputTypes.head.asInstanceOf[ArrayType].elementType
+
+  override def inputTypes: Seq[AbstractDataType] = {
+    (left.dataType, right.dataType) match {
+      case (ArrayType(e1, hasNull), e2) =>
+        TypeCoercion.findTightestCommonType(e1, e2) match {
+          case Some(dt) => Seq(ArrayType(dt, hasNull), dt)
+          case _ => Seq.empty
+        }
+      case _ => Seq.empty
+    }
+  }
+
+  override def checkInputDataTypes(): TypeCheckResult = {
+    (left.dataType, right.dataType) match {
+      case (ArrayType(e1, _), e2) if DataTypeUtils.sameType(e1, e2) => TypeCheckResult.TypeCheckSuccess
+      case (ArrayType(e1, _), e2) => DataTypeMismatch(
+        errorSubClass = "ARRAY_FUNCTION_DIFF_TYPES",
+        messageParameters = Map(
+          "functionName" -> toSQLId(prettyName),
+          "leftType" -> toSQLType(left.dataType),
+          "rightType" -> toSQLType(right.dataType),
+          "dataType" -> toSQLType(ArrayType)
+        ))
+      case _ =>
+        DataTypeMismatch(
+          errorSubClass = "UNEXPECTED_INPUT_TYPE",
+          messageParameters = Map(
+            "paramIndex" -> "0",
+            "requiredType" -> toSQLType(ArrayType),
+            "inputSql" -> toSQLExpr(left),
+            "inputType" -> toSQLType(left.dataType)
+          )
+        )
+    }
+  }
+
+  override def eval(input: InternalRow): Any = {
+    val value1 = left.eval(input)
+    if (value1 == null) {
+      null
+    } else {
+      val value2 = right.eval(input)
+      nullSafeEval(value1, value2)
+    }
+  }
+
+  override protected def nullSafeEval(arr: Any, elementData: Any): Any = {
+    val arrayData = arr.asInstanceOf[ArrayData]
+    val numberOfElements = arrayData.numElements() + 1
+    if (numberOfElements > ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH) {
+      throw QueryExecutionErrors.concatArraysWithElementsExceedLimitError(numberOfElements)
+    }
+    val finalData = new Array[Any](numberOfElements)
+    arrayData.foreach(elementType, finalData.update)
+    finalData.update(arrayData.numElements(), elementData)
+    new GenericArrayData(finalData)
+  }
+
+  override def nullable: Boolean = left.nullable
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    val leftGen = left.genCode(ctx)
+    val rightGen = right.genCode(ctx)
+    val f = (eval1: String, eval2: String) => {
+      val newArraySize = ctx.freshName("newArraySize")
+      val i = ctx.freshName("i")
+      val values = ctx.freshName("values")
+      val allocation = CodeGenerator.createArrayData(
+        values, elementType, newArraySize, s" $prettyName failed.")
+      val assignment = CodeGenerator.createArrayAssignment(
+        values, elementType, eval1, i, i, left.dataType.asInstanceOf[ArrayType].containsNull)
+      s"""
+         |int $newArraySize = $eval1.numElements() + 1;
+         |$allocation
+         |int $i = 0;
+         |while ($i < $eval1.numElements()) {
+         |  $assignment
+         |  $i ++;
+         |}
+         |${CodeGenerator.setArrayElement(values, elementType, i, eval2, Some(rightGen.isNull))}
+         |${ev.value} = $values;
+         |""".stripMargin
+    }
+    val resultCode = f(leftGen.value, rightGen.value)
+    if (nullable) {
+      val nullSafeEval =
+        leftGen.code + rightGen.code + ctx.nullSafeExec(left.nullable, leftGen.isNull) {
+          s"""
+            ${ev.isNull} = false; // resultCode could change nullability.
+            $resultCode
+          """
+        }
+      ev.copy(code =
+        code"""
+        boolean ${ev.isNull} = true;
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        $nullSafeEval
+      """)
+    } else {
+      ev.copy(code =
+        code"""
+        ${leftGen.code}
+        ${rightGen.code}
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        $resultCode""", isNull = FalseLiteral)
+    }
+  }
+
+  /**
+   * Returns the [[DataType]] of the result of evaluating this expression. It is invalid to query
+   * the dataType of an unresolved expression (i.e., when `resolved` == false).
+   */
+  override def dataType: DataType = if (right.nullable) left.dataType.asNullable else left.dataType
+  protected def withNewChildrenInternal(newLeft: Expression, newRight: Expression): ArrayAppend =
+    copy(left = newLeft, right = newRight)
+
 }

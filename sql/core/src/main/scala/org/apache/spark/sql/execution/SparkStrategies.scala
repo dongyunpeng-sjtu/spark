@@ -752,8 +752,6 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
       case ArrowEvalPythonUDTF(udtf, requiredChildOutput, resultAttrs, child, evalType) =>
         ArrowEvalPythonUDTFExec(
           udtf, requiredChildOutput, resultAttrs, planLater(child), evalType) :: Nil
-      case PythonDataSourcePartitions(output, partitions) =>
-        PythonDataSourcePartitionsExec(output, partitions) :: Nil
       case _ =>
         Nil
     }
@@ -937,7 +935,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         throw QueryExecutionErrors.ddlUnsupportedTemporarilyError("UPDATE TABLE")
       case _: MergeIntoTable =>
         throw QueryExecutionErrors.ddlUnsupportedTemporarilyError("MERGE INTO TABLE")
-      case logical.CollectMetrics(name, metrics, child, _) =>
+      case logical.CollectMetrics(name, metrics, child) =>
         execution.CollectMetricsExec(name, metrics, planLater(child)) :: Nil
       case WriteFiles(child, fileFormat, partitionColumns, bucket, options, staticPartitions) =>
         WriteFilesExec(planLater(child), fileFormat, partitionColumns, bucket, options,

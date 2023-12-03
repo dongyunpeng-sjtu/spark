@@ -20,8 +20,8 @@ package org.apache.spark.ml.classification;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.apache.spark.SharedSparkSession;
 import org.apache.spark.ml.feature.LabeledPoint;
@@ -50,7 +50,7 @@ public class JavaMultilayerPerceptronClassifierSuite extends SharedSparkSession 
     Dataset<Row> result = model.transform(dataFrame);
     List<Row> predictionAndLabels = result.select("prediction", "label").collectAsList();
     for (Row r : predictionAndLabels) {
-      Assertions.assertEquals((int) r.getDouble(0), (int) r.getDouble(1));
+      Assert.assertEquals((int) r.getDouble(0), (int) r.getDouble(1));
     }
   }
 }

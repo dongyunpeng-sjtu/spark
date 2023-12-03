@@ -145,7 +145,7 @@ case class Mask(
           DataTypeMismatch(
             errorSubClass = "NON_FOLDABLE_INPUT",
             messageParameters = Map(
-              "inputName" -> toSQLId(message),
+              "inputName" -> message,
               "inputType" -> toSQLType(exp.dataType),
               "inputExpr" -> toSQLExpr(exp))))
       } else {

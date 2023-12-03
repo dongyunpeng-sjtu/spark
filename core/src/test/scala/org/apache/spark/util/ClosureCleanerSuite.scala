@@ -373,7 +373,7 @@ class TestCreateNullValue {
         println(getX)
       }
       // scalastyle:on println
-      SparkClosureCleaner.clean(closure)
+      ClosureCleaner.clean(closure)
     }
     nestedClosure()
   }

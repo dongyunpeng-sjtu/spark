@@ -32,7 +32,8 @@ class AlterTableDropPartitionParserSuite extends AnalysisTest with SharedSparkSe
     val expected = DropPartitions(
       UnresolvedTable(
         Seq("table_name"),
-        "ALTER TABLE ... DROP PARTITION ..."),
+        "ALTER TABLE ... DROP PARTITION ...",
+        Some("Please use ALTER VIEW instead.")),
       Seq(
         UnresolvedPartitionSpec(Map("dt" -> "2008-08-08", "country" -> "us")),
         UnresolvedPartitionSpec(Map("dt" -> "2009-09-09", "country" -> "uk"))),
@@ -51,7 +52,8 @@ class AlterTableDropPartitionParserSuite extends AnalysisTest with SharedSparkSe
     val expected = DropPartitions(
       UnresolvedTable(
         Seq("table_name"),
-        "ALTER TABLE ... DROP PARTITION ..."),
+        "ALTER TABLE ... DROP PARTITION ...",
+        Some("Please use ALTER VIEW instead.")),
       Seq(
         UnresolvedPartitionSpec(Map("dt" -> "2008-08-08", "country" -> "us")),
         UnresolvedPartitionSpec(Map("dt" -> "2009-09-09", "country" -> "uk"))),
@@ -65,7 +67,8 @@ class AlterTableDropPartitionParserSuite extends AnalysisTest with SharedSparkSe
     val expected = DropPartitions(
       UnresolvedTable(
         Seq("a", "b", "c"),
-        "ALTER TABLE ... DROP PARTITION ..."),
+        "ALTER TABLE ... DROP PARTITION ...",
+        Some("Please use ALTER VIEW instead.")),
       Seq(UnresolvedPartitionSpec(Map("ds" -> "2017-06-10"))),
       ifExists = true,
       purge = false)
@@ -78,7 +81,8 @@ class AlterTableDropPartitionParserSuite extends AnalysisTest with SharedSparkSe
     val expected = DropPartitions(
       UnresolvedTable(
         Seq("table_name"),
-        "ALTER TABLE ... DROP PARTITION ..."),
+        "ALTER TABLE ... DROP PARTITION ...",
+        Some("Please use ALTER VIEW instead.")),
       Seq(UnresolvedPartitionSpec(Map("p" -> "1"))),
       ifExists = false,
       purge = true)

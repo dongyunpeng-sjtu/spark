@@ -57,7 +57,7 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
             ident, "ADD COLUMN with qualified column")
         }
         if (!c.nullable) {
-          throw QueryCompilationErrors.addColumnWithV1TableCannotSpecifyNotNullError()
+          throw QueryCompilationErrors.addColumnWithV1TableCannotSpecifyNotNullError
         }
       }
       AlterTableAddColumnsCommand(ident, cols.map(convertToStructField))
@@ -72,11 +72,11 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
           catalog, ident, "ALTER COLUMN with qualified column")
       }
       if (a.nullable.isDefined) {
-        throw QueryCompilationErrors.alterColumnWithV1TableCannotSpecifyNotNullError()
+        throw QueryCompilationErrors.alterColumnWithV1TableCannotSpecifyNotNullError
       }
       if (a.position.isDefined) {
         throw QueryCompilationErrors.unsupportedTableOperationError(
-          catalog, ident, "ALTER COLUMN ... FIRST | AFTER")
+          catalog, ident, "ALTER COLUMN ... FIRST | ALTER")
       }
       val builder = new MetadataBuilder
       // Add comment to metadata
@@ -185,7 +185,10 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
         c
       }
 
-    case RefreshTable(ResolvedV1TableOrViewIdentifier(ident)) =>
+    case RefreshTable(ResolvedV1TableIdentifier(ident)) =>
+      RefreshTableCommand(ident)
+
+    case RefreshTable(ResolvedViewIdentifier(ident)) =>
       RefreshTableCommand(ident)
 
     // For REPLACE TABLE [AS SELECT], we should fail if the catalog is resolved to the
@@ -626,7 +629,7 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
       case ResolvedNamespace(_, Seq(dbName)) => Some(dbName)
       case _ =>
         assert(resolved.namespace.length > 1)
-        throw QueryCompilationErrors.requiresSinglePartNamespaceError(resolved.namespace)
+        throw QueryCompilationErrors.invalidDatabaseNameError(resolved.namespace.quoted)
     }
   }
 }

@@ -75,7 +75,8 @@ public final class ChunkFetchSuccess extends AbstractResponseMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof ChunkFetchSuccess o) {
+    if (other instanceof ChunkFetchSuccess) {
+      ChunkFetchSuccess o = (ChunkFetchSuccess) other;
       return streamChunkId.equals(o.streamChunkId) && super.equals(o);
     }
     return false;

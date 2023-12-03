@@ -19,7 +19,7 @@ license: |
   limitations under the License.
 ---
 
-[SQLSTATE: XXKUC](sql-error-conditions-sqlstates.html#class-XX-internal-error)
+SQLSTATE: none assigned
 
 Can't find table property:
 

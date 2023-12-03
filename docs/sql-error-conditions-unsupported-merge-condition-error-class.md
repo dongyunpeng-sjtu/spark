@@ -19,7 +19,7 @@ license: |
   limitations under the License.
 ---
 
-[SQLSTATE: 42K0E](sql-error-conditions-sqlstates.html#class-42-syntax-error-or-access-rule-violation)
+SQLSTATE: none assigned
 
 MERGE operation contains unsupported `<condName>` condition.
 

@@ -28,11 +28,6 @@ class StateStoreConf(
   def this() = this(new SQLConf)
 
   /**
-   * Size of MaintenanceThreadPool to perform maintenance tasks for StateStore
-   */
-  val numStateStoreMaintenanceThreads: Int = sqlConf.numStateStoreMaintenanceThreads
-
-  /**
    * Minimum number of delta files in a chain after which HDFSBackedStateStore will
    * consider generating a snapshot.
    */

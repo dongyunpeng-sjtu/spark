@@ -75,7 +75,8 @@ public final class StreamResponse extends AbstractResponseMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof StreamResponse o) {
+    if (other instanceof StreamResponse) {
+      StreamResponse o = (StreamResponse) other;
       return byteCount == o.byteCount && streamId.equals(o.streamId);
     }
     return false;

@@ -19,16 +19,16 @@ package org.apache.spark.sql.streaming;
 
 import java.util.Locale;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class JavaOutputModeSuite {
 
   @Test
   public void testOutputModes() {
     OutputMode o1 = OutputMode.Append();
-    Assertions.assertTrue(o1.toString().toLowerCase(Locale.ROOT).contains("append"));
+    Assert.assertTrue(o1.toString().toLowerCase(Locale.ROOT).contains("append"));
     OutputMode o2 = OutputMode.Complete();
-    Assertions.assertTrue(o2.toString().toLowerCase(Locale.ROOT).contains("complete"));
+    Assert.assertTrue(o2.toString().toLowerCase(Locale.ROOT).contains("complete"));
   }
 }

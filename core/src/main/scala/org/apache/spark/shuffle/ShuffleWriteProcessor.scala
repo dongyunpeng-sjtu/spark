@@ -17,8 +17,9 @@
 
 package org.apache.spark.shuffle
 
-import org.apache.spark.{ShuffleDependency, SparkEnv, TaskContext}
+import org.apache.spark.{Partition, ShuffleDependency, SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
 import org.apache.spark.scheduler.MapStatus
 
 /**
@@ -41,11 +42,11 @@ private[spark] class ShuffleWriteProcessor extends Serializable with Logging {
    * this task.
    */
   def write(
-      inputs: Iterator[_],
+      rdd: RDD[_],
       dep: ShuffleDependency[_, _, _],
       mapId: Long,
-      mapIndex: Int,
-      context: TaskContext): MapStatus = {
+      context: TaskContext,
+      partition: Partition): MapStatus = {
     var writer: ShuffleWriter[Any, Any] = null
     try {
       val manager = SparkEnv.get.shuffleManager
@@ -54,7 +55,8 @@ private[spark] class ShuffleWriteProcessor extends Serializable with Logging {
         mapId,
         context,
         createMetricsReporter(context))
-      writer.write(inputs.asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      writer.write(
+        rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       val mapStatus = writer.stop(success = true)
       if (mapStatus.isDefined) {
         // Check if sufficient shuffle mergers are available now for the ShuffleMapTask to push
@@ -78,7 +80,7 @@ private[spark] class ShuffleWriteProcessor extends Serializable with Logging {
               logDebug(s"Starting pushing blocks for the task ${context.taskAttemptId()}")
               val dataFile = resolver.getDataFile(dep.shuffleId, mapId)
               new ShuffleBlockPusher(SparkEnv.get.conf)
-                .initiateBlockPush(dataFile, writer.getPartitionLengths(), dep, mapIndex)
+                .initiateBlockPush(dataFile, writer.getPartitionLengths(), dep, partition.index)
             case _ =>
           }
         }

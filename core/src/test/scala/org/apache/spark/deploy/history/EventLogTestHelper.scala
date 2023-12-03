@@ -41,10 +41,9 @@ object EventLogTestHelper {
     conf.set(EVENT_LOG_BLOCK_UPDATES, true)
     conf.set(EVENT_LOG_TESTING, true)
     conf.set(EVENT_LOG_DIR, logDir.toString)
-    conf.set(EVENT_LOG_COMPRESS, true)
-    compressionCodec match {
-      case Some(codec) => conf.set(EVENT_LOG_COMPRESSION_CODEC, codec)
-      case _ => conf.set(EVENT_LOG_COMPRESSION_CODEC, "None")
+    compressionCodec.foreach { codec =>
+      conf.set(EVENT_LOG_COMPRESS, true)
+      conf.set(EVENT_LOG_COMPRESSION_CODEC, codec)
     }
     conf.set(EVENT_LOG_STAGE_EXECUTOR_METRICS, true)
     conf

@@ -19,7 +19,7 @@ package org.apache.spark.sql.util
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.complex.MapVector
@@ -59,7 +59,6 @@ private[sql] object ArrowUtils {
     case NullType => ArrowType.Null.INSTANCE
     case _: YearMonthIntervalType => new ArrowType.Interval(IntervalUnit.YEAR_MONTH)
     case _: DayTimeIntervalType => new ArrowType.Duration(TimeUnit.MICROSECOND)
-    case CalendarIntervalType => new ArrowType.Interval(IntervalUnit.MONTH_DAY_NANO)
     case _ =>
       throw ExecutionErrors.unsupportedDataTypeError(dt)
   }
@@ -86,8 +85,6 @@ private[sql] object ArrowUtils {
     case ArrowType.Null.INSTANCE => NullType
     case yi: ArrowType.Interval if yi.getUnit == IntervalUnit.YEAR_MONTH => YearMonthIntervalType()
     case di: ArrowType.Duration if di.getUnit == TimeUnit.MICROSECOND => DayTimeIntervalType()
-    case ci: ArrowType.Interval
-      if ci.getUnit == IntervalUnit.MONTH_DAY_NANO => CalendarIntervalType
     case _ => throw ExecutionErrors.unsupportedArrowTypeError(dt)
   }
 

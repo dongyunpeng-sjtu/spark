@@ -19,7 +19,7 @@ package org.apache.spark.sql.kafka010
 
 import java.util.Locale
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.mockito.Mockito.{mock, when}
 

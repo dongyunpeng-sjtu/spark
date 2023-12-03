@@ -102,7 +102,7 @@ public @interface ExpressionDescription {
      *   {@link #examples}, {@link #note}, {@link #since} and {@link #deprecated} instead
      *   to document the extended usage.
      */
-    @Deprecated(since = "3.0.0")
+    @Deprecated
     String extended() default "";
     String arguments() default "";
     String examples() default "";

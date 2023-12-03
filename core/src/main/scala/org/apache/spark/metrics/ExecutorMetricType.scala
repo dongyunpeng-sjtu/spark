@@ -19,8 +19,8 @@ package org.apache.spark.metrics
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
 import javax.management.ObjectName
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.executor.ProcfsMetricsGetter
@@ -110,12 +110,10 @@ case object GarbageCollectionMetrics extends ExecutorMetricType with Logging {
     "MinorGCTime",
     "MajorGCCount",
     "MajorGCTime",
-    "TotalGCTime",
-    "ConcurrentGCCount",
-    "ConcurrentGCTime"
+    "TotalGCTime"
   )
 
-  /* We builtin some common GC collectors */
+  /* We builtin some common GC collectors which categorized as young generation and old */
   private[spark] val YOUNG_GENERATION_BUILTIN_GARBAGE_COLLECTORS = Seq(
     "Copy",
     "PS Scavenge",
@@ -129,8 +127,6 @@ case object GarbageCollectionMetrics extends ExecutorMetricType with Logging {
     "ConcurrentMarkSweep",
     "G1 Old Generation"
   )
-
-  private[spark] val BUILTIN_CONCURRENT_GARBAGE_COLLECTOR = "G1 Concurrent GC"
 
   private lazy val youngGenerationGarbageCollector: Seq[String] = {
     SparkEnv.get.conf.get(config.EVENT_LOG_GC_METRICS_YOUNG_GENERATION_GARBAGE_COLLECTORS)
@@ -151,9 +147,6 @@ case object GarbageCollectionMetrics extends ExecutorMetricType with Logging {
       } else if (oldGenerationGarbageCollector.contains(mxBean.getName)) {
         gcMetrics(2) = mxBean.getCollectionCount
         gcMetrics(3) = mxBean.getCollectionTime
-      } else if (BUILTIN_CONCURRENT_GARBAGE_COLLECTOR.equals(mxBean.getName)) {
-        gcMetrics(5) = mxBean.getCollectionCount
-        gcMetrics(6) = mxBean.getCollectionTime
       } else if (!nonBuiltInCollectors.contains(mxBean.getName)) {
         nonBuiltInCollectors = mxBean.getName +: nonBuiltInCollectors
         // log it when first seen

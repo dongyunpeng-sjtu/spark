@@ -312,11 +312,6 @@ ERROR_CLASSES_JSON = """
       "Eval type for UDF must be <eval_type>."
     ]
   },
-  "INVALID_UDTF_BOTH_RETURN_TYPE_AND_ANALYZE" : {
-    "message" : [
-      "The UDTF '<name>' is invalid. It has both its return type and an 'analyze' attribute. Please make it have one of either the return type or the 'analyze' static method in '<name>' and try again."
-    ]
-  },
   "INVALID_UDTF_EVAL_TYPE" : {
     "message" : [
       "The eval type for the UDTF '<name>' is invalid. It must be one of <eval_type>."
@@ -330,11 +325,6 @@ ERROR_CLASSES_JSON = """
   "INVALID_UDTF_NO_EVAL" : {
     "message" : [
       "The UDTF '<name>' is invalid. It does not implement the required 'eval' method. Please implement the 'eval' method in '<name>' and try again."
-    ]
-  },
-  "INVALID_UDTF_RETURN_TYPE" : {
-    "message" : [
-      "The UDTF '<name>' is invalid. It does not specify its return type or implement the required 'analyze' static method. Please specify the return type or implement the 'analyze' static method in '<name>' and try again."
     ]
   },
   "INVALID_WHEN_USAGE": {
@@ -354,7 +344,7 @@ ERROR_CLASSES_JSON = """
   },
   "JVM_ATTRIBUTE_NOT_SUPPORTED" : {
     "message" : [
-      "Attribute `<attr_name>` is not supported in Spark Connect as it depends on the JVM. If you need to use this attribute, do not use Spark Connect when creating your session. Visit https://spark.apache.org/docs/latest/sql-getting-started.html#starting-point-sparksession for creating regular Spark Session in detail."
+      "Attribute `<attr_name>` is not supported in Spark Connect as it depends on the JVM. If you need to use this attribute, do not use Spark Connect when creating your session."
     ]
   },
   "KEY_VALUE_PAIR_REQUIRED" : {
@@ -475,11 +465,6 @@ ERROR_CLASSES_JSON = """
   "NOT_COLUMN_OR_STR" : {
     "message" : [
       "Argument `<arg_name>` should be a Column or str, got <arg_type>."
-    ]
-  },
-  "NOT_COLUMN_OR_STR_OR_STRUCT" : {
-    "message" : [
-      "Argument `<arg_name>` should be a StructType, Column or str, got <arg_type>."
     ]
   },
   "NOT_DATAFRAME" : {
@@ -642,21 +627,6 @@ ERROR_CLASSES_JSON = """
       "Pipe function `<func_name>` exited with error code <error_code>."
     ]
   },
-  "PYTHON_DATA_SOURCE_CREATE_ERROR" : {
-    "message" : [
-        "Unable to create the Python data source <type>: <error>."
-    ]
-  },
-  "PYTHON_DATA_SOURCE_METHOD_NOT_IMPLEMENTED" : {
-    "message" : [
-        "Unable to create the Python data source <type> because the '<method>' method hasn't been implemented."
-    ]
-  },
-  "PYTHON_DATA_SOURCE_TYPE_MISMATCH" : {
-    "message" : [
-      "Expected <expected>, but got <actual>."
-    ]
-  },
   "PYTHON_HASH_SEED_NOT_SET" : {
     "message" : [
       "Randomness of hash of string should be disabled via PYTHONHASHSEED."
@@ -664,7 +634,7 @@ ERROR_CLASSES_JSON = """
   },
   "PYTHON_VERSION_MISMATCH" : {
     "message" : [
-      "Python in worker has different version: <worker_version> than that in driver: <driver_version>, PySpark cannot run with different minor versions.",
+      "Python in worker has different version <worker_version> than that in driver <driver_version>, PySpark cannot run with different minor versions.",
       "Please check environment variables PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON are correctly set."
     ]
   },
@@ -736,11 +706,6 @@ ERROR_CLASSES_JSON = """
   "STOP_ITERATION_OCCURRED_FROM_SCALAR_ITER_PANDAS_UDF" : {
     "message" : [
       "pandas iterator UDF should exhaust the input iterator."
-    ]
-  },
-  "STREAMING_CONNECT_SERIALIZATION_ERROR" : {
-    "message" : [
-      "Cannot serialize the function `<name>`. If you accessed the Spark session, or a DataFrame defined outside of the function, or any object that contains a Spark session, please be aware that they are not allowed in Spark Connect. For `foreachBatch`, please access the Spark session using `df.sparkSession`, where `df` is the first parameter in your `foreachBatch` function. For `StreamingQueryListener`, please access the Spark session using `self.spark`. For details please check out the PySpark doc for `foreachBatch` and `StreamingQueryListener`."
     ]
   },
   "TOO_MANY_VALUES" : {
@@ -871,11 +836,6 @@ ERROR_CLASSES_JSON = """
   "VALUE_NOT_ACCESSIBLE": {
     "message": [
       "Value `<value>` cannot be accessed inside tasks."
-    ]
-  },
-  "VALUE_NOT_ALLOWED" : {
-    "message" : [
-      "Value for `<arg_name>` has to be amongst the following values: <allowed_values>."
     ]
   },
   "VALUE_NOT_ANY_OR_ALL" : {

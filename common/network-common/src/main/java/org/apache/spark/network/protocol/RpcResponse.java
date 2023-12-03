@@ -72,7 +72,8 @@ public final class RpcResponse extends AbstractResponseMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof RpcResponse o) {
+    if (other instanceof RpcResponse) {
+      RpcResponse o = (RpcResponse) other;
       return requestId == o.requestId && super.equals(o);
     }
     return false;

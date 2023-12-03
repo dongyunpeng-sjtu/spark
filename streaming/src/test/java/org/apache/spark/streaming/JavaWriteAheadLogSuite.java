@@ -30,8 +30,8 @@ import org.apache.spark.streaming.util.WriteAheadLog;
 import org.apache.spark.streaming.util.WriteAheadLogRecordHandle;
 import org.apache.spark.streaming.util.WriteAheadLogUtils;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions;
+import org.junit.Test;
+import org.junit.Assert;
 
 public class JavaWriteAheadLogSuite extends WriteAheadLog {
 
@@ -107,8 +107,8 @@ public class JavaWriteAheadLogSuite extends WriteAheadLog {
 
     String data1 = "data1";
     WriteAheadLogRecordHandle handle = wal.write(JavaUtils.stringToBytes(data1), 1234);
-    Assertions.assertTrue(handle instanceof JavaWriteAheadLogSuiteHandle);
-    Assertions.assertEquals(data1, JavaUtils.bytesToString(wal.read(handle)));
+    Assert.assertTrue(handle instanceof JavaWriteAheadLogSuiteHandle);
+    Assert.assertEquals(data1, JavaUtils.bytesToString(wal.read(handle)));
 
     wal.write(JavaUtils.stringToBytes("data2"), 1235);
     wal.write(JavaUtils.stringToBytes("data3"), 1236);
@@ -120,6 +120,6 @@ public class JavaWriteAheadLogSuite extends WriteAheadLog {
     while (dataIterator.hasNext()) {
       readData.add(JavaUtils.bytesToString(dataIterator.next()));
     }
-    Assertions.assertEquals(Arrays.asList("data3", "data4"), readData);
+    Assert.assertEquals(Arrays.asList("data3", "data4"), readData);
   }
 }

@@ -188,7 +188,7 @@ abstract class BaseSessionStateBuilder(
         new ResolveSQLOnFile(session) +:
         new FallBackFileSourceV2(session) +:
         ResolveEncodersInScalaAgg +:
-        new ResolveSessionCatalog(this.catalogManager) +:
+        new ResolveSessionCatalog(catalogManager) +:
         ResolveWriteToStream +:
         new EvalSubqueriesForTimeTravel +:
         customResolutionRules

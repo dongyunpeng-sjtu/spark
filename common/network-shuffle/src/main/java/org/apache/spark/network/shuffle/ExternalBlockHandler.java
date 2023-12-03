@@ -128,7 +128,8 @@ public class ExternalBlockHandler extends RpcHandler
       ByteBuffer messageHeader,
       RpcResponseCallback callback) {
     BlockTransferMessage msgObj = BlockTransferMessage.Decoder.fromByteBuffer(messageHeader);
-    if (msgObj instanceof PushBlockStream message) {
+    if (msgObj instanceof PushBlockStream) {
+      PushBlockStream message = (PushBlockStream) msgObj;
       checkAuth(client, message.appId);
       return mergeManager.receiveBlockDataAsStream(message);
     } else {

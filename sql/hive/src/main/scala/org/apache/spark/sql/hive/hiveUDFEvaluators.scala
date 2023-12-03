@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.hive
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.hadoop.hive.ql.exec.{FunctionRegistry, UDF}
 import org.apache.hadoop.hive.ql.udf.{UDFType => HiveUDFType}

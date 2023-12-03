@@ -16,29 +16,28 @@
  */
 package org.apache.spark.sql.connect.client
 
-import java.io.{ByteArrayInputStream, InputStream, PrintStream}
+import java.io.{ByteArrayInputStream, InputStream}
 import java.net.URI
 import java.nio.file.{Files, Path, Paths}
 import java.util.Arrays
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.zip.{CheckedInputStream, CRC32}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
-import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
 import Artifact._
 import com.google.protobuf.ByteString
 import io.grpc.stub.StreamObserver
 import org.apache.commons.codec.digest.DigestUtils.sha256Hex
-import org.apache.commons.lang3.StringUtils
 
 import org.apache.spark.connect.proto
 import org.apache.spark.connect.proto.AddArtifactsResponse
 import org.apache.spark.connect.proto.AddArtifactsResponse.ArtifactSummary
-import org.apache.spark.util.{MavenUtils, SparkFileUtils, SparkThreadUtils}
+import org.apache.spark.util.{SparkFileUtils, SparkThreadUtils}
 
 /**
  * The Artifact Manager is responsible for handling and transferring artifacts from the local
@@ -88,12 +87,9 @@ class ArtifactManager(
           case cf if cf.endsWith(".class") =>
             newClassArtifact(path.getFileName, new LocalFile(path))
           case other =>
-            throw new UnsupportedOperationException(s"Unsupported file format: $other")
+            throw new UnsupportedOperationException(s"Unsuppoted file format: $other")
         }
         Seq[Artifact](artifact)
-
-      case "ivy" =>
-        newIvyArtifacts(uri)
 
       case other =>
         throw new UnsupportedOperationException(s"Unsupported scheme: $other")
@@ -103,19 +99,19 @@ class ArtifactManager(
   /**
    * Add a single artifact to the session.
    *
-   * Currently it supports local files with extensions .jar and .class and Apache Ivy URIs
+   * Currently only local files with extensions .jar and .class are supported.
    */
   def addArtifact(uri: URI): Unit = addArtifacts(parseArtifacts(uri))
 
   /**
    * Add multiple artifacts to the session.
    *
-   * Currently it supports local files with extensions .jar and .class and Apache Ivy URIs
+   * Currently only local files with extensions .jar and .class are supported.
    */
   def addArtifacts(uris: Seq[URI]): Unit = addArtifacts(uris.flatMap(parseArtifacts))
 
   private[client] def isCachedArtifact(hash: String): Boolean = {
-    val artifactName = s"$CACHE_PREFIX/$hash"
+    val artifactName = CACHE_PREFIX + "/" + hash
     val request = proto.ArtifactStatusesRequest
       .newBuilder()
       .setUserContext(clientConfig.userContext)
@@ -175,7 +171,7 @@ class ArtifactManager(
       return
     }
 
-    val promise = Promise[Seq[ArtifactSummary]]()
+    val promise = Promise[Seq[ArtifactSummary]]
     val responseHandler = new StreamObserver[proto.AddArtifactsResponse] {
       private val summaries = mutable.Buffer.empty[ArtifactSummary]
       override def onNext(v: AddArtifactsResponse): Unit = {
@@ -363,40 +359,6 @@ object Artifact {
 
   def newCacheArtifact(id: String, storage: LocalData): Artifact = {
     newArtifact(CACHE_PREFIX, "", Paths.get(id), storage)
-  }
-
-  def newIvyArtifacts(uri: URI): Seq[Artifact] = {
-    implicit val printStream: PrintStream = System.err
-
-    val authority = uri.getAuthority
-    if (authority == null) {
-      throw new IllegalArgumentException(
-        s"Invalid Ivy URI authority in uri ${uri.toString}:" +
-          " Expected 'org:module:version', found null.")
-    }
-    if (authority.split(":").length != 3) {
-      throw new IllegalArgumentException(
-        s"Invalid Ivy URI authority in uri ${uri.toString}:" +
-          s" Expected 'org:module:version', found $authority.")
-    }
-
-    val (transitive, exclusions, repos) = MavenUtils.parseQueryParams(uri)
-
-    val exclusionsList: Seq[String] =
-      if (!StringUtils.isBlank(exclusions)) {
-        exclusions.split(",")
-      } else {
-        Nil
-      }
-
-    val ivySettings = MavenUtils.buildIvySettings(Some(repos), None)
-
-    val jars = MavenUtils.resolveMavenCoordinates(
-      authority,
-      ivySettings,
-      transitive = transitive,
-      exclusions = exclusionsList)
-    jars.map(p => Paths.get(p)).map(path => newJarArtifact(path.getFileName, new LocalFile(path)))
   }
 
   private def newArtifact(

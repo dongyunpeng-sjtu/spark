@@ -16,11 +16,23 @@
 #
 import shutil
 import tempfile
+import types
 import typing
 import os
 import functools
 import unittest
 import uuid
+
+from pyspark import Row, SparkConf
+from pyspark.testing.utils import PySparkErrorTestUtils
+from pyspark.testing.sqlutils import (
+    have_pandas,
+    pandas_requirement_message,
+    pyarrow_requirement_message,
+    SQLTestUtils,
+)
+from pyspark.sql.session import SparkSession as PySparkSession
+
 
 grpc_requirement_message = None
 try:
@@ -44,16 +56,6 @@ except ImportError as e:
     googleapis_common_protos_requirement_message = str(e)
 have_googleapis_common_protos = googleapis_common_protos_requirement_message is None
 
-from pyspark import Row, SparkConf
-from pyspark.testing.utils import PySparkErrorTestUtils
-from pyspark.testing.sqlutils import (
-    have_pandas,
-    pandas_requirement_message,
-    pyarrow_requirement_message,
-    SQLTestUtils,
-)
-from pyspark.sql.session import SparkSession as PySparkSession
-
 
 connect_requirement_message = (
     pandas_requirement_message
@@ -74,7 +76,6 @@ class MockRemoteSession:
     def __init__(self):
         self.hooks = {}
         self.session_id = str(uuid.uuid4())
-        self.is_mock_session = True
 
     def set_hook(self, name, hook):
         self.hooks[name] = hook
@@ -91,8 +92,9 @@ class MockRemoteSession:
 class MockDF(DataFrame):
     """Helper class that must only be used for the mock plan tests."""
 
-    def __init__(self, plan: LogicalPlan, session: SparkSession):
-        super().__init__(plan, session)
+    def __init__(self, session: SparkSession, plan: LogicalPlan):
+        super().__init__(session)
+        self._plan = plan
 
     def __getattr__(self, name):
         """All attributes are resolved to columns, because none really exist in the
@@ -112,7 +114,7 @@ class PlanOnlyTestFixture(unittest.TestCase, PySparkErrorTestUtils):
 
     @classmethod
     def _df_mock(cls, plan: LogicalPlan) -> MockDF:
-        return MockDF(plan, cls.connect)
+        return MockDF(cls.connect, plan)
 
     @classmethod
     def _session_range(
@@ -165,6 +167,9 @@ class ReusedConnectTestCase(unittest.TestCase, SQLTestUtils, PySparkErrorTestUti
         Override this in subclasses to supply a more specific conf
         """
         conf = SparkConf(loadDefaults=False)
+        # Disable JVM stack trace in Spark Connect tests to prevent the
+        # HTTP header size from exceeding the maximum allowed size.
+        conf.set("spark.sql.pyspark.jvmStacktrace.enabled", "false")
         # Make the server terminate reattachable streams every 1 second and 123 bytes,
         # to make the tests exercise reattach.
         conf.set("spark.connect.execute.reattachable.senderMaxStreamDuration", "1s")

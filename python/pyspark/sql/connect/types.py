@@ -33,7 +33,6 @@ from pyspark.sql.types import (
     TimestampNTZType,
     DayTimeIntervalType,
     YearMonthIntervalType,
-    CalendarIntervalType,
     MapType,
     StringType,
     CharType,
@@ -170,8 +169,6 @@ def pyspark_types_to_proto_types(data_type: DataType) -> pb2.DataType:
     elif isinstance(data_type, YearMonthIntervalType):
         ret.year_month_interval.start_field = data_type.startField
         ret.year_month_interval.end_field = data_type.endField
-    elif isinstance(data_type, CalendarIntervalType):
-        ret.calendar_interval.CopyFrom(pb2.DataType.CalendarInterval())
     elif isinstance(data_type, StructType):
         struct = pb2.DataType.Struct()
         for field in data_type.fields:
@@ -268,8 +265,6 @@ def proto_schema_to_pyspark_data_type(schema: pb2.DataType) -> DataType:
             else None
         )
         return YearMonthIntervalType(startField=start, endField=end)
-    elif schema.HasField("calendar_interval"):
-        return CalendarIntervalType()
     elif schema.HasField("array"):
         return ArrayType(
             proto_schema_to_pyspark_data_type(schema.array.element_type),

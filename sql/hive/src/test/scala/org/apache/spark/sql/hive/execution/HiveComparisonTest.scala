@@ -364,7 +364,7 @@ abstract class HiveComparisonTest extends SparkFunSuite with BeforeAndAfterAll {
           }
         }
 
-        queryList.lazyZip(hiveResults).lazyZip(catalystResults).foreach {
+        (queryList, hiveResults, catalystResults).zipped.foreach {
           case (query, hive, (hiveQuery, catalyst)) =>
             // Check that the results match unless its an EXPLAIN query.
             val preparedHive = prepareAnswer(hiveQuery, hive)

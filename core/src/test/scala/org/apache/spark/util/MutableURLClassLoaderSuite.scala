@@ -19,7 +19,7 @@ package org.apache.spark.util
 
 import java.net.URLClassLoader
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers._

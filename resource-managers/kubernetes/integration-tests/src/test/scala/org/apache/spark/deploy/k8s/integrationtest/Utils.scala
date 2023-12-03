@@ -21,7 +21,7 @@ import java.nio.file.{Files, Path}
 import java.util.concurrent.CountDownLatch
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import io.fabric8.kubernetes.client.dsl.ExecListener
 import io.fabric8.kubernetes.client.dsl.ExecListener.Response

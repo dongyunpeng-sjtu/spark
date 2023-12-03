@@ -18,7 +18,7 @@ package org.apache.spark.sql
 
 import java.io.ByteArrayOutputStream
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.{functions => fn}
 import org.apache.spark.sql.test.ConnectFunSuite

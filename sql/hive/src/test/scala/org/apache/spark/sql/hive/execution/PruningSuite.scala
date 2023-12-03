@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.hive.execution
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.scalatest.BeforeAndAfter
 

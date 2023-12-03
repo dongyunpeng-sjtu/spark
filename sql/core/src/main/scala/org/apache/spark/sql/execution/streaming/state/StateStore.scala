@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution.streaming.state
 
 import java.util.UUID
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.AtomicReference
 import javax.annotation.concurrent.GuardedBy
 
 import scala.collection.mutable
@@ -33,7 +32,6 @@ import org.apache.spark.{SparkContext, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.util.UnsafeRowUtils
-import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.streaming.StatefulOperatorStateInfo
 import org.apache.spark.sql.types.StructType
@@ -441,18 +439,6 @@ object StateStore extends Logging {
   @GuardedBy("loadedProviders")
   private val schemaValidated = new mutable.HashMap[StateStoreProviderId, Option[Throwable]]()
 
-  private val maintenanceThreadPoolLock = new Object
-
-  // Shared exception between threads in thread pool that the scheduling thread
-  // checks to see if an exception has been thrown in the maintenance task
-  private val threadPoolException = new AtomicReference[Throwable](null)
-
-  // This set is to keep track of the partitions that are queued
-  // for maintenance or currently have maintenance running on them
-  // to prevent the same partition from being processed concurrently.
-  @GuardedBy("maintenanceThreadPoolLock")
-  private val maintenancePartitions = new mutable.HashSet[StateStoreProviderId]
-
   /**
    * Runs the `task` periodically and automatically cancels it if there is an exception. `onError`
    * will be called when an exception happens.
@@ -485,28 +471,8 @@ object StateStore extends Logging {
     def isRunning: Boolean = !future.isDone
   }
 
-  /**
-   * Thread Pool that runs maintenance on partitions that are scheduled by
-   * MaintenanceTask periodically
-   */
-  class MaintenanceThreadPool(numThreads: Int) {
-    private val threadPool = ThreadUtils.newDaemonFixedThreadPool(
-      numThreads, "state-store-maintenance-thread")
-
-    def execute(runnable: Runnable): Unit = {
-      threadPool.execute(runnable)
-    }
-
-    def stop(): Unit = {
-      threadPool.shutdown()
-    }
-  }
-
   @GuardedBy("loadedProviders")
   private var maintenanceTask: MaintenanceTask = null
-
-  @GuardedBy("loadedProviders")
-  private var maintenanceThreadPool: MaintenanceThreadPool = null
 
   @GuardedBy("loadedProviders")
   private var _coordRef: StateStoreCoordinatorRef = null
@@ -520,9 +486,7 @@ object StateStore extends Logging {
       version: Long,
       storeConf: StateStoreConf,
       hadoopConf: Configuration): ReadStateStore = {
-    if (version < 0) {
-      throw QueryExecutionErrors.unexpectedStateStoreVersion(version)
-    }
+    require(version >= 0)
     val storeProvider = getStateStoreProvider(storeProviderId, keySchema, valueSchema,
       numColsPrefixKey, storeConf, hadoopConf)
     storeProvider.getReadStore(version)
@@ -537,9 +501,7 @@ object StateStore extends Logging {
       version: Long,
       storeConf: StateStoreConf,
       hadoopConf: Configuration): StateStore = {
-    if (version < 0) {
-      throw QueryExecutionErrors.unexpectedStateStoreVersion(version)
-    }
+    require(version >= 0)
     val storeProvider = getStateStoreProvider(storeProviderId, keySchema, valueSchema,
       numColsPrefixKey, storeConf, hadoopConf)
     storeProvider.getStore(version)
@@ -624,14 +586,6 @@ object StateStore extends Logging {
 
   /** Stop maintenance thread and reset the maintenance task */
   def stopMaintenanceTask(): Unit = loadedProviders.synchronized {
-    if (maintenanceThreadPool != null) {
-      threadPoolException.set(null)
-      maintenanceThreadPoolLock.synchronized {
-        maintenancePartitions.clear()
-      }
-      maintenanceThreadPool.stop()
-      maintenanceThreadPool = null
-    }
     if (maintenanceTask != null) {
       maintenanceTask.stop()
       maintenanceTask = null
@@ -648,8 +602,7 @@ object StateStore extends Logging {
   }
 
   /** Start the periodic maintenance task if not already started and if Spark active */
-  private def startMaintenanceIfNeeded(storeConf: StateStoreConf): Unit = {
-    val numMaintenanceThreads = storeConf.numStateStoreMaintenanceThreads
+  private def startMaintenanceIfNeeded(storeConf: StateStoreConf): Unit =
     loadedProviders.synchronized {
       if (SparkEnv.get != null && !isMaintenanceRunning) {
         maintenanceTask = new MaintenanceTask(
@@ -665,22 +618,9 @@ object StateStore extends Logging {
             }
           }
         )
-        maintenanceThreadPool = new MaintenanceThreadPool(numMaintenanceThreads)
         logInfo("State Store maintenance task started")
       }
     }
-  }
-
-  private def processThisPartition(id: StateStoreProviderId): Boolean = {
-    maintenanceThreadPoolLock.synchronized {
-      if (!maintenancePartitions.contains(id)) {
-        maintenancePartitions.add(id)
-        true
-      } else {
-        false
-      }
-    }
-  }
 
   /**
    * Execute background maintenance task in all the loaded store providers if they are still
@@ -691,45 +631,17 @@ object StateStore extends Logging {
     if (SparkEnv.get == null) {
       throw new IllegalStateException("SparkEnv not active, cannot do maintenance on StateStores")
     }
-    loadedProviders.synchronized {
-      loadedProviders.toSeq
-    }.foreach { case (id, provider) =>
-      // check exception
-      if (threadPoolException.get() != null) {
-        val exception = threadPoolException.get()
-        logWarning("Error in maintenanceThreadPool", exception)
-        throw exception
-      }
-      if (processThisPartition(id)) {
-        maintenanceThreadPool.execute(() => {
-          val startTime = System.currentTimeMillis()
-          try {
-            provider.doMaintenance()
-            if (!verifyIfStoreInstanceActive(id)) {
-              unload(id)
-              logInfo(s"Unloaded $provider")
-            }
-          } catch {
-            case NonFatal(e) =>
-              logWarning(s"Error managing $provider, stopping management thread", e)
-              threadPoolException.set(e)
-          } finally {
-            val duration = System.currentTimeMillis() - startTime
-            val logMsg = s"Finished maintenance task for provider=$id" +
-              s" in elapsed_time=$duration\n"
-            if (duration > 5000) {
-              logInfo(logMsg)
-            } else {
-              logDebug(logMsg)
-            }
-            maintenanceThreadPoolLock.synchronized {
-              maintenancePartitions.remove(id)
-            }
-          }
-        })
-      } else {
-        logInfo(s"Not processing partition ${id} for maintenance because it is currently " +
-          s"being processed")
+    loadedProviders.synchronized { loadedProviders.toSeq }.foreach { case (id, provider) =>
+      try {
+        provider.doMaintenance()
+        if (!verifyIfStoreInstanceActive(id)) {
+          unload(id)
+          logInfo(s"Unloaded $provider")
+        }
+      } catch {
+        case NonFatal(e) =>
+          logWarning(s"Error managing $provider, stopping management thread")
+          throw e
       }
     }
   }

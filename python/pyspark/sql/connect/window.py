@@ -70,6 +70,7 @@ class WindowSpec:
         orderSpec: Sequence[SortOrder],
         frame: Optional[WindowFrame],
     ) -> None:
+
         assert isinstance(partitionSpec, list) and all(
             isinstance(p, Expression) for p in partitionSpec
         )

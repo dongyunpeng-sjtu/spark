@@ -205,9 +205,7 @@ case class ExecuteEventsManager(executeHolder: ExecuteHolder, clock: Clock) {
    *   Number of rows that are returned to the user. None is expected when the operation does not
    *   return any rows.
    */
-  def postFinished(
-      producedRowsCountOpt: Option[Long] = None,
-      extraTags: Map[String, String] = Map.empty): Unit = {
+  def postFinished(producedRowsCountOpt: Option[Long] = None): Unit = {
     assertStatus(
       List(ExecuteStatus.Started, ExecuteStatus.ReadyForExecution),
       ExecuteStatus.Finished)
@@ -219,8 +217,7 @@ case class ExecuteEventsManager(executeHolder: ExecuteHolder, clock: Clock) {
           jobTag,
           operationId,
           clock.getTimeMillis(),
-          producedRowCount,
-          extraTags))
+          producedRowCount))
   }
 
   /**
@@ -245,7 +242,7 @@ case class ExecuteEventsManager(executeHolder: ExecuteHolder, clock: Clock) {
         postAnalyzed(Some(analyzedPlan))
       }
 
-      def readyForExecution(tracker: QueryPlanningTracker): Unit = postReadyForExecution()
+      def readyForExecution(tracker: QueryPlanningTracker): Unit = postReadyForExecution
     }))
   }
 

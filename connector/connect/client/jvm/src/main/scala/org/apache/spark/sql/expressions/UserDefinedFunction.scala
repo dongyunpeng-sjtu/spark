@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.expressions
 
-import scala.collection.mutable
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
 
@@ -30,7 +29,7 @@ import org.apache.spark.sql.catalyst.ScalaReflection
 import org.apache.spark.sql.catalyst.encoders.{AgnosticEncoder, RowEncoder}
 import org.apache.spark.sql.connect.common.{DataTypeProtoConverter, UdfPacket}
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.util.{ClosureCleaner, SparkClassUtils, SparkSerDeUtils}
+import org.apache.spark.util.{SparkClassUtils, SparkSerDeUtils}
 
 /**
  * A user-defined function. To create one, use the `udf` functions in `functions`.
@@ -184,7 +183,6 @@ object ScalarUserDefinedFunction {
       function: AnyRef,
       inputEncoders: Seq[AgnosticEncoder[_]],
       outputEncoder: AgnosticEncoder[_]): ScalarUserDefinedFunction = {
-    SparkConnectClosureCleaner.clean(function)
     val udfPacketBytes =
       SparkSerDeUtils.serialize(UdfPacket(function, inputEncoders, outputEncoder))
     checkDeserializable(udfPacketBytes)
@@ -202,11 +200,5 @@ object ScalarUserDefinedFunction {
       function = function,
       inputEncoders = Seq.empty[AgnosticEncoder[_]],
       outputEncoder = RowEncoder.encoderForDataType(returnType, lenient = false))
-  }
-}
-
-private object SparkConnectClosureCleaner {
-  def clean(closure: AnyRef): Unit = {
-    ClosureCleaner.clean(closure, cleanTransitively = true, mutable.Map.empty)
   }
 }

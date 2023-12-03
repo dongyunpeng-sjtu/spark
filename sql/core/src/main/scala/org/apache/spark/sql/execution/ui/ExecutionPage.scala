@@ -77,6 +77,10 @@ class ExecutionPage(parent: SQLTab) extends WebUIPage("execution") with Logging 
             {jobLinks(JobExecutionStatus.FAILED, "Failed Jobs:")}
           </ul>
         </div>
+        <div>
+          <input type="checkbox" id="stageId-and-taskId-checkbox"></input>
+          <span>Show the Stage ID and Task ID that corresponds to the max metric</span>
+        </div>
 
       val metrics = sqlStore.executionMetrics(executionId)
       val graph = sqlStore.planGraph(executionId)
@@ -85,9 +89,9 @@ class ExecutionPage(parent: SQLTab) extends WebUIPage("execution") with Logging 
       summary ++
         planVisualization(request, metrics, graph) ++
         physicalPlanDescription(executionUIData.physicalPlanDescription) ++
-        modifiedConfigs(configs.view.filterKeys(!_.startsWith(pandasOnSparkConfPrefix)).toMap) ++
+        modifiedConfigs(configs.filterKeys(!_.startsWith(pandasOnSparkConfPrefix)).toMap) ++
         modifiedPandasOnSparkConfigs(
-          configs.view.filterKeys(_.startsWith(pandasOnSparkConfPrefix)).toMap)
+          configs.filterKeys(_.startsWith(pandasOnSparkConfPrefix)).toMap)
     }.getOrElse {
       <div>No information to display for query {executionId}</div>
     }
@@ -111,25 +115,19 @@ class ExecutionPage(parent: SQLTab) extends WebUIPage("execution") with Logging 
       request: HttpServletRequest,
       metrics: Map[Long, String],
       graph: SparkPlanGraph): Seq[Node] = {
+    val metadata = graph.allNodes.flatMap { node =>
+      val nodeId = s"plan-meta-data-${node.id}"
+      <div id={nodeId}>{node.desc}</div>
+    }
 
     <div>
-      <div>
-        <span style="cursor: pointer;" onclick="togglePlanViz();">
-          <span id="plan-viz-graph-arrow" class="arrow-open"></span>
-          <a>Plan Visualization</a>
-        </span>
-      </div>
-
-      <div id="plan-viz-graph">
-        <div>
-          <input type="checkbox" id="stageId-and-taskId-checkbox"></input>
-          <span>Show the Stage ID and Task ID that corresponds to the max metric</span>
-        </div>
-      </div>
+      <div id="plan-viz-graph"></div>
       <div id="plan-viz-metadata" style="display:none">
         <div class="dot-file">
           {graph.makeDotFile(metrics)}
         </div>
+        <div id="plan-viz-metadata-size">{graph.allNodes.size.toString}</div>
+        {metadata}
       </div>
       {planVisualizationResources(request)}
       <script>$(function() {{ if (shouldRenderPlanViz()) {{ renderPlanViz(); }} }})</script>

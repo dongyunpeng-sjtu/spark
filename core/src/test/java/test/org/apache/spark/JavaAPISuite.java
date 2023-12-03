@@ -42,7 +42,7 @@ import org.apache.spark.TaskContext$;
 import scala.Tuple2;
 import scala.Tuple3;
 import scala.Tuple4;
-import scala.jdk.javaapi.CollectionConverters;
+import scala.collection.JavaConverters;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -57,10 +57,10 @@ import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
-import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import static org.junit.Assert.*;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.apache.spark.api.java.JavaDoubleRDD;
 import org.apache.spark.api.java.JavaFutureAction;
@@ -90,14 +90,14 @@ public class JavaAPISuite implements Serializable {
   private transient JavaSparkContext sc;
   private transient File tempDir;
 
-  @BeforeEach
+  @Before
   public void setUp() throws IOException {
     sc = new JavaSparkContext("local", "JavaAPISuite");
     tempDir = Utils.createTempDir();
     tempDir.deleteOnExit();
   }
 
-  @AfterEach
+  @After
   public void tearDown() {
     sc.stop();
     sc = null;
@@ -187,9 +187,9 @@ public class JavaAPISuite implements Serializable {
     long s0 = splits[0].count();
     long s1 = splits[1].count();
     long s2 = splits[2].count();
-    assertTrue(s0 > 150 && s0 < 250, s0 + " not within expected range");
-    assertTrue(s1 > 250 && s1 < 350, s1 + " not within expected range");
-    assertTrue(s2 > 430 && s2 < 570, s2 + " not within expected range");
+    assertTrue(s0 + " not within expected range", s0 > 150 && s0 < 250);
+    assertTrue(s1 + " not within expected range", s1 > 250 && s1 < 350);
+    assertTrue(s2 + " not within expected range", s2 > 430 && s2 < 570);
   }
 
   @Test
@@ -281,7 +281,7 @@ public class JavaAPISuite implements Serializable {
   @Test
   public void emptyRDD() {
     JavaRDD<String> rdd = sc.emptyRDD();
-    assertEquals(0, rdd.count(), "Empty RDD shouldn't have any values");
+    assertEquals("Empty RDD shouldn't have any values", 0, rdd.count());
   }
 
   @Test
@@ -1268,7 +1268,8 @@ public class JavaAPISuite implements Serializable {
 
     Partitioner defaultPartitioner = Partitioner.defaultPartitioner(
       combinedRDD.rdd(),
-      CollectionConverters.asScala(Collections.<RDD<?>>emptyList()).toSeq());
+      JavaConverters.collectionAsScalaIterableConverter(
+        Collections.<RDD<?>>emptyList()).asScala().toSeq());
     combinedRDD = originalRDD.keyBy(keyFunction)
       .combineByKey(
         createCombinerFunction,

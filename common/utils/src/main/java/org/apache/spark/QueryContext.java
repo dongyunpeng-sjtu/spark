@@ -27,9 +27,6 @@ import org.apache.spark.annotation.Evolving;
  */
 @Evolving
 public interface QueryContext {
-    // The type of this query context.
-    QueryContextType contextType();
-
     // The object type of the query which throws the exception.
     // If the exception is directly from the main query, it should be an empty string.
     // Otherwise, it should be the exact object type in upper case. For example, a "VIEW".
@@ -48,10 +45,4 @@ public interface QueryContext {
 
     // The corresponding fragment of the query which throws the exception.
     String fragment();
-
-    // The user code (call site of the API) that caused throwing the exception.
-    String callSite();
-
-    // Summary of the exception cause.
-    String summary();
 }

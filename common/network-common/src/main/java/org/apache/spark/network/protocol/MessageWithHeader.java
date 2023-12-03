@@ -35,8 +35,7 @@ import org.apache.spark.network.util.AbstractFileRegion;
  *
  * The header must be a ByteBuf, while the body can be a ByteBuf or a FileRegion.
  */
-
-public class MessageWithHeader extends AbstractFileRegion {
+class MessageWithHeader extends AbstractFileRegion {
 
   @Nullable private final ManagedBuffer managedBuffer;
   private final ByteBuf header;

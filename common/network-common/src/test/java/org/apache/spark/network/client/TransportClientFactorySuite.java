@@ -26,10 +26,10 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.apache.spark.network.TestUtils;
 import org.apache.spark.network.TransportContext;
@@ -41,15 +41,15 @@ import org.apache.spark.network.util.MapConfigProvider;
 import org.apache.spark.network.util.JavaUtils;
 import org.apache.spark.network.util.TransportConf;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 public class TransportClientFactorySuite {
-  protected TransportConf conf;
-  protected TransportContext context;
-  protected TransportServer server1;
-  protected TransportServer server2;
+  private TransportConf conf;
+  private TransportContext context;
+  private TransportServer server1;
+  private TransportServer server2;
 
-  @BeforeEach
+  @Before
   public void setUp() {
     conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     RpcHandler rpcHandler = new NoOpRpcHandler();
@@ -58,7 +58,7 @@ public class TransportClientFactorySuite {
     server2 = context.createServer();
   }
 
-  @AfterEach
+  @After
   public void tearDown() {
     JavaUtils.closeQuietly(server1);
     JavaUtils.closeQuietly(server2);
@@ -114,8 +114,8 @@ public class TransportClientFactorySuite {
         attempt.join();
       }
 
-      Assertions.assertEquals(0, failed.get());
-      Assertions.assertTrue(clients.size() <= maxConnections);
+      Assert.assertEquals(0, failed.get());
+      Assert.assertTrue(clients.size() <= maxConnections);
 
       for (TransportClient client : clients) {
         client.close();
@@ -220,7 +220,7 @@ public class TransportClientFactorySuite {
   public void closeFactoryBeforeCreateClient() {
     TransportClientFactory factory = context.createClientFactory();
     factory.close();
-    Assertions.assertThrows(IOException.class,
+    Assert.assertThrows(IOException.class,
       () -> factory.createClient(TestUtils.getLocalHost(), server1.getPort()));
   }
 
@@ -230,11 +230,10 @@ public class TransportClientFactorySuite {
     TransportServer server = context.createServer();
     int unreachablePort = server.getPort();
     server.close();
-    Assertions.assertThrows(IOException.class,
+    Assert.assertThrows(IOException.class,
       () -> factory.createClient(TestUtils.getLocalHost(), unreachablePort, true));
-    Assertions.assertThrows(IOException.class,
-      () -> factory.createClient(TestUtils.getLocalHost(), unreachablePort, true),
-      "fail this connection directly");
+    Assert.assertThrows("fail this connection directly", IOException.class,
+      () -> factory.createClient(TestUtils.getLocalHost(), unreachablePort, true));
   }
 
   @Test
@@ -258,7 +257,7 @@ public class TransportClientFactorySuite {
       TransportServer server = ctx.createServer();
       int unreachablePort = server.getPort();
       JavaUtils.closeQuietly(server);
-      IOException exception = Assertions.assertThrows(IOException.class,
+      IOException exception = Assert.assertThrows(IOException.class,
           () -> factory.createClient(TestUtils.getLocalHost(), unreachablePort, true));
       assertNotEquals(exception.getCause(), null);
     }

@@ -23,9 +23,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.Before;
+import org.junit.Test;
+import static org.junit.Assert.*;
 
 public class InProcessLauncherSuite extends BaseSuite {
 
@@ -38,7 +38,7 @@ public class InProcessLauncherSuite extends BaseSuite {
 
   private static Throwable lastError;
 
-  @BeforeEach
+  @Before
   public void testSetup() {
     lastError = null;
   }

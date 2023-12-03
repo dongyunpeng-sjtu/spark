@@ -93,7 +93,7 @@ case class HistogramNumeric(
       DataTypeMismatch(
         errorSubClass = "NON_FOLDABLE_INPUT",
         messageParameters = Map(
-          "inputName" -> toSQLId("nb"),
+          "inputName" -> "nb",
           "inputType" -> toSQLType(nBins.dataType),
           "inputExpr" -> toSQLExpr(nBins))
       )

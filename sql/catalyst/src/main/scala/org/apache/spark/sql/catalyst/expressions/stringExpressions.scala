@@ -23,7 +23,6 @@ import java.util.{HashMap, Locale, Map => JMap}
 
 import scala.collection.mutable.ArrayBuffer
 
-import org.apache.spark.QueryContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{ExpressionBuilder, FunctionRegistry, TypeCheckResult}
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult.DataTypeMismatch
@@ -31,7 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.Cast._
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
-import org.apache.spark.sql.catalyst.trees.BinaryLike
+import org.apache.spark.sql.catalyst.trees.{BinaryLike, SQLQueryContext}
 import org.apache.spark.sql.catalyst.trees.TreePattern.{TreePattern, UPPER_OR_LOWER}
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, TypeUtils}
 import org.apache.spark.sql.errors.{QueryCompilationErrors, QueryExecutionErrors}
@@ -412,7 +411,7 @@ case class Elt(
   override protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Elt =
     copy(children = newChildren)
 
-  override def initQueryContext(): Option[QueryContext] = if (failOnError) {
+  override def initQueryContext(): Option[SQLQueryContext] = if (failOnError) {
     Some(origin.context)
   } else {
     None
@@ -524,8 +523,7 @@ trait StringBinaryPredicateExpressionBuilderBase extends ExpressionBuilder {
 
 object BinaryPredicate {
   def unapply(expr: Expression): Option[StaticInvoke] = expr match {
-    case s @ StaticInvoke(
-        clz, _, "contains" | "startsWith" | "endsWith", Seq(_, _), _, _, _, _, _)
+    case s @ StaticInvoke(clz, _, "contains" | "startsWith" | "endsWith", Seq(_, _), _, _, _, _)
       if clz == classOf[ByteArrayMethods] => Some(s)
     case _ => None
   }
@@ -2232,18 +2230,16 @@ case class Levenshtein(
     val resultCode = s"${ev.value} = ${leftGen.value}.levenshteinDistance(" +
       s"${rightGen.value}, ${thresholdGen.value});"
     if (nullable) {
-      val nullSafeEval =
-        leftGen.code.toString + ctx.nullSafeExec(children.head.nullable, leftGen.isNull) {
-          rightGen.code.toString + ctx.nullSafeExec(children(1).nullable, rightGen.isNull) {
-            thresholdGen.code.toString +
-              ctx.nullSafeExec(thresholdExpr.nullable, thresholdGen.isNull) {
-                s"""
-                  ${ev.isNull} = false;
-                  $resultCode
-                 """
-              }
+      val nullSafeEval = leftGen.code + ctx.nullSafeExec(children.head.nullable, leftGen.isNull) {
+        rightGen.code + ctx.nullSafeExec(children(1).nullable, rightGen.isNull) {
+          thresholdGen.code + ctx.nullSafeExec(thresholdExpr.nullable, thresholdGen.isNull) {
+            s"""
+              ${ev.isNull} = false;
+              $resultCode
+             """
           }
         }
+      }
       ev.copy(code = code"""
         boolean ${ev.isNull} = true;
         ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
@@ -2262,15 +2258,14 @@ case class Levenshtein(
     val rightGen = children(1).genCode(ctx)
     val resultCode = s"${ev.value} = ${leftGen.value}.levenshteinDistance(${rightGen.value});"
     if (nullable) {
-      val nullSafeEval =
-        leftGen.code.toString + ctx.nullSafeExec(children.head.nullable, leftGen.isNull) {
-          rightGen.code.toString + ctx.nullSafeExec(children(1).nullable, rightGen.isNull) {
-            s"""
-              ${ev.isNull} = false;
-              $resultCode
-             """
-          }
+      val nullSafeEval = leftGen.code + ctx.nullSafeExec(children.head.nullable, leftGen.isNull) {
+        rightGen.code + ctx.nullSafeExec(children(1).nullable, rightGen.isNull) {
+          s"""
+            ${ev.isNull} = false;
+            $resultCode
+           """
         }
+      }
       ev.copy(code = code"""
         boolean ${ev.isNull} = true;
         ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
@@ -2569,15 +2564,15 @@ object Decode {
         var default: Expression = Literal.create(null, StringType)
         val branches = ArrayBuffer.empty[(Expression, Expression)]
         while (itr.hasNext) {
-          val search = itr.next()
+          val search = itr.next
           if (itr.hasNext) {
             val condition = EqualNullSafe(input, search)
-            branches += ((condition, itr.next()))
+            branches += ((condition, itr.next))
           } else {
             default = search
           }
         }
-        CaseWhen(branches.toSeq, default)
+        CaseWhen(branches.seq.toSeq, default)
     }
   }
 }
@@ -2788,7 +2783,7 @@ case class ToBinary(
           DataTypeMismatch(
             errorSubClass = "NON_FOLDABLE_INPUT",
             messageParameters = Map(
-              "inputName" -> toSQLId("fmt"),
+              "inputName" -> "fmt",
               "inputType" -> toSQLType(StringType),
               "inputExpr" -> toSQLExpr(f)
             )

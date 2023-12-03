@@ -63,11 +63,11 @@ class MicroBatchExecutionSuite extends StreamTest with BeforeAndAfter with Match
           AddData(inputData, 1),
           CheckNewAnswer(1),
           Execute { q =>
-            getListOfFiles(s"$checkpointLocation/offsets")
+            getListOfFiles(checkpointLocation + "/offsets")
               .filter(file => !file.isHidden)
               .map(file => file.getName.toInt)
               .sorted should equal(Array(0, 1))
-            getListOfFiles(s"$checkpointLocation/commits")
+            getListOfFiles(checkpointLocation + "/commits")
               .filter(file => !file.isHidden)
               .map(file => file.getName.toInt)
               .sorted should equal(Array(0, 1))
@@ -81,11 +81,11 @@ class MicroBatchExecutionSuite extends StreamTest with BeforeAndAfter with Match
               q.asInstanceOf[MicroBatchExecution].arePendingAsyncPurge should be(false)
             }
 
-            getListOfFiles(s"$checkpointLocation/offsets")
+            getListOfFiles(checkpointLocation + "/offsets")
               .filter(file => !file.isHidden)
               .map(file => file.getName.toInt)
               .sorted should equal(Array(1, 2, 3))
-            getListOfFiles(s"$checkpointLocation/commits")
+            getListOfFiles(checkpointLocation + "/commits")
               .filter(file => !file.isHidden)
               .map(file => file.getName.toInt)
               .sorted should equal(Array(1, 2, 3))

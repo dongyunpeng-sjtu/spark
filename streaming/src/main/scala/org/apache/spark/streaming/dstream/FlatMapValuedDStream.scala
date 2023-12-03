@@ -25,7 +25,7 @@ import org.apache.spark.streaming.{Duration, Time}
 private[streaming]
 class FlatMapValuedDStream[K: ClassTag, V: ClassTag, U: ClassTag](
     parent: DStream[(K, V)],
-    flatMapValueFunc: V => IterableOnce[U]
+    flatMapValueFunc: V => TraversableOnce[U]
   ) extends DStream[(K, U)](parent.ssc) {
 
   override def dependencies: List[DStream[_]] = List(parent)

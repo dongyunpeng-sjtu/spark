@@ -18,7 +18,7 @@
 import contextlib
 import os
 import shutil
-from io import StringIO
+from six import StringIO
 import stat
 import subprocess
 import sys

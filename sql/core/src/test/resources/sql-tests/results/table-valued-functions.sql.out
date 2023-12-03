@@ -7,7 +7,6 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "UNRESOLVABLE_TABLE_VALUED_FUNCTION",
-  "sqlState" : "42883",
   "messageParameters" : {
     "name" : "`dummy`"
   },
@@ -362,7 +361,7 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "UNSUPPORTED_GENERATOR.NESTED_IN_EXPRESSIONS",
-  "sqlState" : "42K0E",
+  "sqlState" : "0A000",
   "messageParameters" : {
     "expression" : "\"explode(explode(array(1)))\""
   },
@@ -384,7 +383,6 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "NUM_TABLE_VALUE_ALIASES_MISMATCH",
-  "sqlState" : "42826",
   "messageParameters" : {
     "aliasesNum" : "2",
     "funcName" : "`explode`",
@@ -514,7 +512,6 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "NUM_TABLE_VALUE_ALIASES_MISMATCH",
-  "sqlState" : "42826",
   "messageParameters" : {
     "aliasesNum" : "3",
     "funcName" : "`inline`",
@@ -658,7 +655,7 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "UNSUPPORTED_GENERATOR.NESTED_IN_EXPRESSIONS",
-  "sqlState" : "42K0E",
+  "sqlState" : "0A000",
   "messageParameters" : {
     "expression" : "\"posexplode(explode(array(1)))\""
   },
@@ -680,7 +677,6 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "NUM_TABLE_VALUE_ALIASES_MISMATCH",
-  "sqlState" : "42826",
   "messageParameters" : {
     "aliasesNum" : "1",
     "funcName" : "`posexplode`",
@@ -860,7 +856,6 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "NUM_TABLE_VALUE_ALIASES_MISMATCH",
-  "sqlState" : "42826",
   "messageParameters" : {
     "aliasesNum" : "1",
     "funcName" : "`json_tuple`",
@@ -958,7 +953,6 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "NUM_TABLE_VALUE_ALIASES_MISMATCH",
-  "sqlState" : "42826",
   "messageParameters" : {
     "aliasesNum" : "3",
     "funcName" : "`stack`",
@@ -1009,7 +1003,7 @@ struct<>
 org.apache.spark.sql.AnalysisException
 {
   "errorClass" : "UNSUPPORTED_GENERATOR.NESTED_IN_EXPRESSIONS",
-  "sqlState" : "42K0E",
+  "sqlState" : "0A000",
   "messageParameters" : {
     "expression" : "\"stack(2, explode(array(1, 2, 3)))\""
   },

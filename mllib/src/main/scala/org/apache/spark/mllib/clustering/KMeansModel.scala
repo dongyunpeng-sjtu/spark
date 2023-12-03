@@ -17,7 +17,7 @@
 
 package org.apache.spark.mllib.clustering
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.json4s._
 import org.json4s.JsonDSL._

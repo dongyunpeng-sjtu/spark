@@ -73,7 +73,8 @@ public final class MutableColumnarRow extends InternalRow {
           row.update(i, getUTF8String(i).copy());
         } else if (dt instanceof BinaryType) {
           row.update(i, getBinary(i));
-        } else if (dt instanceof DecimalType t) {
+        } else if (dt instanceof DecimalType) {
+          DecimalType t = (DecimalType)dt;
           row.setDecimal(i, getDecimal(i, t.precision(), t.scale()), t.precision());
         } else if (dt instanceof DateType) {
           row.setInt(i, getInt(i));
@@ -177,7 +178,8 @@ public final class MutableColumnarRow extends InternalRow {
       return getUTF8String(ordinal);
     } else if (dataType instanceof BinaryType) {
       return getBinary(ordinal);
-    } else if (dataType instanceof DecimalType t) {
+    } else if (dataType instanceof DecimalType) {
+      DecimalType t = (DecimalType) dataType;
       return getDecimal(ordinal, t.precision(), t.scale());
     } else if (dataType instanceof DateType) {
       return getInt(ordinal);
@@ -212,7 +214,8 @@ public final class MutableColumnarRow extends InternalRow {
         setFloat(ordinal, (float) value);
       } else if (dt instanceof DoubleType) {
         setDouble(ordinal, (double) value);
-      } else if (dt instanceof DecimalType t) {
+      } else if (dt instanceof DecimalType) {
+        DecimalType t = (DecimalType) dt;
         Decimal d = Decimal.apply((BigDecimal) value, t.precision(), t.scale());
         setDecimal(ordinal, d, t.precision());
       } else if (dt instanceof CalendarIntervalType) {

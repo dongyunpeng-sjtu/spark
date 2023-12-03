@@ -28,11 +28,11 @@ import org.apache.spark.network.shuffle.protocol.ExecutorShuffleInfo;
 import org.apache.spark.network.util.MapConfigProvider;
 import org.apache.spark.network.util.TransportConf;
 import org.apache.spark.network.shuffle.ExternalShuffleBlockResolver.AppExecId;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 public class ExternalShuffleBlockResolverSuite {
   private static final String sortBlock0 = "Hello!";
@@ -44,7 +44,7 @@ public class ExternalShuffleBlockResolverSuite {
   private static final TransportConf conf =
       new TransportConf("shuffle", MapConfigProvider.EMPTY);
 
-  @BeforeAll
+  @BeforeClass
   public static void beforeAll() throws IOException {
     dataContext = new TestShuffleDataContext(2, 5);
 
@@ -55,7 +55,7 @@ public class ExternalShuffleBlockResolverSuite {
         sortBlock1.getBytes(StandardCharsets.UTF_8)});
   }
 
-  @AfterAll
+  @AfterClass
   public static void afterAll() {
     dataContext.cleanup();
   }
@@ -66,7 +66,7 @@ public class ExternalShuffleBlockResolverSuite {
     // Unregistered executor
     RuntimeException e = assertThrows(RuntimeException.class,
       () -> resolver.getBlockData("app0", "exec1", 1, 1, 0));
-    assertTrue(e.getMessage().contains("not registered"), "Bad error message: " + e);
+    assertTrue("Bad error message: " + e, e.getMessage().contains("not registered"));
 
     // Nonexistent shuffle block
     resolver.registerExecutor("app0", "exec3",

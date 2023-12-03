@@ -19,7 +19,7 @@ license: |
   limitations under the License.
 ---
 
-[SQLSTATE: 42K0E](sql-error-conditions-sqlstates.html#class-42-syntax-error-or-access-rule-violation)
+SQLSTATE: none assigned
 
 Invalid observed metrics.
 
@@ -27,11 +27,11 @@ This error class has the following derived error classes:
 
 ## AGGREGATE_EXPRESSION_WITH_DISTINCT_UNSUPPORTED
 
-Aggregate expressions with DISTINCT are not allowed in observed metrics, but found: `<expr>`.
+Aggregate expression with distinct are not allowed in observed metrics, but found: `<expr>`.
 
 ## AGGREGATE_EXPRESSION_WITH_FILTER_UNSUPPORTED
 
-Aggregate expression with FILTER predicate are not allowed in observed metrics, but found: `<expr>`.
+Aggregate expression with filter predicate are not allowed in observed metrics, but found: `<expr>`.
 
 ## MISSING_NAME
 

@@ -233,7 +233,7 @@ private[python] case class HybridRowQueue(
     val buffer = if (page != null) {
       new InMemoryRowQueue(page, numFields) {
         override def close(): Unit = {
-          freePage(this.page)
+          freePage(page)
         }
       }
     } else {

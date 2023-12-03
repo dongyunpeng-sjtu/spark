@@ -20,7 +20,7 @@ package org.apache.spark.sql.kafka010
 import java.{util => ju}
 import java.util.{Locale, UUID}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -161,7 +161,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     val caseInsensitiveParameters = CaseInsensitiveMap(parameters)
     val defaultTopic = caseInsensitiveParameters.get(TOPIC_OPTION_KEY).map(_.trim)
     val specifiedKafkaParams = kafkaParamsForProducer(caseInsensitiveParameters)
-    new KafkaSink(specifiedKafkaParams, defaultTopic)
+    new KafkaSink(sqlContext, specifiedKafkaParams, defaultTopic)
   }
 
   override def createRelation(
@@ -179,7 +179,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     val caseInsensitiveParameters = CaseInsensitiveMap(parameters)
     val topic = caseInsensitiveParameters.get(TOPIC_OPTION_KEY).map(_.trim)
     val specifiedKafkaParams = kafkaParamsForProducer(caseInsensitiveParameters)
-    KafkaWriter.write(data.queryExecution, specifiedKafkaParams, topic)
+    KafkaWriter.write(outerSQLContext.sparkSession, data.queryExecution, specifiedKafkaParams,
+      topic)
 
     /* This method is suppose to return a relation that reads the data that was written.
      * We cannot support this for Kafka. Therefore, in order to make things consistent,
@@ -524,9 +525,6 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     override def supportedCustomMetrics(): Array[CustomMetric] = {
       Array(new OffsetOutOfRangeMetric, new DataLossMetric)
     }
-
-    override def columnarSupportMode(): Scan.ColumnarSupportMode =
-      Scan.ColumnarSupportMode.UNSUPPORTED
   }
 }
 

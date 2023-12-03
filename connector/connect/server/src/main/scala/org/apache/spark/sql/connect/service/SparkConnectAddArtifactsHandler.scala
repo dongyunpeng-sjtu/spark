@@ -24,7 +24,6 @@ import scala.collection.mutable
 import scala.util.control.NonFatal
 
 import com.google.common.io.CountingOutputStream
-import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
 
 import org.apache.spark.connect.proto
@@ -81,7 +80,7 @@ class SparkConnectAddArtifactsHandler(val responseObserver: StreamObserver[AddAr
   }
 
   override def onError(throwable: Throwable): Unit = {
-    cleanUpStagedArtifacts()
+    Utils.deleteRecursively(stagingDir.toFile)
     responseObserver.onError(throwable)
   }
 
@@ -115,20 +114,16 @@ class SparkConnectAddArtifactsHandler(val responseObserver: StreamObserver[AddAr
   protected def cleanUpStagedArtifacts(): Unit = Utils.deleteRecursively(stagingDir.toFile)
 
   override def onCompleted(): Unit = {
-    try {
-      val artifactSummaries = flushStagedArtifacts()
-      // Add the artifacts to the session and return the summaries to the client.
-      val builder = proto.AddArtifactsResponse.newBuilder()
-      artifactSummaries.foreach(summary => builder.addArtifacts(summary))
-      // Delete temp dir
-      cleanUpStagedArtifacts()
+    val artifactSummaries = flushStagedArtifacts()
+    // Add the artifacts to the session and return the summaries to the client.
+    val builder = proto.AddArtifactsResponse.newBuilder()
+    artifactSummaries.foreach(summary => builder.addArtifacts(summary))
+    // Delete temp dir
+    cleanUpStagedArtifacts()
 
-      // Send the summaries and close
-      responseObserver.onNext(builder.build())
-      responseObserver.onCompleted()
-    } catch {
-      case e: StatusRuntimeException => onError(e)
-    }
+    // Send the summaries and close
+    responseObserver.onNext(builder.build())
+    responseObserver.onCompleted()
   }
 
   /**

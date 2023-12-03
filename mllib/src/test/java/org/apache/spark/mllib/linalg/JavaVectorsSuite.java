@@ -19,11 +19,11 @@ package org.apache.spark.mllib.linalg;
 
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.Assert.assertArrayEquals;
 
 import scala.Tuple2;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 public class JavaVectorsSuite {
 

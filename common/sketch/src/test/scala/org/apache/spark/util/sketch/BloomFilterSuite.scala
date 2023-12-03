@@ -17,7 +17,7 @@
 
 package org.apache.spark.util.sketch
 
-import java.io.ByteArrayOutputStream
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
 import scala.reflect.ClassTag
 import scala.util.Random
@@ -34,7 +34,9 @@ class BloomFilterSuite extends AnyFunSuite { // scalastyle:ignore funsuite
     filter.writeTo(out)
     out.close()
 
-    val deserialized = BloomFilter.readFrom(out.toByteArray)
+    val in = new ByteArrayInputStream(out.toByteArray)
+    val deserialized = BloomFilter.readFrom(in)
+    in.close()
 
     assert(filter == deserialized)
   }

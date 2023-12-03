@@ -20,7 +20,7 @@ package org.apache.spark.deploy
 import java.io.File
 import java.util.concurrent.CountDownLatch
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.{SecurityManager, SparkConf}
 import org.apache.spark.internal.{config, Logging}
@@ -53,11 +53,7 @@ class ExternalShuffleService(sparkConf: SparkConf, securityManager: SecurityMana
   private val registeredExecutorsDB = "registeredExecutors"
 
   private val transportConf =
-    SparkTransportConf.fromSparkConf(
-      sparkConf,
-      "shuffle",
-      numUsableCores = 0,
-      sslOptions = Some(securityManager.getRpcSSLOptions()))
+    SparkTransportConf.fromSparkConf(sparkConf, "shuffle", numUsableCores = 0)
   private val blockHandler = newShuffleBlockHandler(transportConf)
   private var transportContext: TransportContext = _
 

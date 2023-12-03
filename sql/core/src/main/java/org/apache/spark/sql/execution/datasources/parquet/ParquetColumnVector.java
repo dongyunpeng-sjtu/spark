@@ -343,10 +343,14 @@ final class ParquetColumnVector {
   }
 
   private static WritableColumnVector allocateLevelsVector(int capacity, MemoryMode memoryMode) {
-    return switch (memoryMode) {
-      case ON_HEAP -> new OnHeapColumnVector(capacity, DataTypes.IntegerType);
-      case OFF_HEAP -> new OffHeapColumnVector(capacity, DataTypes.IntegerType);
-    };
+    switch (memoryMode) {
+      case ON_HEAP:
+        return new OnHeapColumnVector(capacity, DataTypes.IntegerType);
+      case OFF_HEAP:
+        return new OffHeapColumnVector(capacity, DataTypes.IntegerType);
+      default:
+        throw new IllegalArgumentException("Unknown memory mode: " + memoryMode);
+    }
   }
 
   /**

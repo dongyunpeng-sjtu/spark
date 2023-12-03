@@ -50,7 +50,6 @@ from pyspark.sql.observation import Observation
 from pyspark.sql.readwriter import DataFrameReader, DataFrameWriter, DataFrameWriterV2
 from pyspark.sql.window import Window, WindowSpec
 from pyspark.sql.pandas.group_ops import PandasCogroupedOps
-from pyspark.sql.utils import is_remote
 
 
 __all__ = [
@@ -73,5 +72,4 @@ __all__ = [
     "DataFrameWriter",
     "DataFrameWriterV2",
     "PandasCogroupedOps",
-    "is_remote",
 ]

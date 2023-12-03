@@ -21,8 +21,8 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.{HashMap => JHashMap, Map => JMap}
 
+import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
-import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.util.{Success, Try}
 
@@ -70,11 +70,7 @@ private[spark] class NettyBlockTransferService(
     val rpcHandler = new NettyBlockRpcServer(conf.getAppId, serializer, blockDataManager)
     var serverBootstrap: Option[TransportServerBootstrap] = None
     var clientBootstrap: Option[TransportClientBootstrap] = None
-    this.transportConf = SparkTransportConf.fromSparkConf(
-      conf,
-      "shuffle",
-      numCores,
-      sslOptions = Some(securityManager.getRpcSSLOptions()))
+    this.transportConf = SparkTransportConf.fromSparkConf(conf, "shuffle", numCores)
     if (authEnabled) {
       serverBootstrap = Some(new AuthServerBootstrap(transportConf, securityManager))
       clientBootstrap = Some(new AuthClientBootstrap(transportConf, conf.getAppId, securityManager))

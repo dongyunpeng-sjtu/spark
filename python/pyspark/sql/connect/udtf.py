@@ -22,19 +22,19 @@ from pyspark.sql.connect.utils import check_dependencies
 check_dependencies(__name__)
 
 import warnings
-from typing import List, Type, TYPE_CHECKING, Optional, Union
+from typing import Type, TYPE_CHECKING, Optional, Union
 
 from pyspark.rdd import PythonEvalType
 from pyspark.sql.connect.column import Column
-from pyspark.sql.connect.expressions import ColumnReference, Expression, NamedArgumentExpression
+from pyspark.sql.connect.expressions import ColumnReference
 from pyspark.sql.connect.plan import (
     CommonInlineUserDefinedTableFunction,
     PythonUDTF,
 )
 from pyspark.sql.connect.types import UnparsedDataType
 from pyspark.sql.connect.utils import get_python_ver
-from pyspark.sql.udtf import AnalyzeArgument, AnalyzeResult  # noqa: F401
-from pyspark.sql.udtf import UDTFRegistration as PySparkUDTFRegistration, _validate_udtf_handler
+from pyspark.sql.udtf import UDTFRegistration as PySparkUDTFRegistration
+from pyspark.sql.udtf import _validate_udtf_handler
 from pyspark.sql.types import DataType, StructType
 from pyspark.errors import PySparkRuntimeError, PySparkTypeError
 
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 def _create_udtf(
     cls: Type,
-    returnType: Optional[Union[StructType, str]],
+    returnType: Union[StructType, str],
     name: Optional[str] = None,
     evalType: int = PythonEvalType.SQL_TABLE_UDF,
     deterministic: bool = False,
@@ -60,7 +60,7 @@ def _create_udtf(
 
 def _create_py_udtf(
     cls: Type,
-    returnType: Optional[Union[StructType, str]],
+    returnType: Union[StructType, str],
     name: Optional[str] = None,
     deterministic: bool = False,
     useArrow: Optional[bool] = None,
@@ -118,34 +118,28 @@ class UserDefinedTableFunction:
     def __init__(
         self,
         func: Type,
-        returnType: Optional[Union[StructType, str]],
+        returnType: Union[StructType, str],
         name: Optional[str] = None,
         evalType: int = PythonEvalType.SQL_TABLE_UDF,
         deterministic: bool = False,
     ) -> None:
-        _validate_udtf_handler(func, returnType)
+        _validate_udtf_handler(func)
 
         self.func = func
-        self.returnType: Optional[DataType] = (
-            None
-            if returnType is None
-            else UnparsedDataType(returnType)
-            if isinstance(returnType, str)
-            else returnType
+        self.returnType: DataType = (
+            UnparsedDataType(returnType) if isinstance(returnType, str) else returnType
         )
         self._name = name or func.__name__
         self.evalType = evalType
         self.deterministic = deterministic
 
     def _build_common_inline_user_defined_table_function(
-        self, *args: "ColumnOrName", **kwargs: "ColumnOrName"
+        self, *cols: "ColumnOrName"
     ) -> CommonInlineUserDefinedTableFunction:
-        def to_expr(col: "ColumnOrName") -> Expression:
-            return col._expr if isinstance(col, Column) else ColumnReference(col)
-
-        arg_exprs: List[Expression] = [to_expr(arg) for arg in args] + [
-            NamedArgumentExpression(key, to_expr(value)) for key, value in kwargs.items()
+        arg_cols = [
+            col if isinstance(col, Column) else Column(ColumnReference(col)) for col in cols
         ]
+        arg_exprs = [col._expr for col in arg_cols]
 
         udtf = PythonUDTF(
             func=self.func,
@@ -160,13 +154,13 @@ class UserDefinedTableFunction:
             arguments=arg_exprs,
         )
 
-    def __call__(self, *args: "ColumnOrName", **kwargs: "ColumnOrName") -> "DataFrame":
+    def __call__(self, *cols: "ColumnOrName") -> "DataFrame":
         from pyspark.sql.connect.session import SparkSession
         from pyspark.sql.connect.dataframe import DataFrame
 
         session = SparkSession.active()
 
-        plan = self._build_common_inline_user_defined_table_function(*args, **kwargs)
+        plan = self._build_common_inline_user_defined_table_function(*cols)
         return DataFrame.withPlan(plan, session)
 
     def asDeterministic(self) -> "UserDefinedTableFunction":

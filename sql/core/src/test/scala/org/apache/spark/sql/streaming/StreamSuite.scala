@@ -94,7 +94,7 @@ class StreamSuite extends StreamTest {
       }
       assert(streamingRelation.nonEmpty, "cannot find StreamingRelation")
       assert(
-        streamingRelation.head.computeStats().sizeInBytes ==
+        streamingRelation.head.computeStats.sizeInBytes ==
           spark.sessionState.conf.defaultSizeInBytes)
     }
   }
@@ -105,8 +105,7 @@ class StreamSuite extends StreamTest {
     }
     assert(streamingRelation.nonEmpty, "cannot find StreamingRelationV2")
     assert(
-      streamingRelation.head.computeStats().sizeInBytes ==
-        spark.sessionState.conf.defaultSizeInBytes)
+      streamingRelation.head.computeStats.sizeInBytes == spark.sessionState.conf.defaultSizeInBytes)
   }
 
   test("StreamingExecutionRelation.computeStats") {
@@ -114,8 +113,7 @@ class StreamSuite extends StreamTest {
     val executionRelation = StreamingExecutionRelation(
       memoryStream, toAttributes(memoryStream.encoder.schema), None)(
       memoryStream.sqlContext.sparkSession)
-    assert(executionRelation.computeStats().sizeInBytes ==
-      spark.sessionState.conf.defaultSizeInBytes)
+    assert(executionRelation.computeStats.sizeInBytes == spark.sessionState.conf.defaultSizeInBytes)
   }
 
   test("explain join with a normal source") {
@@ -148,7 +146,7 @@ class StreamSuite extends StreamTest {
       val smallTable3 = Seq((1, "one"), (2, "two"), (4, "four")).toDF("number", "word")
 
       // Join the input stream with a table.
-      val df = MemoryStream[Int].toDF()
+      val df = MemoryStream[Int].toDF
       val joined = df.join(smallTable, smallTable("number") === $"value")
         .join(smallTable2, smallTable2("number") === $"value")
         .join(smallTable3, smallTable3("number") === $"value")
@@ -174,7 +172,7 @@ class StreamSuite extends StreamTest {
         try {
           query.processAllAvailable()
           val outputDf = spark.read.parquet(outputDir.getAbsolutePath).as[Long]
-          checkDatasetUnorderly[Long](outputDf, (0L to 10L).concat(0L to 10L): _*)
+          checkDatasetUnorderly[Long](outputDf, (0L to 10L).union((0L to 10L)).toArray: _*)
         } finally {
           query.stop()
         }
@@ -281,7 +279,7 @@ class StreamSuite extends StreamTest {
 
     // Running streaming plan as a batch query
     assertError("start" :: Nil) {
-      streamInput.toDS().map { i => i }.count()
+      streamInput.toDS.map { i => i }.count()
     }
 
     // Running non-streaming plan with as a streaming query
@@ -292,7 +290,7 @@ class StreamSuite extends StreamTest {
 
     // Running streaming plan that cannot be incrementalized
     assertError("not supported" :: "streaming" :: Nil) {
-      val ds = streamInput.toDS().map { i => i }.sort()
+      val ds = streamInput.toDS.map { i => i }.sort()
       testStream(ds)()
     }
   }
@@ -649,7 +647,7 @@ class StreamSuite extends StreamTest {
   test("SPARK-19065: dropDuplicates should not create expressions using the same id") {
     withTempPath { testPath =>
       val data = Seq((1, 2), (2, 3), (3, 4))
-      data.toDS().write.mode("overwrite").json(testPath.getCanonicalPath)
+      data.toDS.write.mode("overwrite").json(testPath.getCanonicalPath)
       val schema = spark.read.json(testPath.getCanonicalPath).schema
       val query = spark
         .readStream
@@ -713,9 +711,7 @@ class StreamSuite extends StreamTest {
         "columnName" -> "`rn_col`",
         "windowSpec" ->
           ("(PARTITION BY COL1 ORDER BY COL2 ASC NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING " +
-          "AND CURRENT ROW)")),
-      queryContext = Array(
-        ExpectedContext(fragment = "withColumn", callSitePattern = getCurrentClassCallSitePattern)))
+          "AND CURRENT ROW)")))
   }
 
 
@@ -879,7 +875,7 @@ class StreamSuite extends StreamTest {
     withTempDir { dir =>
       val checkpointLocation = dir.getCanonicalPath
       assert(!checkpointLocation.startsWith("file:/"))
-      val query = MemoryStream[Int].toDF()
+      val query = MemoryStream[Int].toDF
         .writeStream
         .option("checkpointLocation", checkpointLocation)
         .format("console")

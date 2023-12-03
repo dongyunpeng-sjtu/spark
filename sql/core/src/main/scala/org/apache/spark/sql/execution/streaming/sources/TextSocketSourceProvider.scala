@@ -98,9 +98,6 @@ class TextSocketTable(host: String, port: Int, numPartitions: Int, includeTimest
     override def toContinuousStream(checkpointLocation: String): ContinuousStream = {
       new TextSocketContinuousStream(host, port, numPartitions, options)
     }
-
-    override def columnarSupportMode(): Scan.ColumnarSupportMode =
-      Scan.ColumnarSupportMode.UNSUPPORTED
   }
 }
 

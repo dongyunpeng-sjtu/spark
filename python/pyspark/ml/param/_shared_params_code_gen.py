@@ -42,7 +42,6 @@ _type_for_type_converter = {
     "TypeConverters.toFloat": "float",
     "TypeConverters.toInt": "int",
     "TypeConverters.toListFloat": "List[float]",
-    "TypeConverters.toListInt": "List[int]",
     "TypeConverters.toListString": "List[str]",
     "TypeConverters.toString": "str",
 }
@@ -356,12 +355,6 @@ if __name__ == "__main__":
             "momentum for training optimizer",
             None,
             "TypeConverters.toFloat",
-        ),
-        (
-            "featureSizes",
-            "input feature size list for input columns of vector assembler",
-            None,
-            "TypeConverters.toListInt",
         ),
     ]
 

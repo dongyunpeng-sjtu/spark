@@ -17,8 +17,6 @@
 
 package org.apache.spark.sql.execution
 
-import scala.collection.BufferedIterator
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.expressions.codegen.{GenerateOrdering, GenerateUnsafeProjection}
@@ -96,7 +94,7 @@ class GroupedIterator private(
    * because we will consume the input data to skip to next group while fetching a new iterator,
    * thus make the previous iterator empty.
    */
-  def hasNext: Boolean = currentIterator != null || fetchNextGroupIterator()
+  def hasNext: Boolean = currentIterator != null || fetchNextGroupIterator
 
   def next(): (InternalRow, Iterator[InternalRow]) = {
     assert(hasNext) // Ensure we have fetched the next iterator.

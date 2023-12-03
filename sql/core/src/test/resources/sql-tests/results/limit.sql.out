@@ -52,7 +52,6 @@ struct<>
 org.apache.spark.sql.catalyst.ExtendedAnalysisException
 {
   "errorClass" : "INVALID_LIMIT_LIKE_EXPRESSION.IS_NEGATIVE",
-  "sqlState" : "42K0E",
   "messageParameters" : {
     "expr" : "\"-1\"",
     "name" : "limit",
@@ -76,7 +75,6 @@ struct<>
 org.apache.spark.sql.catalyst.ExtendedAnalysisException
 {
   "errorClass" : "INVALID_LIMIT_LIKE_EXPRESSION.IS_NEGATIVE",
-  "sqlState" : "42K0E",
   "messageParameters" : {
     "expr" : "\"-1\"",
     "name" : "limit",
@@ -108,7 +106,6 @@ struct<>
 org.apache.spark.sql.catalyst.ExtendedAnalysisException
 {
   "errorClass" : "INVALID_LIMIT_LIKE_EXPRESSION.IS_NULL",
-  "sqlState" : "42K0E",
   "messageParameters" : {
     "expr" : "\"CAST(NULL AS INT)\"",
     "name" : "limit"
@@ -131,7 +128,6 @@ struct<>
 org.apache.spark.sql.catalyst.ExtendedAnalysisException
 {
   "errorClass" : "INVALID_LIMIT_LIKE_EXPRESSION.IS_UNFOLDABLE",
-  "sqlState" : "42K0E",
   "messageParameters" : {
     "expr" : "\"(key > 3)\"",
     "name" : "limit"
@@ -154,7 +150,6 @@ struct<>
 org.apache.spark.sql.catalyst.ExtendedAnalysisException
 {
   "errorClass" : "INVALID_LIMIT_LIKE_EXPRESSION.DATA_TYPE",
-  "sqlState" : "42K0E",
   "messageParameters" : {
     "dataType" : "\"BOOLEAN\"",
     "expr" : "\"true\"",
@@ -171,7 +166,6 @@ struct<>
 org.apache.spark.sql.catalyst.ExtendedAnalysisException
 {
   "errorClass" : "INVALID_LIMIT_LIKE_EXPRESSION.DATA_TYPE",
-  "sqlState" : "42K0E",
   "messageParameters" : {
     "dataType" : "\"STRING\"",
     "expr" : "\"a\"",

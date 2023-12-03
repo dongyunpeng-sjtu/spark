@@ -34,8 +34,6 @@ groups = {
     "math_funcs", "conditional_funcs", "generator_funcs",
     "predicate_funcs", "string_funcs", "misc_funcs",
     "bitwise_funcs", "conversion_funcs", "csv_funcs",
-    "xml_funcs", "lambda_funcs", "collection_funcs",
-    "url_funcs", "hash_funcs", "struct_funcs",
 }
 
 
@@ -52,19 +50,13 @@ def _list_grouped_function_infos(jvm):
         name = jinfo.getName()
         if (name == "raise_error"):
             continue
-
-        # SPARK-45232: convert lambda_funcs to collection_funcs in doc generation
-        group = jinfo.getGroup()
-        if group == "lambda_funcs":
-            group = "collection_funcs"
-
         usage = jinfo.getUsage()
         usage = usage.replace("_FUNC_", name) if usage is not None else usage
         infos.append(ExpressionInfo(
             name=name,
             usage=usage,
             examples=jinfo.getExamples().replace("_FUNC_", name),
-            group=group))
+            group=jinfo.getGroup()))
 
     # Groups expression info by each group value
     grouped_infos = itertools.groupby(sorted(infos, key=lambda x: x.group), key=lambda x: x.group)

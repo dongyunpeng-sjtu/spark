@@ -88,7 +88,7 @@ class StreamingListenerTestsMixin:
         except Exception:
             self.fail("'%s' is not in ISO 8601 format.")
         self.assertTrue(isinstance(progress.batchId, int))
-        self.assertTrue(isinstance(progress.batchDuration, int))
+        self.assertTrue(progress.batchDuration is None or isinstance(progress.batchDuration, int))
         self.assertTrue(isinstance(progress.durationMs, dict))
         self.assertTrue(
             set(progress.durationMs.keys()).issubset(
@@ -251,23 +251,7 @@ class StreamingListenerTests(StreamingListenerTestsMixin, ReusedSQLTestCase):
         progress_event = None
         terminated_event = None
 
-        # V1: Initial interface of StreamingQueryListener containing methods `onQueryStarted`,
-        # `onQueryProgress`, `onQueryTerminated`. It is prior to Spark 3.5.
-        class TestListenerV1(StreamingQueryListener):
-            def onQueryStarted(self, event):
-                nonlocal start_event
-                start_event = event
-
-            def onQueryProgress(self, event):
-                nonlocal progress_event
-                progress_event = event
-
-            def onQueryTerminated(self, event):
-                nonlocal terminated_event
-                terminated_event = event
-
-        # V2: The interface after the method `onQueryIdle` is added. It is Spark 3.5+.
-        class TestListenerV2(StreamingQueryListener):
+        class TestListener(StreamingQueryListener):
             def onQueryStarted(self, event):
                 nonlocal start_event
                 start_event = event
@@ -283,71 +267,48 @@ class StreamingListenerTests(StreamingListenerTestsMixin, ReusedSQLTestCase):
                 nonlocal terminated_event
                 terminated_event = event
 
-        def verify(test_listener):
-            nonlocal start_event
-            nonlocal progress_event
-            nonlocal terminated_event
+        test_listener = TestListener()
 
-            start_event = None
-            progress_event = None
-            terminated_event = None
+        try:
+            self.spark.streams.addListener(test_listener)
 
-            try:
-                self.spark.streams.addListener(test_listener)
+            df = self.spark.readStream.format("rate").option("rowsPerSecond", 10).load()
 
-                df = self.spark.readStream.format("rate").option("rowsPerSecond", 10).load()
+            # check successful stateful query
+            df_stateful = df.groupBy().count()  # make query stateful
+            q = (
+                df_stateful.writeStream.format("noop")
+                .queryName("test")
+                .outputMode("complete")
+                .start()
+            )
+            self.assertTrue(q.isActive)
+            time.sleep(10)
+            q.stop()
 
-                # check successful stateful query
-                df_stateful = df.groupBy().count()  # make query stateful
-                q = (
-                    df_stateful.writeStream.format("noop")
-                    .queryName("test")
-                    .outputMode("complete")
-                    .start()
-                )
-                self.assertTrue(q.isActive)
-                time.sleep(10)
-                q.stop()
+            # Make sure all events are empty
+            self.spark.sparkContext._jsc.sc().listenerBus().waitUntilEmpty()
 
-                # Make sure all events are empty
-                self.spark.sparkContext._jsc.sc().listenerBus().waitUntilEmpty()
+            self.check_start_event(start_event)
+            self.check_progress_event(progress_event)
+            self.check_terminated_event(terminated_event)
 
-                self.check_start_event(start_event)
-                self.check_progress_event(progress_event)
-                self.check_terminated_event(terminated_event)
+            # Check query terminated with exception
+            from pyspark.sql.functions import col, udf
 
-                # Check query terminated with exception
-                from pyspark.sql.functions import col, udf
+            bad_udf = udf(lambda x: 1 / 0)
+            q = df.select(bad_udf(col("value"))).writeStream.format("noop").start()
+            time.sleep(5)
+            q.stop()
+            self.spark.sparkContext._jsc.sc().listenerBus().waitUntilEmpty()
+            self.check_terminated_event(terminated_event, "ZeroDivisionError")
 
-                bad_udf = udf(lambda x: 1 / 0)
-                q = df.select(bad_udf(col("value"))).writeStream.format("noop").start()
-                time.sleep(5)
-                q.stop()
-                self.spark.sparkContext._jsc.sc().listenerBus().waitUntilEmpty()
-                self.check_terminated_event(terminated_event, "ZeroDivisionError")
-
-            finally:
-                self.spark.streams.removeListener(test_listener)
-
-        verify(TestListenerV1())
-        verify(TestListenerV2())
+        finally:
+            self.spark.streams.removeListener(test_listener)
 
     def test_remove_listener(self):
         # SPARK-38804: Test StreamingQueryManager.removeListener
-        # V1: Initial interface of StreamingQueryListener containing methods `onQueryStarted`,
-        # `onQueryProgress`, `onQueryTerminated`. It is prior to Spark 3.5.
-        class TestListenerV1(StreamingQueryListener):
-            def onQueryStarted(self, event):
-                pass
-
-            def onQueryProgress(self, event):
-                pass
-
-            def onQueryTerminated(self, event):
-                pass
-
-        # V2: The interface after the method `onQueryIdle` is added. It is Spark 3.5+.
-        class TestListenerV2(StreamingQueryListener):
+        class TestListener(StreamingQueryListener):
             def onQueryStarted(self, event):
                 pass
 
@@ -360,15 +321,13 @@ class StreamingListenerTests(StreamingListenerTestsMixin, ReusedSQLTestCase):
             def onQueryTerminated(self, event):
                 pass
 
-        def verify(test_listener):
-            num_listeners = len(self.spark.streams._jsqm.listListeners())
-            self.spark.streams.addListener(test_listener)
-            self.assertEqual(num_listeners + 1, len(self.spark.streams._jsqm.listListeners()))
-            self.spark.streams.removeListener(test_listener)
-            self.assertEqual(num_listeners, len(self.spark.streams._jsqm.listListeners()))
+        test_listener = TestListener()
 
-        verify(TestListenerV1())
-        verify(TestListenerV2())
+        num_listeners = len(self.spark.streams._jsqm.listListeners())
+        self.spark.streams.addListener(test_listener)
+        self.assertEqual(num_listeners + 1, len(self.spark.streams._jsqm.listListeners()))
+        self.spark.streams.removeListener(test_listener)
+        self.assertEqual(num_listeners, len(self.spark.streams._jsqm.listListeners()))
 
     def test_query_started_event_fromJson(self):
         start_event = """

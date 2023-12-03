@@ -16,9 +16,9 @@
  */
 package org.apache.spark.sql.errors
 
-import org.apache.spark.{QueryContext, SparkArithmeticException, SparkException, SparkIllegalArgumentException, SparkNumberFormatException, SparkRuntimeException, SparkUnsupportedOperationException}
+import org.apache.spark.{SparkArithmeticException, SparkException, SparkIllegalArgumentException, SparkNumberFormatException, SparkRuntimeException, SparkUnsupportedOperationException}
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalyst.trees.Origin
+import org.apache.spark.sql.catalyst.trees.{Origin, SQLQueryContext}
 import org.apache.spark.sql.catalyst.util.QuotingUtils
 import org.apache.spark.sql.catalyst.util.QuotingUtils.toSQLSchema
 import org.apache.spark.sql.types.{DataType, Decimal, StringType}
@@ -191,23 +191,23 @@ private[sql] object DataTypeErrors extends DataTypeErrorsBase {
       value: Decimal,
       decimalPrecision: Int,
       decimalScale: Int,
-      context: QueryContext = null): ArithmeticException = {
-    numericValueOutOfRange(value, decimalPrecision, decimalScale, context)
+      context: SQLQueryContext = null): ArithmeticException = {
+    new SparkArithmeticException(
+      errorClass = "NUMERIC_VALUE_OUT_OF_RANGE",
+      messageParameters = Map(
+        "value" -> value.toPlainString,
+        "precision" -> decimalPrecision.toString,
+        "scale" -> decimalScale.toString,
+        "config" -> toSQLConf("spark.sql.ansi.enabled")),
+      context = getQueryContext(context),
+      summary = getSummary(context))
   }
 
   def cannotChangeDecimalPrecisionError(
       value: Decimal,
       decimalPrecision: Int,
       decimalScale: Int,
-      context: QueryContext = null): ArithmeticException = {
-    numericValueOutOfRange(value, decimalPrecision, decimalScale, context)
-  }
-
-  private def numericValueOutOfRange(
-      value: Decimal,
-      decimalPrecision: Int,
-      decimalScale: Int,
-      context: QueryContext): ArithmeticException = {
+      context: SQLQueryContext = null): ArithmeticException = {
     new SparkArithmeticException(
       errorClass = "NUMERIC_VALUE_OUT_OF_RANGE",
       messageParameters = Map(
@@ -222,7 +222,7 @@ private[sql] object DataTypeErrors extends DataTypeErrorsBase {
   def invalidInputInCastToNumberError(
       to: DataType,
       s: UTF8String,
-      context: QueryContext): SparkNumberFormatException = {
+      context: SQLQueryContext): SparkNumberFormatException = {
     val convertedValueStr = "'" + s.toString.replace("\\", "\\\\").replace("'", "\\'") + "'"
     new SparkNumberFormatException(
       errorClass = "CAST_INVALID_INPUT",

@@ -19,10 +19,10 @@ package org.apache.spark.network.protocol;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 /**
  * Tests for {@link Encoders}.
@@ -39,13 +39,12 @@ public class EncodersSuite {
     assertEquals(bitmap, decodedBitmap);
   }
 
-  @Test
+  @Test (expected = java.nio.BufferOverflowException.class)
   public void testRoaringBitmapEncodeShouldFailWhenBufferIsSmall() {
     RoaringBitmap bitmap = new RoaringBitmap();
     bitmap.add(1, 2, 3);
     ByteBuf buf = Unpooled.buffer(4);
-    assertThrows(java.nio.BufferOverflowException.class,
-      () -> Encoders.Bitmaps.encode(buf, bitmap));
+    Encoders.Bitmaps.encode(buf, bitmap);
   }
 
   @Test

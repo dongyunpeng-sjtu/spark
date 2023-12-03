@@ -23,8 +23,8 @@ import java.util
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -78,8 +78,7 @@ object JdbcUtils extends Logging with SQLConfHelper {
    * Drops a table from the JDBC database.
    */
   def dropTable(conn: Connection, table: String, options: JDBCOptions): Unit = {
-    val dialect = JdbcDialects.get(options.url)
-    executeStatement(conn, options, dialect.dropTable(table))
+    executeStatement(conn, options, s"DROP TABLE $table")
   }
 
   /**
@@ -115,19 +114,22 @@ object JdbcUtils extends Logging with SQLConfHelper {
       isCaseSensitive: Boolean,
       dialect: JdbcDialect): String = {
     val columns = if (tableSchema.isEmpty) {
-      rddSchema.fields
+      rddSchema.fields.map(x => dialect.quoteIdentifier(x.name)).mkString(",")
     } else {
       // The generated insert statement needs to follow rddSchema's column sequence and
       // tableSchema's column names. When appending data into some case-sensitive DBMSs like
       // PostgreSQL/Oracle, we need to respect the existing case-sensitive column names instead of
       // RDD column names for user convenience.
+      val tableColumnNames = tableSchema.get.fieldNames
       rddSchema.fields.map { col =>
-        tableSchema.get.find(f => conf.resolver(f.name, col.name)).getOrElse {
+        val normalizedName = tableColumnNames.find(f => conf.resolver(f, col.name)).getOrElse {
           throw QueryCompilationErrors.columnNotFoundInSchemaError(col, tableSchema)
         }
-      }
+        dialect.quoteIdentifier(normalizedName)
+      }.mkString(",")
     }
-    dialect.insertIntoTable(table, columns)
+    val placeholders = rddSchema.fields.map(_ => "?").mkString(",")
+    s"INSERT INTO $table ($columns) VALUES ($placeholders)"
   }
 
   /**
@@ -896,7 +898,7 @@ object JdbcUtils extends Logging with SQLConfHelper {
       case Some(n) if n < df.rdd.getNumPartitions => df.coalesce(n)
       case _ => df
     }
-    repartitionedDF.foreachPartition { iterator => savePartition(
+    repartitionedDF.rdd.foreachPartition { iterator => savePartition(
       table, iterator, rddSchema, insertStmt, batchSize, dialect, isolationLevel, options)
     }
   }

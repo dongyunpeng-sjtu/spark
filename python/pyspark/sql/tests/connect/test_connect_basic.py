@@ -62,7 +62,6 @@ from pyspark.errors.exceptions.connect import (
     AnalysisException,
     ParseException,
     SparkConnectException,
-    SparkUpgradeException,
 )
 
 if should_test_connect:
@@ -302,62 +301,6 @@ class SparkConnectBasicTests(SparkConnectSQLTestCase):
                 self.connect.read.json(path=d, primitivesAsString=True).toPandas(),
                 self.spark.read.json(path=d, primitivesAsString=True).toPandas(),
             )
-
-    def test_xml(self):
-        tmpPath = tempfile.mkdtemp()
-        shutil.rmtree(tmpPath)
-        xsdPath = tempfile.mkdtemp()
-        xsdString = """<?xml version="1.0" encoding="UTF-8" ?>
-          <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-            <xs:element name="person">
-              <xs:complexType>
-                <xs:sequence>
-                  <xs:element name="name" type="xs:string" />
-                  <xs:element name="age" type="xs:long" />
-                </xs:sequence>
-              </xs:complexType>
-            </xs:element>
-          </xs:schema>"""
-        try:
-            xsdFile = os.path.join(xsdPath, "people.xsd")
-            with open(xsdFile, "w") as f:
-                _ = f.write(xsdString)
-            df = self.spark.createDataFrame([("Hyukjin", 100), ("Aria", 101), ("Arin", 102)]).toDF(
-                "name", "age"
-            )
-            df.write.xml(tmpPath, rootTag="people", rowTag="person")
-            people = self.spark.read.xml(tmpPath, rowTag="person", rowValidationXSDPath=xsdFile)
-            peopleConnect = self.connect.read.xml(
-                tmpPath, rowTag="person", rowValidationXSDPath=xsdFile
-            )
-            self.assert_eq(people.toPandas(), peopleConnect.toPandas())
-            expected = [
-                Row(age=100, name="Hyukjin"),
-                Row(age=101, name="Aria"),
-                Row(age=102, name="Arin"),
-            ]
-            expectedSchema = StructType(
-                [StructField("age", LongType(), True), StructField("name", StringType(), True)]
-            )
-
-            self.assertEqual(people.sort("age").collect(), expected)
-            self.assertEqual(people.schema, expectedSchema)
-
-            for schema in [
-                "age INT, name STRING",
-                expectedSchema,
-            ]:
-                people = self.spark.read.xml(
-                    tmpPath, rowTag="person", rowValidationXSDPath=xsdFile, schema=schema
-                )
-                peopleConnect = self.connect.read.xml(
-                    tmpPath, rowTag="person", rowValidationXSDPath=xsdFile, schema=schema
-                )
-                self.assert_eq(people.toPandas(), peopleConnect.toPandas())
-
-        finally:
-            shutil.rmtree(tmpPath)
-            shutil.rmtree(xsdPath)
 
     def test_parquet(self):
         # SPARK-41445: Implement DataFrameReader.parquet
@@ -1294,17 +1237,13 @@ class SparkConnectBasicTests(SparkConnectSQLTestCase):
         self.assertEqual(1, len(pdf.index))
 
     def test_sql_with_named_args(self):
-        sqlText = "SELECT *, element_at(:m, 'a') FROM range(10) WHERE id > :minId"
-        df = self.connect.sql(
-            sqlText, args={"minId": 7, "m": CF.create_map(CF.lit("a"), CF.lit(1))}
-        )
-        df2 = self.spark.sql(sqlText, args={"minId": 7, "m": SF.create_map(SF.lit("a"), SF.lit(1))})
+        df = self.connect.sql("SELECT * FROM range(10) WHERE id > :minId", args={"minId": 7})
+        df2 = self.spark.sql("SELECT * FROM range(10) WHERE id > :minId", args={"minId": 7})
         self.assert_eq(df.toPandas(), df2.toPandas())
 
     def test_sql_with_pos_args(self):
-        sqlText = "SELECT *, element_at(?, 1) FROM range(10) WHERE id > ?"
-        df = self.connect.sql(sqlText, args=[CF.array(CF.lit(1)), 7])
-        df2 = self.spark.sql(sqlText, args=[SF.array(SF.lit(1)), 7])
+        df = self.connect.sql("SELECT * FROM range(10) WHERE id > ?", args=[7])
+        df2 = self.spark.sql("SELECT * FROM range(10) WHERE id > ?", args=[7])
         self.assert_eq(df.toPandas(), df2.toPandas())
 
     def test_head(self):
@@ -1789,16 +1728,14 @@ class SparkConnectBasicTests(SparkConnectSQLTestCase):
             .toPandas(),
         )
 
-        from pyspark.sql.connect.observation import Observation as ConnectObservation
         from pyspark.sql.observation import Observation
 
-        cobservation = ConnectObservation(observation_name)
         observation = Observation(observation_name)
 
         cdf = (
             self.connect.read.table(self.tbl_name)
             .filter("id > 3")
-            .observe(cobservation, CF.min("id"), CF.max("id"), CF.sum("id"))
+            .observe(observation, CF.min("id"), CF.max("id"), CF.sum("id"))
             .toPandas()
         )
         df = (
@@ -1809,8 +1746,6 @@ class SparkConnectBasicTests(SparkConnectSQLTestCase):
         )
 
         self.assert_eq(cdf, df)
-
-        self.assert_eq(cobservation.get, observation.get)
 
         observed_metrics = cdf.attrs["observed_metrics"]
         self.assert_eq(len(observed_metrics), 1)
@@ -1965,7 +1900,7 @@ class SparkConnectBasicTests(SparkConnectSQLTestCase):
             error_class="INVALID_ITEM_FOR_CONTAINER",
             message_parameters={
                 "arg_name": "parameters",
-                "allowed_types": "str, float, int, Column, list[str], list[float], list[int]",
+                "allowed_types": "str, list, float, int",
                 "item_type": "dict",
             },
         )
@@ -3097,11 +3032,27 @@ class SparkConnectBasicTests(SparkConnectSQLTestCase):
         # SPARK-41225: Disable unsupported functions.
         df = self.connect.read.table(self.tbl_name)
         for f in (
+            "rdd",
+            "foreach",
+            "foreachPartition",
             "checkpoint",
             "localCheckpoint",
         ):
             with self.assertRaises(NotImplementedError):
                 getattr(df, f)()
+
+    def test_unsupported_session_functions(self):
+        # SPARK-41934: Disable unsupported functions.
+
+        with self.assertRaises(NotImplementedError):
+            RemoteSparkSession.builder.enableHiveSupport()
+
+        for f in (
+            "newSession",
+            "sparkContext",
+        ):
+            with self.assertRaises(NotImplementedError):
+                getattr(self.connect, f)()
 
     def test_sql_with_command(self):
         # SPARK-42705: spark.sql should return values from the command.
@@ -3343,71 +3294,22 @@ class SparkConnectSessionTests(ReusedConnectTestCase):
             self.spark.conf.get("some.conf")
         self._check_no_active_session_error(e.exception)
 
-    def test_error_enrichment_message(self):
-        with self.sql_conf(
-            {
-                "spark.sql.connect.enrichError.enabled": True,
-                "spark.sql.connect.serverStacktrace.enabled": False,
-                "spark.sql.pyspark.jvmStacktrace.enabled": False,
-            }
-        ):
-            name = "test" * 10000
-            with self.assertRaises(AnalysisException) as e:
-                self.spark.sql("select " + name).collect()
-            self.assertTrue(name in e.exception.message)
-            self.assertFalse("JVM stacktrace" in e.exception.message)
-
-    def test_error_enrichment_jvm_stacktrace(self):
-        with self.sql_conf(
-            {
-                "spark.sql.connect.enrichError.enabled": True,
-                "spark.sql.pyspark.jvmStacktrace.enabled": False,
-            }
-        ):
-            with self.sql_conf({"spark.sql.connect.serverStacktrace.enabled": False}):
-                with self.assertRaises(SparkUpgradeException) as e:
-                    self.spark.sql(
-                        """select from_json(
-                            '{"d": "02-29"}', 'd date', map('dateFormat', 'MM-dd'))"""
-                    ).collect()
-                self.assertFalse("JVM stacktrace" in e.exception.message)
-
-            with self.sql_conf({"spark.sql.connect.serverStacktrace.enabled": True}):
-                with self.assertRaises(SparkUpgradeException) as e:
-                    self.spark.sql(
-                        """select from_json(
-                            '{"d": "02-29"}', 'd date', map('dateFormat', 'MM-dd'))"""
-                    ).collect()
-                self.assertTrue("JVM stacktrace" in e.exception.message)
-                self.assertTrue("org.apache.spark.SparkUpgradeException:" in e.exception.message)
-                self.assertTrue(
-                    "at org.apache.spark.sql.errors.ExecutionErrors"
-                    ".failToParseDateTimeInNewParserError" in e.exception.message
-                )
-                self.assertTrue("Caused by: java.time.DateTimeException:" in e.exception.message)
-
-    def test_not_hitting_netty_header_limit(self):
-        with self.sql_conf({"spark.sql.pyspark.jvmStacktrace.enabled": True}):
-            with self.assertRaises(AnalysisException):
-                self.spark.sql("select " + "test" * 10000).collect()
-
     def test_error_stack_trace(self):
-        with self.sql_conf({"spark.sql.connect.enrichError.enabled": False}):
-            with self.sql_conf({"spark.sql.pyspark.jvmStacktrace.enabled": True}):
-                with self.assertRaises(AnalysisException) as e:
-                    self.spark.sql("select x").collect()
-                self.assertTrue("JVM stacktrace" in e.exception.message)
-                self.assertTrue(
-                    "at org.apache.spark.sql.catalyst.analysis.CheckAnalysis" in e.exception.message
-                )
+        with self.sql_conf({"spark.sql.pyspark.jvmStacktrace.enabled": True}):
+            with self.assertRaises(AnalysisException) as e:
+                self.spark.sql("select x").collect()
+            self.assertTrue("JVM stacktrace" in e.exception.message)
+            self.assertTrue(
+                "at org.apache.spark.sql.catalyst.analysis.CheckAnalysis" in e.exception.message
+            )
 
-            with self.sql_conf({"spark.sql.pyspark.jvmStacktrace.enabled": False}):
-                with self.assertRaises(AnalysisException) as e:
-                    self.spark.sql("select x").collect()
-                self.assertFalse("JVM stacktrace" in e.exception.message)
-                self.assertFalse(
-                    "at org.apache.spark.sql.catalyst.analysis.CheckAnalysis" in e.exception.message
-                )
+        with self.sql_conf({"spark.sql.pyspark.jvmStacktrace.enabled": False}):
+            with self.assertRaises(AnalysisException) as e:
+                self.spark.sql("select x").collect()
+            self.assertFalse("JVM stacktrace" in e.exception.message)
+            self.assertFalse(
+                "at org.apache.spark.sql.catalyst.analysis.CheckAnalysis" in e.exception.message
+            )
 
         # Create a new session with a different stack trace size.
         self.spark.stop()
@@ -3417,8 +3319,7 @@ class SparkConnectSessionTests(ReusedConnectTestCase):
             .remote("local[4]")
             .getOrCreate()
         )
-        spark.conf.set("spark.sql.connect.enrichError.enabled", False)
-        spark.conf.set("spark.sql.pyspark.jvmStacktrace.enabled", True)
+        spark.conf.set("spark.sql.pyspark.jvmStacktrace.enabled", "true")
         with self.assertRaises(AnalysisException) as e:
             spark.sql("select x").collect()
         self.assertTrue("JVM stacktrace" in e.exception.message)

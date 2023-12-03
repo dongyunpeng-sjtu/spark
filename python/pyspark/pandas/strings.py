@@ -18,6 +18,7 @@
 """
 String functions on pandas-on-Spark Series
 """
+import warnings
 from typing import (
     Any,
     Callable,
@@ -30,12 +31,14 @@ from typing import (
 )
 
 import numpy as np
-import pandas as pd
 
+import pandas as pd
 from pyspark.sql.types import StringType, BinaryType, ArrayType, LongType, MapType
 from pyspark.sql import functions as F
 from pyspark.sql.functions import pandas_udf
+
 import pyspark.pandas as ps
+from pyspark.pandas.spark import functions as SF
 
 
 class StringMethods:
@@ -1155,7 +1158,6 @@ class StringMethods:
         2    [b, b]
         dtype: object
         """
-
         # type hint does not support to specify array type yet.
         @pandas_udf(  # type: ignore[call-overload]
             returnType=ArrayType(StringType(), containsNull=True)
@@ -1505,7 +1507,7 @@ class StringMethods:
         """
         if not isinstance(repeats, int):
             raise TypeError("repeats expects an int parameter")
-        return self._data.spark.transform(lambda c: F.repeat(col=c, n=repeats))
+        return self._data.spark.transform(lambda c: SF.repeat(col=c, n=repeats))
 
     def replace(
         self,
@@ -1514,7 +1516,7 @@ class StringMethods:
         n: int = -1,
         case: Optional[bool] = None,
         flags: int = 0,
-        regex: bool = False,
+        regex: bool = True,
     ) -> "ps.Series":
         """
         Replace occurrences of pattern/regex in the Series with some other
@@ -1578,7 +1580,7 @@ class StringMethods:
         Reverse every lowercase alphabetic word:
 
         >>> repl = lambda m: m.group(0)[::-1]
-        >>> ps.Series(['foo 123', 'bar baz', np.nan]).str.replace('[a-z]+', repl, regex=True)
+        >>> ps.Series(['foo 123', 'bar baz', np.nan]).str.replace(r'[a-z]+', repl)
         0    oof 123
         1    rab zab
         2       None
@@ -1586,9 +1588,9 @@ class StringMethods:
 
         Using regex groups (extract second group and swap case):
 
-        >>> pat = "(?P<one>\\w+) (?P<two>\\w+) (?P<three>\\w+)"
+        >>> pat = r"(?P<one>\\w+) (?P<two>\\w+) (?P<three>\\w+)"
         >>> repl = lambda m: m.group('two').swapcase()
-        >>> ps.Series(['One Two Three', 'Foo Bar Baz']).str.replace(pat, repl, regex=True)
+        >>> ps.Series(['One Two Three', 'Foo Bar Baz']).str.replace(pat, repl)
         0    tWO
         1    bAR
         dtype: object
@@ -1596,13 +1598,17 @@ class StringMethods:
         Using a compiled regex with flags:
 
         >>> import re
-        >>> regex_pat = re.compile('FUZ', flags=re.IGNORECASE)
-        >>> ps.Series(['foo', 'fuz', np.nan]).str.replace(regex_pat, 'bar', regex=True)
+        >>> regex_pat = re.compile(r'FUZ', flags=re.IGNORECASE)
+        >>> ps.Series(['foo', 'fuz', np.nan]).str.replace(regex_pat, 'bar')
         0     foo
         1     bar
         2    None
         dtype: object
         """
+        warnings.warn(
+            "Default value of `regex` will be changed to `False` instead of `True` in 4.0.0.",
+            FutureWarning,
+        )
 
         def pandas_replace(s) -> ps.Series[str]:  # type: ignore[no-untyped-def]
             return s.str.replace(pat, repl, n=n, case=case, flags=flags, regex=regex)
@@ -2021,7 +2027,7 @@ class StringMethods:
 
         @pandas_udf(returnType=return_type)  # type: ignore[call-overload]
         def pudf(s: pd.Series) -> pd.Series:
-            return s.str.split(pat, n=n)
+            return s.str.split(pat, n)
 
         psser = self._data._with_new_scol(
             pudf(self._data.spark.column).alias(self._data._internal.data_spark_column_names[0]),
@@ -2168,7 +2174,7 @@ class StringMethods:
 
         @pandas_udf(returnType=return_type)  # type: ignore[call-overload]
         def pudf(s: pd.Series) -> pd.Series:
-            return s.str.rsplit(pat, n=n)
+            return s.str.rsplit(pat, n)
 
         psser = self._data._with_new_scol(
             pudf(self._data.spark.column).alias(self._data._internal.data_spark_column_names[0]),

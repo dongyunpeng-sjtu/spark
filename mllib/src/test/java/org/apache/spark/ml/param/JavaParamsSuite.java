@@ -19,8 +19,8 @@ package org.apache.spark.ml.param;
 
 import java.util.Arrays;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
  * Test Param and related classes in Java
@@ -30,11 +30,11 @@ public class JavaParamsSuite {
   @Test
   public void testParams() {
     JavaTestParams testParams = new JavaTestParams();
-    Assertions.assertEquals(1, testParams.getMyIntParam());
+    Assert.assertEquals(1, testParams.getMyIntParam());
     testParams.setMyIntParam(2).setMyDoubleParam(0.4).setMyStringParam("a");
-    Assertions.assertEquals(0.4, testParams.getMyDoubleParam(), 0.0);
-    Assertions.assertEquals("a", testParams.getMyStringParam());
-    Assertions.assertArrayEquals(testParams.getMyDoubleArrayParam(), new double[]{1.0, 2.0}, 0.0);
+    Assert.assertEquals(0.4, testParams.getMyDoubleParam(), 0.0);
+    Assert.assertEquals("a", testParams.getMyStringParam());
+    Assert.assertArrayEquals(testParams.getMyDoubleArrayParam(), new double[]{1.0, 2.0}, 0.0);
   }
 
   @Test

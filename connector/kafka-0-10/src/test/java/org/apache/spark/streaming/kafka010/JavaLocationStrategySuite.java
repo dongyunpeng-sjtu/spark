@@ -20,12 +20,12 @@ package org.apache.spark.streaming.kafka010;
 import java.io.Serializable;
 import java.util.*;
 
-import scala.jdk.javaapi.CollectionConverters;
+import scala.collection.JavaConverters;
 
 import org.apache.kafka.common.TopicPartition;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class JavaLocationStrategySuite implements Serializable {
 
@@ -37,22 +37,23 @@ public class JavaLocationStrategySuite implements Serializable {
     final Map<TopicPartition, String> hosts = new HashMap<>();
     hosts.put(tp1, "node1");
     hosts.put(tp2, "node2");
-    final scala.collection.Map<TopicPartition, String> sHosts = CollectionConverters.asScala(hosts);
+    final scala.collection.Map<TopicPartition, String> sHosts =
+      JavaConverters.mapAsScalaMapConverter(hosts).asScala();
 
     // make sure constructors can be called from java
     final LocationStrategy c1 = LocationStrategies.PreferConsistent();
     final LocationStrategy c2 = LocationStrategies.PreferConsistent();
-    Assertions.assertSame(c1, c2);
+    Assert.assertSame(c1, c2);
 
     final LocationStrategy c3 = LocationStrategies.PreferBrokers();
     final LocationStrategy c4 = LocationStrategies.PreferBrokers();
-    Assertions.assertSame(c3, c4);
+    Assert.assertSame(c3, c4);
 
-    Assertions.assertNotSame(c1, c3);
+    Assert.assertNotSame(c1, c3);
 
     final LocationStrategy c5 = LocationStrategies.PreferFixed(hosts);
     final LocationStrategy c6 = LocationStrategies.PreferFixed(sHosts);
-    Assertions.assertEquals(c5, c6);
+    Assert.assertEquals(c5, c6);
   }
 
 }

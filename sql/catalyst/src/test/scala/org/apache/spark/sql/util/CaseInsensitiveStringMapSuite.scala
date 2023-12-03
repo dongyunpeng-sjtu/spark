@@ -19,7 +19,7 @@ package org.apache.spark.sql.util
 
 import java.util
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkFunSuite
 

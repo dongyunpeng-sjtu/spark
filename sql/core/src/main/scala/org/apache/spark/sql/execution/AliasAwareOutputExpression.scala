@@ -42,7 +42,7 @@ trait PartitioningPreservingUnaryExecNode extends UnaryExecNode
           projectExpression(e)
             .filter(e => partitioningSet.add(e.canonicalized))
             .take(aliasCandidateLimit)
-            .asInstanceOf[LazyList[Partitioning]]
+            .asInstanceOf[Stream[Partitioning]]
         case o => Seq(o)
       }
     } else {

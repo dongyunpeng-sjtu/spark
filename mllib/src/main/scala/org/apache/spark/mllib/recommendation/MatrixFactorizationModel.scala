@@ -295,7 +295,7 @@ object MatrixFactorizationModel extends Loader[MatrixFactorizationModel] {
       srcFeatures: RDD[(Int, Array[Double])],
       dstFeatures: RDD[(Int, Array[Double])],
       num: Int): RDD[(Int, Array[(Int, Double)])] = {
-    import scala.jdk.CollectionConverters._
+    import scala.collection.JavaConverters._
     val srcBlocks = blockify(srcFeatures)
     val dstBlocks = blockify(dstFeatures)
 

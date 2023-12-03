@@ -17,7 +17,9 @@
 
 import unittest
 from collections import defaultdict
+from distutils.version import LooseVersion
 import inspect
+
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -26,13 +28,20 @@ from pyspark.ml.linalg import SparseVector
 
 from pyspark import pandas as ps
 from pyspark.testing.pandasutils import (
+    have_tabulate,
     PandasOnSparkTestCase,
     SPARK_CONF_ARROW_ENABLED,
+    tabulate_requirement_message,
 )
 from pyspark.testing.sqlutils import SQLTestUtils
 from pyspark.pandas.exceptions import PandasNotImplementedError
 from pyspark.pandas.missing.series import MissingPandasLikeSeries
-from pyspark.pandas.typedef.typehints import extension_object_dtypes_available
+from pyspark.pandas.typedef.typehints import (
+    extension_dtypes,
+    extension_dtypes_available,
+    extension_float_dtypes_available,
+    extension_object_dtypes_available,
+)
 
 
 class SeriesTestsMixin:
@@ -85,7 +94,11 @@ class SeriesTestsMixin:
         self.assertEqual(s.__repr__(), s.rename("a").__repr__())
 
     def _check_extension(self, psser, pser):
-        self.assert_eq(psser, pser)
+        if LooseVersion("1.1") <= LooseVersion(pd.__version__) < LooseVersion("1.2.2"):
+            self.assert_eq(psser, pser, check_exact=False)
+            self.assertTrue(isinstance(psser.dtype, extension_dtypes))
+        else:
+            self.assert_eq(psser, pser)
 
     def test_empty_series(self):
         pser_a = pd.Series([], dtype="i1")
@@ -99,8 +112,6 @@ class SeriesTestsMixin:
         with self.sql_conf({SPARK_CONF_ARROW_ENABLED: False}):
             self.assert_eq(ps.from_pandas(pser_a), pser_a)
             self.assert_eq(ps.from_pandas(pser_b), pser_b)
-
-        self.assertTrue(pser_a.empty)
 
     def test_all_null_series(self):
         pser_a = pd.Series([None, None, None], dtype="float64")
@@ -324,7 +335,13 @@ class SeriesTestsMixin:
         pser = pd.Series([None, 5, None, 3, 2, 1, None, 0, 0], name="a")
         psser = ps.from_pandas(pser)
 
-        self.assert_eq(psser.isin([1, 5, 0, None]), pser.isin([1, 5, 0, None]))
+        if LooseVersion(pd.__version__) >= LooseVersion("1.2"):
+            self.assert_eq(psser.isin([1, 5, 0, None]), pser.isin([1, 5, 0, None]))
+        else:
+            expected = pd.Series(
+                [False, True, False, False, False, True, False, True, True], name="a"
+            )
+            self.assert_eq(psser.isin([1, 5, 0, None]), expected)
 
     def test_notnull(self):
         pser = pd.Series([1, 2, 3, 4, np.nan, 6], name="x")
@@ -653,11 +670,15 @@ class SeriesTestsMixin:
         with self.assertRaisesRegex(ValueError, "The item should not be empty."):
             psser.filter(items=[(), ("three", "z")])
 
-    def test_items(self):
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43480): Enable SeriesTests.test_iteritems for pandas 2.0.0.",
+    )
+    def test_iteritems(self):
         pser = pd.Series(["A", "B", "C"])
         psser = ps.from_pandas(pser)
 
-        for (p_name, p_items), (k_name, k_items) in zip(pser.items(), psser.items()):
+        for (p_name, p_items), (k_name, k_items) in zip(pser.iteritems(), psser.iteritems()):
             self.assert_eq(p_name, k_name)
             self.assert_eq(p_items, k_items)
 
@@ -671,8 +692,7 @@ class SeriesTestsMixin:
 
         psdf_other = ps.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]}, index=["x", "y", "z"])
         with self.assertRaisesRegex(ValueError, "matrices are not aligned"):
-            with ps.option_context("compute.ops_on_diff_frames", True):
-                psdf["b"].dot(psdf_other)
+            psdf["b"].dot(psdf_other)
 
     def test_tail(self):
         pser = pd.Series(range(1000), name="Koalas")
@@ -744,13 +764,21 @@ class SeriesTestsMixin:
 
         # other = list
         other = [np.nan, 1, 3, 4, np.nan, 6]
-        self.assert_eq(pser.eq(other), psser.eq(other).sort_index())
-        self.assert_eq(pser == other, (psser == other).sort_index())
+        if LooseVersion(pd.__version__) >= LooseVersion("1.2"):
+            self.assert_eq(pser.eq(other), psser.eq(other).sort_index())
+            self.assert_eq(pser == other, (psser == other).sort_index())
+        else:
+            self.assert_eq(pser.eq(other).rename("x"), psser.eq(other).sort_index())
+            self.assert_eq((pser == other).rename("x"), (psser == other).sort_index())
 
         # other = tuple
         other = (np.nan, 1, 3, 4, np.nan, 6)
-        self.assert_eq(pser.eq(other), psser.eq(other).sort_index())
-        self.assert_eq(pser == other, (psser == other).sort_index())
+        if LooseVersion(pd.__version__) >= LooseVersion("1.2"):
+            self.assert_eq(pser.eq(other), psser.eq(other).sort_index())
+            self.assert_eq(pser == other, (psser == other).sort_index())
+        else:
+            self.assert_eq(pser.eq(other).rename("x"), psser.eq(other).sort_index())
+            self.assert_eq((pser == other).rename("x"), (psser == other).sort_index())
 
         # other = list with the different length
         other = [np.nan, 1, 3, 4, np.nan]

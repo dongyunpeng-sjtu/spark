@@ -19,8 +19,6 @@ package org.apache.spark.sql.catalyst.expressions
 
 import java.lang.reflect.{Method, Modifier}
 
-import scala.util.control.NonFatal
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, TypeCheckResult}
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult.{DataTypeMismatch, TypeCheckSuccess}
@@ -57,15 +55,10 @@ import org.apache.spark.util.Utils
   """,
   since = "2.0.0",
   group = "misc_funcs")
-case class CallMethodViaReflection(
-      children: Seq[Expression],
-      failOnError: Boolean = true)
+case class CallMethodViaReflection(children: Seq[Expression])
   extends Nondeterministic
   with CodegenFallback
   with QueryErrorsBase {
-
-  def this(children: Seq[Expression]) =
-    this(children, true)
 
   override def prettyName: String = getTagValue(FunctionRegistry.FUNC_ALIAS).getOrElse("reflect")
 
@@ -80,7 +73,7 @@ case class CallMethodViaReflection(
           DataTypeMismatch(
             errorSubClass = "NON_FOLDABLE_INPUT",
             messageParameters = Map(
-              "inputName" -> toSQLId("class"),
+              "inputName" -> "class",
               "inputType" -> toSQLType(StringType),
               "inputExpr" -> toSQLExpr(children.head)
             )
@@ -93,7 +86,7 @@ case class CallMethodViaReflection(
           DataTypeMismatch(
             errorSubClass = "NON_FOLDABLE_INPUT",
             messageParameters = Map(
-              "inputName" -> toSQLId("method"),
+              "inputName" -> "method",
               "inputType" -> toSQLType(StringType),
               "inputExpr" -> toSQLExpr(children(1))
             )
@@ -148,13 +141,8 @@ case class CallMethodViaReflection(
       }
       i += 1
     }
-    try {
-      val ret = method.invoke(null, buffer : _*)
-      UTF8String.fromString(String.valueOf(ret))
-    } catch {
-      case NonFatal(_) if !failOnError =>
-        null
-    }
+    val ret = method.invoke(null, buffer : _*)
+    UTF8String.fromString(String.valueOf(ret))
   }
 
   @transient private lazy val argExprs: Array[Expression] = children.drop(2).toArray

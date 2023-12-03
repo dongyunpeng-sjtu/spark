@@ -17,6 +17,7 @@
 
 import datetime
 import unittest
+from distutils.version import LooseVersion
 
 import pandas as pd
 import numpy as np
@@ -750,7 +751,9 @@ class BooleanExtensionOpsTest(OpsTestBase):
                 # A pandas boolean extension series cannot be casted to fractional extension dtypes
                 self.assert_eq([1.0, 0.0, np.nan], psser.astype(dtype).tolist())
             elif dtype in self.string_extension_dtype:
-                self.check_extension(pser.astype(dtype), psser.astype(dtype))
+                if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
+                    # Limit pandas version due to https://github.com/pandas-dev/pandas/issues/31204
+                    self.check_extension(pser.astype(dtype), psser.astype(dtype))
             else:
                 self.check_extension(pser.astype(dtype), psser.astype(dtype))
 

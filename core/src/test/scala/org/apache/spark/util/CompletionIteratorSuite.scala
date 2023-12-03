@@ -57,13 +57,13 @@ class CompletionIteratorSuite extends SparkFunSuite {
     sub = null
     iter.toArray
 
-    for (_ <- 1 to 100 if !ref.refersTo(null)) {
+    for (_ <- 1 to 100 if !ref.isEnqueued) {
       System.gc()
-      if (!ref.refersTo(null)) {
+      if (!ref.isEnqueued) {
         Thread.sleep(10)
       }
     }
-    assert(ref.refersTo(null))
-    assert(refQueue.remove(1000) === ref)
+    assert(ref.isEnqueued)
+    assert(refQueue.poll() === ref)
   }
 }

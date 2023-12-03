@@ -17,8 +17,6 @@
 
 /* Dynamically injected post-processing code for the API docs */
 
-/* global $, MathJax */
-
 $(document).ready(function() {
   var annotations = $("dt:contains('Annotations')").next("dd").children("span.name");
   addBadges(annotations, "AlphaComponent", ":: AlphaComponent ::", '<span class="alphaComponent badge">Alpha Component</span>');
@@ -31,7 +29,7 @@ function addBadges(allAnnotations, name, tag, html) {
   var tags = $(".cmt:contains(" + tag + ")")
 
   // Remove identifier tags from comments
-  tags.each(function(_ignored_index) {
+  tags.each(function(index) {
     var oldHTML = $(this).html();
     var newHTML = oldHTML.replace(tag, "");
     $(this).html(newHTML);

@@ -81,11 +81,6 @@ public class TestManagedBuffer extends ManagedBuffer {
   }
 
   @Override
-  public Object convertToNettyForSsl() throws IOException {
-    return underlying.convertToNettyForSsl();
-  }
-
-  @Override
   public int hashCode() {
     return underlying.hashCode();
   }

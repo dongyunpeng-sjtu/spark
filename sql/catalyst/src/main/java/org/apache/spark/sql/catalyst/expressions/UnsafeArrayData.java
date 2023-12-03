@@ -329,7 +329,8 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable, 
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof UnsafeArrayData o) {
+    if (other instanceof UnsafeArrayData) {
+      UnsafeArrayData o = (UnsafeArrayData) other;
       return (sizeInBytes == o.sizeInBytes) &&
         ByteArrayMethods.arrayEquals(baseObject, baseOffset, o.baseObject, o.baseOffset,
           sizeInBytes);

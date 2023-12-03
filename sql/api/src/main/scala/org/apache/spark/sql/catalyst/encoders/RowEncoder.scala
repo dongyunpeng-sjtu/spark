@@ -104,7 +104,7 @@ object RowEncoder {
       UDTEncoder(udt, udtClass.asInstanceOf[Class[_ <: UserDefinedType[_]]])
     case ArrayType(elementType, containsNull) =>
       IterableEncoder(
-        classTag[mutable.ArraySeq[_]],
+        classTag[mutable.WrappedArray[_]],
         encoderForDataType(elementType, lenient),
         containsNull,
         lenientSerialization = true)

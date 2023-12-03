@@ -18,7 +18,7 @@
 from __future__ import absolute_import, division, print_function
 
 import contextlib
-from io import StringIO
+from six import StringIO
 import sys
 import time
 from typing import Any, Callable

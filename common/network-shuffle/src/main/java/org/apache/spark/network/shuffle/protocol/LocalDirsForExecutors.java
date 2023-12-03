@@ -73,7 +73,8 @@ public class LocalDirsForExecutors extends BlockTransferMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof LocalDirsForExecutors o) {
+    if (other instanceof LocalDirsForExecutors) {
+      LocalDirsForExecutors o = (LocalDirsForExecutors) other;
       return Arrays.equals(execIds, o.execIds)
         && Arrays.equals(numLocalDirsByExec, o.numLocalDirsByExec)
         && Arrays.equals(allLocalDirs, o.allLocalDirs);

@@ -288,12 +288,12 @@ case class EnsureRequirements(
         reorder(leftKeys.toIndexedSeq, rightKeys.toIndexedSeq, rightExpressions, rightKeys)
           .orElse(reorderJoinKeysRecursively(
             leftKeys, rightKeys, leftPartitioning, None))
-      case (Some(KeyGroupedPartitioning(clustering, _, _, _)), _) =>
+      case (Some(KeyGroupedPartitioning(clustering, _, _)), _) =>
         val leafExprs = clustering.flatMap(_.collectLeaves())
         reorder(leftKeys.toIndexedSeq, rightKeys.toIndexedSeq, leafExprs, leftKeys)
             .orElse(reorderJoinKeysRecursively(
               leftKeys, rightKeys, None, rightPartitioning))
-      case (_, Some(KeyGroupedPartitioning(clustering, _, _, _))) =>
+      case (_, Some(KeyGroupedPartitioning(clustering, _, _))) =>
         val leafExprs = clustering.flatMap(_.collectLeaves())
         reorder(leftKeys.toIndexedSeq, rightKeys.toIndexedSeq, leafExprs, rightKeys)
             .orElse(reorderJoinKeysRecursively(
@@ -380,8 +380,7 @@ case class EnsureRequirements(
     val rightSpec = specs(1)
 
     var isCompatible = false
-    if (!conf.v2BucketingPushPartValuesEnabled &&
-        !conf.v2BucketingAllowJoinKeysSubsetOfPartitionKeys) {
+    if (!conf.v2BucketingPushPartValuesEnabled) {
       isCompatible = leftSpec.isCompatibleWith(rightSpec)
     } else {
       logInfo("Pushing common partition values for storage-partitioned join")
@@ -484,14 +483,10 @@ case class EnsureRequirements(
                   s"'$joinType'. Skipping partially clustered distribution.")
               replicateRightSide = false
             } else {
-              // In partially clustered distribution, we should use un-grouped partition values
-              val spec = if (replicateLeftSide) rightSpec else leftSpec
-              val partValues = spec.partitioning.originalPartitionValues
-
+              val partValues = if (replicateLeftSide) rightPartValues else leftPartValues
               val numExpectedPartitions = partValues
                 .map(InternalRowComparableWrapper(_, partitionExprs))
                 .groupBy(identity)
-                .view
                 .mapValues(_.size)
 
               mergedPartValues = mergedPartValues.map { case (partVal, numParts) =>
@@ -507,10 +502,10 @@ case class EnsureRequirements(
         }
 
         // Now we need to push-down the common partition key to the scan in each child
-        newLeft = populatePartitionValues(left, mergedPartValues, leftSpec.joinKeyPositions,
-          applyPartialClustering, replicateLeftSide)
-        newRight = populatePartitionValues(right, mergedPartValues, rightSpec.joinKeyPositions,
-          applyPartialClustering, replicateRightSide)
+        newLeft = populatePartitionValues(
+          left, mergedPartValues, applyPartialClustering, replicateLeftSide)
+        newRight = populatePartitionValues(
+          right, mergedPartValues, applyPartialClustering, replicateRightSide)
       }
     }
 
@@ -532,21 +527,19 @@ case class EnsureRequirements(
   private def populatePartitionValues(
       plan: SparkPlan,
       values: Seq[(InternalRow, Int)],
-      joinKeyPositions: Option[Seq[Int]],
       applyPartialClustering: Boolean,
       replicatePartitions: Boolean): SparkPlan = plan match {
     case scan: BatchScanExec =>
       scan.copy(
         spjParams = scan.spjParams.copy(
           commonPartitionValues = Some(values),
-          joinKeyPositions = joinKeyPositions,
           applyPartialClustering = applyPartialClustering,
           replicatePartitions = replicatePartitions
         )
       )
     case node =>
       node.mapChildren(child => populatePartitionValues(
-        child, values, joinKeyPositions, applyPartialClustering, replicatePartitions))
+        child, values, applyPartialClustering, replicatePartitions))
   }
 
   /**

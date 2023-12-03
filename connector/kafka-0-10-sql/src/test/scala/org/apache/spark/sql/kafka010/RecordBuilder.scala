@@ -19,7 +19,7 @@ package org.apache.spark.sql.kafka010
 
 import java.lang.{Integer => JInt, Long => JLong}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Header

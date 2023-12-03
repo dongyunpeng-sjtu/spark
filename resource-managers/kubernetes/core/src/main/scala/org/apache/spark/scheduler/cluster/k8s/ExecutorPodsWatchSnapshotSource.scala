@@ -86,20 +86,12 @@ class ExecutorPodsWatchSnapshotSource(
     }
 
     override def onClose(e: WatcherException): Unit = {
-      if (SparkContext.getActive.map(_.isStopped).getOrElse(true)) {
-        logInfo("Kubernetes client has been closed.")
-      } else {
-        logWarning("Kubernetes client has been closed (this is expected if the application is" +
-          " shutting down.)", e)
-      }
+      logWarning("Kubernetes client has been closed (this is expected if the application is" +
+        " shutting down.)", e)
     }
 
     override def onClose(): Unit = {
-      if (SparkContext.getActive.map(_.isStopped).getOrElse(true)) {
-        logInfo("Kubernetes client has been closed.")
-      } else {
-        logWarning("Kubernetes client has been closed.")
-      }
+      logWarning("Kubernetes client has been closed.")
     }
   }
 

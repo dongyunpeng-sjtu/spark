@@ -23,7 +23,7 @@ import java.nio.channels.Channels
 import java.time.{Duration, Instant, LocalDate, LocalDateTime, Period}
 import java.util.{Map => JMap, Objects}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import com.google.protobuf.ByteString
 import org.apache.arrow.memory.BufferAllocator

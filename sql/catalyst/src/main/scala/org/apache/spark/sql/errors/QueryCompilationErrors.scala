@@ -157,23 +157,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "functionName" -> toSQLId("format_string")))
   }
 
-  def binaryFormatError(funcName: String, invalidFormat: String): Throwable = {
-    new AnalysisException(
-      errorClass = "INVALID_PARAMETER_VALUE.BINARY_FORMAT",
-      messageParameters = Map(
-        "parameter" -> toSQLId("format"),
-        "functionName" -> toSQLId(funcName),
-        "invalidFormat" -> toSQLValue(invalidFormat, StringType)))
-  }
-
-  def nullArgumentError(funcName: String, parameter: String): Throwable = {
-    new AnalysisException(
-      errorClass = "INVALID_PARAMETER_VALUE.NULL",
-      messageParameters = Map(
-        "parameter" -> toSQLId(parameter),
-        "functionName" -> toSQLId(funcName)))
-  }
-
   def unorderablePivotColError(pivotCol: Expression): Throwable = {
     new AnalysisException(
       errorClass = "INCOMPARABLE_PIVOT_COLUMN",
@@ -228,7 +211,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
       case seq => Some(CreateStruct(seq)).map(e => Alias(e, e.sql)()).get
     }
       .groupBy(_.dataType)
-      .view
       .mapValues(values => values.map(value => toSQLId(value.name)).sorted)
       .mapValues(values => if (values.length > 3) values.take(3) :+ "..." else values)
       .toList.sortBy(_._1.sql)
@@ -450,21 +432,20 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
   }
 
   def viewDepthExceedsMaxResolutionDepthError(
-      identifier: TableIdentifier, maxNestedDepth: Int, t: TreeNode[_]): Throwable = {
+      identifier: TableIdentifier, maxNestedViewDepth: Int, t: TreeNode[_]): Throwable = {
     new AnalysisException(
-      errorClass = "VIEW_EXCEED_MAX_NESTED_DEPTH",
+      errorClass = "_LEGACY_ERROR_TEMP_1009",
       messageParameters = Map(
-        "viewName" -> toSQLId(identifier.nameParts),
-        "maxNestedDepth" -> maxNestedDepth.toString),
+        "identifier" -> identifier.toString,
+        "maxNestedViewDepth" -> maxNestedViewDepth.toString,
+        "config" -> SQLConf.MAX_NESTED_VIEW_DEPTH.key),
       origin = t.origin)
   }
 
   def insertIntoViewNotAllowedError(identifier: TableIdentifier, t: TreeNode[_]): Throwable = {
     new AnalysisException(
-      errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-      messageParameters = Map(
-        "viewName" -> toSQLId(identifier.nameParts),
-        "operation" -> "INSERT"),
+      errorClass = "_LEGACY_ERROR_TEMP_1010",
+      messageParameters = Map("identifier" -> identifier.toString),
       origin = t.origin)
   }
 
@@ -484,47 +465,53 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
 
   def expectTableNotViewError(
       nameParts: Seq[String],
+      isTemp: Boolean,
       cmd: String,
-      suggestAlternative: Boolean,
+      mismatchHint: Option[String],
+      t: TreeNode[_]): Throwable = {
+    val viewStr = if (isTemp) "temp view" else "view"
+    val hintStr = mismatchHint.map(" " + _).getOrElse("")
+    new AnalysisException(
+      errorClass = "_LEGACY_ERROR_TEMP_1013",
+      messageParameters = Map(
+        "nameParts" -> nameParts.quoted,
+        "viewStr" -> viewStr,
+        "cmd" -> cmd,
+        "hintStr" -> hintStr),
+      origin = t.origin)
+  }
+
+  def expectViewNotTempViewError(
+      nameParts: Seq[String],
+      cmd: String,
       t: TreeNode[_]): Throwable = {
     new AnalysisException(
-      errorClass = if (suggestAlternative) {
-        "EXPECT_TABLE_NOT_VIEW.USE_ALTER_VIEW"
-      } else {
-        "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE"
-      },
+      errorClass = "_LEGACY_ERROR_TEMP_1014",
       messageParameters = Map(
-        "viewName" -> toSQLId(nameParts),
-        "operation" -> cmd),
+        "nameParts" -> nameParts.quoted,
+        "cmd" -> cmd),
       origin = t.origin)
   }
 
   def expectViewNotTableError(
-      nameParts: Seq[String],
-      cmd: String,
-      suggestAlternative: Boolean,
-      t: TreeNode[_]): Throwable = {
+      v: ResolvedTable, cmd: String, mismatchHint: Option[String], t: TreeNode[_]): Throwable = {
+    val hintStr = mismatchHint.map(" " + _).getOrElse("")
     new AnalysisException(
-      errorClass = if (suggestAlternative) {
-        "EXPECT_VIEW_NOT_TABLE.USE_ALTER_TABLE"
-      } else {
-        "EXPECT_VIEW_NOT_TABLE.NO_ALTERNATIVE"
-      },
+      errorClass = "_LEGACY_ERROR_TEMP_1015",
       messageParameters = Map(
-        "tableName" -> toSQLId(nameParts),
-        "operation" -> cmd),
+        "identifier" -> v.identifier.quoted,
+        "cmd" -> cmd,
+        "hintStr" -> hintStr),
       origin = t.origin)
   }
 
-  def expectPermanentViewNotTempViewError(
-      nameParts: Seq[String],
-      cmd: String,
-      t: TreeNode[_]): Throwable = {
+  def expectTableOrPermanentViewNotTempViewError(
+      nameParts: Seq[String], cmd: String, t: TreeNode[_]): Throwable = {
     new AnalysisException(
-      errorClass = "EXPECT_PERMANENT_VIEW_NOT_TEMP",
+      errorClass = "_LEGACY_ERROR_TEMP_1016",
       messageParameters = Map(
-        "viewName" -> toSQLId(nameParts),
-        "operation" -> cmd),
+        "nameParts" -> nameParts.quoted,
+        "cmd" -> cmd),
       origin = t.origin)
   }
 
@@ -642,10 +629,10 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
   def aliasNumberNotMatchColumnNumberError(
       columnSize: Int, outputSize: Int, t: TreeNode[_]): Throwable = {
     new AnalysisException(
-      errorClass = "ASSIGNMENT_ARITY_MISMATCH",
+      errorClass = "_LEGACY_ERROR_TEMP_1028",
       messageParameters = Map(
-        "numExpr" -> columnSize.toString,
-        "numTarget" -> outputSize.toString),
+        "columnSize" -> columnSize.toString,
+        "outputSize" -> outputSize.toString),
       origin = t.origin)
   }
 
@@ -723,14 +710,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
     new AnalysisException(
       errorClass = "_LEGACY_ERROR_TEMP_1040",
       messageParameters = Map("dt" -> dt.toString))
-  }
-
-  def unresolvedVariableError(name: Seq[String], searchPath: Seq[String]): Throwable = {
-    new AnalysisException(
-      errorClass = "UNRESOLVED_VARIABLE",
-      messageParameters = Map(
-        "variableName" -> toSQLId(name),
-        "searchPath" -> toSQLId(searchPath)))
   }
 
   def unresolvedRoutineError(name: FunctionIdentifier, searchPath: Seq[String]): Throwable = {
@@ -819,6 +798,10 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
       messageParameters = Map("hintName" -> hintName))
   }
 
+  def attributeNameSyntaxError(name: String): Throwable = {
+    DataTypeErrors.attributeNameSyntaxError(name)
+  }
+
   def starExpandDataTypeNotSupportedError(attributes: Seq[String]): Throwable = {
     new AnalysisException(
       errorClass = "_LEGACY_ERROR_TEMP_1050",
@@ -865,40 +848,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "operation" -> operation))
   }
 
-  private def unsupportedTableOperationError(
-      tableName: String,
-      operation: String): Throwable = {
-    new AnalysisException(
-      errorClass = "UNSUPPORTED_FEATURE.TABLE_OPERATION",
-      messageParameters = Map(
-        "tableName" -> toSQLId(tableName),
-        "operation" -> operation))
-  }
-
-  def unsupportedBatchReadError(table: Table): Throwable = {
-    unsupportedTableOperationError(table.name(), "batch scan")
-  }
-
-  def unsupportedStreamingScanError(table: Table): Throwable = {
-    unsupportedTableOperationError(table.name(), "either micro-batch or continuous scan")
-  }
-
-  def unsupportedAppendInBatchModeError(table: Table): Throwable = {
-    unsupportedTableOperationError(table.name(), "append in batch mode")
-  }
-
-  def unsupportedDynamicOverwriteInBatchModeError(table: Table): Throwable = {
-    unsupportedTableOperationError(table.name(), "dynamic overwrite in batch mode")
-  }
-
-  def unsupportedTruncateInBatchModeError(table: Table): Throwable = {
-    unsupportedTableOperationError(table.name(), "truncate in batch mode")
-  }
-
-  def unsupportedOverwriteByFilterInBatchModeError(table: Table): Throwable = {
-    unsupportedTableOperationError(table.name(), "overwrite by filter in batch mode")
-  }
-
   def catalogOperationNotSupported(catalog: CatalogPlugin, operation: String): Throwable = {
     new AnalysisException(
       errorClass = "UNSUPPORTED_FEATURE.CATALOG_OPERATION",
@@ -919,6 +868,12 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
       messageParameters = Map(
         "colName" -> colName,
         "fieldNames" -> v1Table.schema.fieldNames.mkString(", ")))
+  }
+
+  def invalidDatabaseNameError(quoted: String): Throwable = {
+    new AnalysisException(
+      errorClass = "_LEGACY_ERROR_TEMP_1055",
+      messageParameters = Map("database" -> quoted))
   }
 
   def wrongCommandForObjectTypeError(
@@ -987,8 +942,8 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
 
   def invalidNameForTableOrDatabaseError(name: String): Throwable = {
     new AnalysisException(
-      errorClass = "INVALID_SCHEMA_OR_RELATION_NAME",
-      messageParameters = Map("name" -> toSQLId(name)))
+      errorClass = "_LEGACY_ERROR_TEMP_1065",
+      messageParameters = Map("name" -> name))
   }
 
   def cannotCreateDatabaseWithSameNameAsPreservedDatabaseError(database: String): Throwable = {
@@ -1103,7 +1058,7 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
 
   def corruptedTableNameContextInCatalogError(numParts: Int, index: Int): Throwable = {
     new AnalysisException(
-      errorClass = "INTERNAL_ERROR_METADATA_CATALOG.TABLE_NAME_CONTEXT",
+      errorClass = "_LEGACY_ERROR_TEMP_1084",
       messageParameters = Map(
         "numParts" -> numParts.toString,
         "index" -> index.toString))
@@ -1111,14 +1066,14 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
 
   def corruptedViewSQLConfigsInCatalogError(e: Exception): Throwable = {
     new AnalysisException(
-      errorClass = "INTERNAL_ERROR_METADATA_CATALOG.SQL_CONFIG",
+      errorClass = "_LEGACY_ERROR_TEMP_1085",
       messageParameters = Map.empty,
       cause = Some(e))
   }
 
   def corruptedViewQueryOutputColumnsInCatalogError(numCols: String, index: Int): Throwable = {
     new AnalysisException(
-      errorClass = "INTERNAL_ERROR_METADATA_CATALOG.VIEW_QUERY_COLUMN_ARITY",
+      errorClass = "_LEGACY_ERROR_TEMP_1086",
       messageParameters = Map(
         "numCols" -> numCols,
         "index" -> index.toString))
@@ -1126,14 +1081,14 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
 
   def corruptedViewReferredTempViewInCatalogError(e: Exception): Throwable = {
     new AnalysisException(
-      errorClass = "INTERNAL_ERROR_METADATA_CATALOG.TEMP_VIEW_REFERENCE",
+      errorClass = "_LEGACY_ERROR_TEMP_1087",
       messageParameters = Map.empty,
       cause = Some(e))
   }
 
   def corruptedViewReferredTempFunctionsInCatalogError(e: Exception): Throwable = {
     new AnalysisException(
-      errorClass = "INTERNAL_ERROR_METADATA_CATALOG.TEMP_FUNCTION_REFERENCE",
+      errorClass = "_LEGACY_ERROR_TEMP_1088",
       messageParameters = Map.empty,
       cause = Some(e))
   }
@@ -1174,14 +1129,10 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
   }
 
   def schemaIsNotStructTypeError(exp: Expression, dataType: DataType): Throwable = {
-    schemaIsNotStructTypeError(toSQLExpr(exp), dataType)
-  }
-
-  def schemaIsNotStructTypeError(inputSchema: String, dataType: DataType): Throwable = {
     new AnalysisException(
       errorClass = "INVALID_SCHEMA.NON_STRUCT_TYPE",
       messageParameters = Map(
-        "inputSchema" -> inputSchema,
+        "inputSchema" -> toSQLExpr(exp),
         "dataType" -> toSQLType(dataType)
       ))
   }
@@ -1220,16 +1171,14 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "failFastMode" -> FailFastMode.name))
   }
 
-  def nonFoldableArgumentError(
-      funcName: String,
-      paramName: String,
-      paramType: DataType): Throwable = {
+  def requireLiteralParameter(
+      funcName: String, argName: String, requiredType: String): Throwable = {
     new AnalysisException(
-      errorClass = "NON_FOLDABLE_ARGUMENT",
+      errorClass = "_LEGACY_ERROR_TEMP_1100",
       messageParameters = Map(
-        "funcName" -> toSQLId(funcName),
-        "paramName" -> toSQLId(paramName),
-        "paramType" -> toSQLType(paramType)))
+        "argName" -> argName,
+        "funcName" -> funcName,
+        "requiredType" -> requiredType))
   }
 
   def literalTypeUnsupportedForSourceTypeError(field: String, source: Expression): Throwable = {
@@ -1319,6 +1268,38 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
   def cannotReplaceMissingTableError(
       tableIdentifier: Identifier, cause: Option[Throwable]): Throwable = {
     new CannotReplaceMissingTableException(tableIdentifier, cause)
+  }
+
+  private def unsupportedTableOperationError(table: Table, cmd: String): Throwable = {
+    new AnalysisException(
+      errorClass = "_LEGACY_ERROR_TEMP_1113",
+      messageParameters = Map(
+        "table" -> table.name,
+        "cmd" -> cmd))
+  }
+
+  def unsupportedBatchReadError(table: Table): Throwable = {
+    unsupportedTableOperationError(table, "batch scan")
+  }
+
+  def unsupportedMicroBatchOrContinuousScanError(table: Table): Throwable = {
+    unsupportedTableOperationError(table, "either micro-batch or continuous scan")
+  }
+
+  def unsupportedAppendInBatchModeError(table: Table): Throwable = {
+    unsupportedTableOperationError(table, "append in batch mode")
+  }
+
+  def unsupportedDynamicOverwriteInBatchModeError(table: Table): Throwable = {
+    unsupportedTableOperationError(table, "dynamic overwrite in batch mode")
+  }
+
+  def unsupportedTruncateInBatchModeError(table: Table): Throwable = {
+    unsupportedTableOperationError(table, "truncate in batch mode")
+  }
+
+  def unsupportedOverwriteByFilterInBatchModeError(table: Table): Throwable = {
+    unsupportedTableOperationError(table, "overwrite by filter in batch mode")
   }
 
   def streamingSourcesDoNotSupportCommonExecutionModeError(
@@ -1978,20 +1959,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
     )
   }
 
-  def tableValuedFunctionFailedToAnalyseInPythonError(msg: String): Throwable = {
-    new AnalysisException(
-      errorClass = "TABLE_VALUED_FUNCTION_FAILED_TO_ANALYZE_IN_PYTHON",
-      messageParameters = Map("msg" -> msg)
-    )
-  }
-
-  def failToPlanDataSourceError(action: String, tpe: String, msg: String): Throwable = {
-    new AnalysisException(
-      errorClass = "PYTHON_DATA_SOURCE_FAILED_TO_PLAN_IN_PYTHON",
-      messageParameters = Map("action" -> action, "type" -> tpe, "msg" -> msg)
-    )
-  }
-
   def identifierTooManyNamePartsError(originalIdentifier: String): Throwable = {
     new AnalysisException(
       errorClass = "IDENTIFIER_TOO_MANY_NAME_PARTS",
@@ -2086,14 +2053,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
       messageParameters = Map("function" -> funcStr))
   }
 
-  def subqueryReturnMoreThanOneColumn(number: Int, origin: Origin): Throwable = {
-    new AnalysisException(
-      errorClass = "INVALID_SUBQUERY_EXPRESSION." +
-        "SCALAR_SUBQUERY_RETURN_MORE_THAN_ONE_OUTPUT_COLUMN",
-      origin = origin,
-      messageParameters = Map("number" -> number.toString))
-  }
-
   def unsupportedCorrelatedReferenceDataTypeError(
       expr: Expression,
       dataType: DataType,
@@ -2103,15 +2062,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "UNSUPPORTED_CORRELATED_REFERENCE_DATA_TYPE",
       origin = origin,
       messageParameters = Map("expr" -> expr.sql, "dataType" -> dataType.typeName))
-  }
-
-  def unsupportedCorrelatedSubqueryInJoinConditionError(
-      unsupportedSubqueryExpressions: Seq[Expression]): Throwable = {
-    new AnalysisException(
-      errorClass = "UNSUPPORTED_SUBQUERY_EXPRESSION_CATEGORY." +
-        "UNSUPPORTED_CORRELATED_EXPRESSION_IN_JOIN_CONDITION",
-      messageParameters = Map("subqueryExpression" ->
-        unsupportedSubqueryExpressions.map(_.sql).mkString(", ")))
   }
 
   def functionCannotProcessInputError(
@@ -2408,6 +2358,10 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
       messageParameters = Map("windowExpressions" -> windowExpressions.toString()))
   }
 
+  def charOrVarcharTypeAsStringUnsupportedError(): Throwable = {
+    DataTypeErrors.charOrVarcharTypeAsStringUnsupportedError()
+  }
+
   def escapeCharacterInTheMiddleError(pattern: String, char: String): Throwable = {
     new AnalysisException(
       errorClass = "INVALID_FORMAT.ESC_IN_THE_MIDDLE",
@@ -2592,15 +2546,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "newType"-> toSQLType(newColumn.dataType)))
   }
 
-  def cannotAlterPartitionColumn(
-      tableName: String,
-      columnName: String): Throwable = {
-    new AnalysisException(
-      errorClass = "CANNOT_ALTER_PARTITION_COLUMN",
-      messageParameters =
-        Map("tableName" -> toSQLId(tableName), "columnName" -> toSQLId(columnName))
-    )
-  }
   def cannotFindColumnError(name: String, fieldNames: Array[String]): Throwable = {
     new AnalysisException(
       errorClass = "_LEGACY_ERROR_TEMP_1246",
@@ -2884,24 +2829,10 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "dataColumns" -> query.output.map(c => toSQLId(c.name)).mkString(", ")))
   }
 
-  def unsupportedCreateOrReplaceViewOnTableError(
-      name: TableIdentifier, replace: Boolean): Throwable = {
-    if (replace) {
-      new AnalysisException(
-        errorClass = "EXPECT_VIEW_NOT_TABLE.NO_ALTERNATIVE",
-        messageParameters = Map(
-          "tableName" -> toSQLId(name.nameParts),
-          "operation" -> "CREATE OR REPLACE VIEW"
-        )
-      )
-    } else {
-      new AnalysisException(
-        errorClass = "TABLE_OR_VIEW_ALREADY_EXISTS",
-        messageParameters = Map(
-          "relationName" -> toSQLId(name.nameParts)
-        )
-      )
-    }
+  def tableIsNotViewError(name: TableIdentifier): Throwable = {
+    new AnalysisException(
+      errorClass = "_LEGACY_ERROR_TEMP_1278",
+      messageParameters = Map("name" -> name.toString))
   }
 
   def viewAlreadyExistsError(name: TableIdentifier): Throwable = {
@@ -2958,18 +2889,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "objName" -> toSQLId(name.nameParts),
         "tempObj" -> "FUNCTION",
         "tempObjName" -> toSQLId(funcName)))
-  }
-
-  def notAllowedToCreatePermanentViewByReferencingTempVarError(
-      name: TableIdentifier,
-      varName: String): Throwable = {
-    new AnalysisException(
-      errorClass = "INVALID_TEMP_OBJ_REFERENCE",
-      messageParameters = Map(
-        "obj" -> "VIEW",
-        "objName" -> toSQLId(name.nameParts),
-        "tempObj" -> "VARIABLE",
-        "tempObjName" -> toSQLId(varName)))
   }
 
   def queryFromRawFilesIncludeCorruptRecordColumnError(): Throwable = {
@@ -3182,13 +3101,21 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
       messageParameters = Map("expr" -> expr.sql))
   }
 
-  def unresolvedColumnError(colName: String, fields: Array[String]): AnalysisException = {
+  def unresolvedColumnWithSuggestionError(
+      objectName: String, suggestion: String): AnalysisException = {
     new AnalysisException(
       errorClass = "UNRESOLVED_COLUMN.WITH_SUGGESTION",
       messageParameters = Map(
-        "objectName" -> toSQLId(colName),
-        "proposal" -> fields.map(toSQLId).mkString(", ")
+        "objectName" -> toSQLId(objectName),
+        "proposal" -> suggestion
       )
+    )
+  }
+
+  def resolveException(colName: String, fields: Array[String]): AnalysisException = {
+    QueryCompilationErrors.unresolvedColumnWithSuggestionError(
+      colName,
+      fields.map(toSQLId).mkString(", ")
     )
   }
 
@@ -3326,12 +3253,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
       messageParameters = Map("jsonSchema" -> toSQLType(schema)))
   }
 
-  def invalidXmlSchema(schema: DataType): Throwable = {
-    new AnalysisException(
-      errorClass = "INVALID_XML_SCHEMA_MAP_TYPE",
-      messageParameters = Map("xmlSchema" -> toSQLType(schema)))
-  }
-
   def tableIndexNotSupportedError(errorMessage: String): Throwable = {
     new AnalysisException(
       errorClass = "_LEGACY_ERROR_TEMP_1332",
@@ -3348,7 +3269,7 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
 
   def invalidTimeTravelSpecError(): Throwable = {
     new AnalysisException(
-      errorClass = "INVALID_TIME_TRAVEL_SPEC",
+      errorClass = "_LEGACY_ERROR_TEMP_1334",
       messageParameters = Map.empty)
   }
 
@@ -3375,7 +3296,7 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
   // this is not allowed.
   def defaultReferencesNotAllowedInComplexExpressionsInInsertValuesList(): Throwable = {
     new AnalysisException(
-      errorClass = "DEFAULT_PLACEMENT_INVALID",
+      errorClass = "_LEGACY_ERROR_TEMP_1339",
       messageParameters = Map.empty)
   }
 
@@ -3383,13 +3304,13 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
   // DEFAULT column references and explicit column lists, since this is not implemented yet.
   def defaultReferencesNotAllowedInComplexExpressionsInUpdateSetClause(): Throwable = {
     new AnalysisException(
-      errorClass = "DEFAULT_PLACEMENT_INVALID",
+      errorClass = "_LEGACY_ERROR_TEMP_1340",
       messageParameters = Map.empty)
   }
 
   def defaultReferencesNotAllowedInComplexExpressionsInMergeInsertsOrUpdates(): Throwable = {
     new AnalysisException(
-      errorClass = "DEFAULT_PLACEMENT_INVALID",
+      errorClass = "_LEGACY_ERROR_TEMP_1343",
       messageParameters = Map.empty)
   }
 
@@ -3751,22 +3672,6 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
     )
   }
 
-  def avroIncompatibleReadError(
-      avroPath: String,
-      sqlPath: String,
-      avroType: String,
-      sqlType: String): Throwable = {
-    new AnalysisException(
-      errorClass = "AVRO_INCOMPATIBLE_READ_TYPE",
-      messageParameters = Map(
-        "avroPath" -> avroPath,
-        "sqlPath" -> sqlPath,
-        "avroType" -> avroType,
-        "sqlType" -> toSQLType(sqlType)
-      )
-    )
-  }
-
   def optionMustBeLiteralString(key: String): Throwable = {
     new AnalysisException(
       errorClass = "INVALID_SQL_SYNTAX.OPTION_IS_INVALID",
@@ -3782,33 +3687,5 @@ private[sql] object QueryCompilationErrors extends QueryErrorsBase with Compilat
         "key" -> key,
         "supported" -> "constant expressions"),
       cause = cause)
-  }
-
-  def tableValuedFunctionRequiredMetadataIncompatibleWithCall(
-      functionName: String,
-      requestedMetadata: String,
-      invalidFunctionCallProperty: String): Throwable = {
-    new AnalysisException(
-      errorClass = "TABLE_VALUED_FUNCTION_REQUIRED_METADATA_INCOMPATIBLE_WITH_CALL",
-      messageParameters = Map(
-        "functionName" -> functionName,
-        "requestedMetadata" -> requestedMetadata,
-        "invalidFunctionCallProperty" -> invalidFunctionCallProperty))
-  }
-
-  def tableValuedFunctionRequiredMetadataInvalid(
-      functionName: String,
-      reason: String): Throwable = {
-    new AnalysisException(
-      errorClass = "TABLE_VALUED_FUNCTION_REQUIRED_METADATA_INVALID",
-      messageParameters = Map(
-        "functionName" -> functionName,
-        "reason" -> reason))
-  }
-
-  def dataSourceAlreadyExists(name: String): Throwable = {
-    new AnalysisException(
-      errorClass = "DATA_SOURCE_ALREADY_EXISTS",
-      messageParameters = Map("provider" -> name))
   }
 }

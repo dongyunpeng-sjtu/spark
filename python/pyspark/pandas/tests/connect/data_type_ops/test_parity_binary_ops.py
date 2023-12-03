@@ -25,7 +25,9 @@ from pyspark.testing.connectutils import ReusedConnectTestCase
 class BinaryOpsParityTests(
     BinaryOpsTestsMixin, PandasOnSparkTestUtils, OpsTestBase, ReusedConnectTestCase
 ):
-    pass
+    @unittest.skip("TODO(SPARK-43620): Support `Column` for SparkConnectColumn.__getitem__.")
+    def test_astype(self):
+        super().test_astype()
 
 
 if __name__ == "__main__":

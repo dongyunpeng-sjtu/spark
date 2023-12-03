@@ -19,7 +19,7 @@ package org.apache.spark.sql.avro
 
 import java.nio.ByteBuffer
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.avro.Conversions.DecimalConversion
 import org.apache.avro.LogicalTypes

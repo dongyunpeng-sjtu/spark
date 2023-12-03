@@ -19,7 +19,7 @@ package org.apache.spark.sql.jdbc.v2
 
 import java.sql.Connection
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.jdbc.{DatabaseOnDocker, DockerJDBCIntegrationSuite}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap

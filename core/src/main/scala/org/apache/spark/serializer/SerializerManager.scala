@@ -21,7 +21,8 @@ import java.io.{BufferedInputStream, BufferedOutputStream, InputStream, OutputSt
 import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
-
+//dong:
+import org.slf4j.LoggerFactory
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.io.CompressionCodec
@@ -78,7 +79,8 @@ private[spark] class SerializerManager(
    * Executor.updateDependencies. When the BlockManager is initialized, user level jars hasn't been
    * loaded yet. */
   private lazy val compressionCodec: CompressionCodec = CompressionCodec.createCodec(conf)
-
+  //dong :
+  private val logger = LoggerFactory.getLogger(getClass)
   def encryptionEnabled: Boolean = encryptionKey.isDefined
 
   def canUseKryo(ct: ClassTag[_]): Boolean = {
@@ -89,6 +91,9 @@ private[spark] class SerializerManager(
   // result is streaming job based on `Receiver` mode can not run on Spark 2.x properly. It may be
   // a rational choice to close `kryo auto pick` feature for streaming in the first step.
   def getSerializer(ct: ClassTag[_], autoPick: Boolean): Serializer = {
+
+    logger.info("dong");
+
     if (autoPick && canUseKryo(ct)) {
       kryoSerializer
     } else {

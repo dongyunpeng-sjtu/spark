@@ -145,10 +145,12 @@ public class ExpressionImplUtils {
   }
 
   private static SecretKeySpec getSecretKeySpec(byte[] key) {
-    return switch (key.length) {
-      case 16, 24, 32 -> new SecretKeySpec(key, 0, key.length, "AES");
-      default -> throw QueryExecutionErrors.invalidAesKeyLengthError(key.length);
-    };
+    switch (key.length) {
+      case 16: case 24: case 32:
+        return new SecretKeySpec(key, 0, key.length, "AES");
+      default:
+        throw QueryExecutionErrors.invalidAesKeyLengthError(key.length);
+    }
   }
 
   private static byte[] generateIv(CipherMode mode) {
@@ -158,11 +160,14 @@ public class ExpressionImplUtils {
   }
 
   private static AlgorithmParameterSpec getParamSpec(CipherMode mode, byte[] input) {
-    return switch (mode) {
-      case CBC -> new IvParameterSpec(input, 0, mode.ivLength);
-      case GCM -> new GCMParameterSpec(mode.tagLength, input, 0, mode.ivLength);
-      default -> null;
-    };
+    switch (mode) {
+      case CBC:
+        return new IvParameterSpec(input, 0, mode.ivLength);
+      case GCM:
+        return new GCMParameterSpec(mode.tagLength, input, 0, mode.ivLength);
+      default:
+        return null;
+    }
   }
 
   private static byte[] aesInternal(

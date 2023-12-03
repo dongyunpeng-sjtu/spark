@@ -20,7 +20,6 @@ package org.apache.spark.sql.catalyst.analysis
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.plans.logical.{Assignment, UpdateTable}
 import org.apache.spark.sql.catalyst.util.ResolveDefaultColumns.resolveColumnDefaultInAssignmentValue
-import org.apache.spark.sql.connector.catalog.CatalogManager
 import org.apache.spark.sql.errors.QueryCompilationErrors
 
 /**
@@ -33,8 +32,7 @@ import org.apache.spark.sql.errors.QueryCompilationErrors
  * 3. Resolves the column to the default value expression, if the column is the assignment value
  *    and the corresponding assignment key is a top-level column.
  */
-class ResolveReferencesInUpdate(val catalogManager: CatalogManager)
-  extends SQLConfHelper with ColumnResolutionHelper {
+case object ResolveReferencesInUpdate extends SQLConfHelper with ColumnResolutionHelper {
 
   def apply(u: UpdateTable): UpdateTable = {
     assert(u.table.resolved)

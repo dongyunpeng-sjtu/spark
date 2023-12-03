@@ -31,9 +31,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from functools import reduce
-
 from pyspark.resultiterable import ResultIterable
+from functools import reduce
 
 
 def _do_python_join(rdd, other, numPartitions, dispatch):
@@ -45,7 +44,7 @@ def _do_python_join(rdd, other, numPartitions, dispatch):
 def python_join(rdd, other, numPartitions):
     def dispatch(seq):
         vbuf, wbuf = [], []
-        for n, v in seq:
+        for (n, v) in seq:
             if n == 1:
                 vbuf.append(v)
             elif n == 2:
@@ -58,7 +57,7 @@ def python_join(rdd, other, numPartitions):
 def python_right_outer_join(rdd, other, numPartitions):
     def dispatch(seq):
         vbuf, wbuf = [], []
-        for n, v in seq:
+        for (n, v) in seq:
             if n == 1:
                 vbuf.append(v)
             elif n == 2:
@@ -73,7 +72,7 @@ def python_right_outer_join(rdd, other, numPartitions):
 def python_left_outer_join(rdd, other, numPartitions):
     def dispatch(seq):
         vbuf, wbuf = [], []
-        for n, v in seq:
+        for (n, v) in seq:
             if n == 1:
                 vbuf.append(v)
             elif n == 2:
@@ -88,7 +87,7 @@ def python_left_outer_join(rdd, other, numPartitions):
 def python_full_outer_join(rdd, other, numPartitions):
     def dispatch(seq):
         vbuf, wbuf = [], []
-        for n, v in seq:
+        for (n, v) in seq:
             if n == 1:
                 vbuf.append(v)
             elif n == 2:

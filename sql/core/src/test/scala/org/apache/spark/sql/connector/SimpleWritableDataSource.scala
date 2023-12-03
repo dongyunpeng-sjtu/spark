@@ -19,7 +19,7 @@ package org.apache.spark.sql.connector
 
 import java.io.{BufferedReader, InputStreamReader, IOException}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}

@@ -98,7 +98,7 @@ public class Trigger {
    *             processing of watermark advancement including no-data batch.
    *             See the NOTES in {@link #AvailableNow()} for details.
    */
-  @Deprecated(since = "3.4.0")
+  @Deprecated
   public static Trigger Once() {
     return OneTimeTrigger$.MODULE$;
   }

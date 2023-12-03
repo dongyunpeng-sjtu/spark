@@ -136,7 +136,7 @@ private[spark] object RDDOperationGraph extends Logging {
     // Use a special prefix here to differentiate this cluster from other operation clusters
     val stageClusterId = STAGE_CLUSTER_PREFIX + stage.stageId
     val stageClusterName = s"Stage ${stage.stageId}" +
-      { if (stage.attemptNumber() == 0) "" else s" (attempt ${stage.attemptNumber()})" }
+      { if (stage.attemptNumber == 0) "" else s" (attempt ${stage.attemptNumber})" }
     val rootCluster = new RDDOperationCluster(stageClusterId, false, stageClusterName)
 
     var rootNodeCount = 0
@@ -234,10 +234,7 @@ private[spark] object RDDOperationGraph extends Logging {
   def makeDotFile(graph: RDDOperationGraph): String = {
     val dotFile = new StringBuilder
     dotFile.append("digraph G {\n")
-    val indent = "  "
-    val graphId = s"graph_${graph.rootCluster.id.replaceAll(STAGE_CLUSTER_PREFIX, "")}"
-    dotFile.append(indent).append(s"""id="$graphId";\n""")
-    makeDotSubgraph(dotFile, graph.rootCluster, indent = indent)
+    makeDotSubgraph(dotFile, graph.rootCluster, indent = "  ")
     graph.edges.foreach { edge => dotFile.append(s"""  ${edge.fromId}->${edge.toId};\n""") }
     dotFile.append("}")
     val result = dotFile.toString()
@@ -264,32 +261,23 @@ private[spark] object RDDOperationGraph extends Logging {
       case _ => ""
     }
     val escapedCallsite = Utility.escape(node.callsite)
-    val label = StringEscapeUtils.escapeJava(
-      s"${node.name} [${node.id}]$isCached$isBarrier$outputDeterministicLevel" +
-        s"<br>$escapedCallsite")
-    s"""${node.id} [id="node_${node.id}" labelType="html" label="$label}"]"""
+    val label = s"${node.name} [${node.id}]$isCached$isBarrier$outputDeterministicLevel" +
+      s"<br>${escapedCallsite}"
+    s"""${node.id} [labelType="html" label="${StringEscapeUtils.escapeJava(label)}"]"""
   }
 
-  /** Update the dot representation of the RDDOperationGraph in cluster to subgraph.
-   *
-   * @param prefix The prefix of the subgraph id. 'graph_' for stages, 'cluster_' for
-   *               for child clusters. See also VizConstants in `spark-dag-viz.js`
-   */
+  /** Update the dot representation of the RDDOperationGraph in cluster to subgraph. */
   private def makeDotSubgraph(
       subgraph: StringBuilder,
       cluster: RDDOperationCluster,
-      indent: String,
-      prefix: String = "graph_"): Unit = {
-    val clusterId = s"$prefix${cluster.id}"
-    subgraph.append(indent).append(s"subgraph $clusterId {\n")
-      .append(indent).append(s"""  id="$clusterId";\n""")
-      .append(indent).append(s"""  isCluster="true";\n""")
+      indent: String): Unit = {
+    subgraph.append(indent).append(s"subgraph cluster${cluster.id} {\n")
       .append(indent).append(s"""  label="${StringEscapeUtils.escapeJava(cluster.name)}";\n""")
     cluster.childNodes.foreach { node =>
       subgraph.append(indent).append(s"  ${makeDotNode(node)};\n")
     }
     cluster.childClusters.foreach { cscope =>
-      makeDotSubgraph(subgraph, cscope, indent + "  ", "cluster_")
+      makeDotSubgraph(subgraph, cscope, indent + "  ")
     }
     subgraph.append(indent).append("}\n")
   }

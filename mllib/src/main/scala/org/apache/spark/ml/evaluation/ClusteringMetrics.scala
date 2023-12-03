@@ -331,7 +331,6 @@ private[evaluation] object SquaredEuclideanSilhouette extends Silhouette {
 
     clustersStatsRDD
       .collectAsMap()
-      .view
       .mapValues {
         case (featureSum: DenseVector, squaredNormSum: Double, weightSum: Double) =>
           SquaredEuclideanSilhouette.ClusterStats(featureSum, squaredNormSum, weightSum)

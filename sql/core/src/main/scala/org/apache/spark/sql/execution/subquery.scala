@@ -17,14 +17,13 @@
 
 package org.apache.spark.sql.execution
 
-import org.apache.spark.QueryContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{expressions, InternalRow}
 import org.apache.spark.sql.catalyst.expressions.{CreateNamedStruct, Expression, ExprId, InSet, ListQuery, Literal, PlanExpression, Predicate, SupportQueryContext}
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.{LeafLike, UnaryLike}
+import org.apache.spark.sql.catalyst.trees.{LeafLike, SQLQueryContext, UnaryLike}
 import org.apache.spark.sql.catalyst.trees.TreePattern._
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.internal.SQLConf
@@ -69,7 +68,7 @@ case class ScalarSubquery(
   override def nullable: Boolean = true
   override def toString: String = plan.simpleString(SQLConf.get.maxToStringFields)
   override def withNewPlan(query: BaseSubqueryExec): ScalarSubquery = copy(plan = query)
-  def initQueryContext(): Option[QueryContext] = Some(origin.context)
+  def initQueryContext(): Option[SQLQueryContext] = Some(origin.context)
 
   override lazy val canonicalized: Expression = {
     ScalarSubquery(plan.canonicalized.asInstanceOf[BaseSubqueryExec], ExprId(0))
@@ -82,7 +81,7 @@ case class ScalarSubquery(
   def updateResult(): Unit = {
     val rows = plan.executeCollect()
     if (rows.length > 1) {
-      throw QueryExecutionErrors.multipleRowScalarSubqueryError(getContextOrNull())
+      throw QueryExecutionErrors.multipleRowSubqueryError(getContextOrNull())
     }
     if (rows.length == 1) {
       assert(rows(0).numFields == 1,
@@ -101,12 +100,8 @@ case class ScalarSubquery(
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    toLiteral.doGenCode(ctx, ev)
-  }
-
-  def toLiteral: Literal = {
     require(updated, s"$this has not finished")
-    Literal.create(result, dataType)
+    Literal.create(result, dataType).doGenCode(ctx, ev)
   }
 }
 
@@ -118,7 +113,7 @@ case class InSubqueryExec(
     child: Expression,
     plan: BaseSubqueryExec,
     exprId: ExprId,
-    isDynamicPruning: Boolean = true,
+    shouldBroadcast: Boolean = false,
     private var resultBroadcast: Broadcast[Array[Any]] = null,
     @transient private var result: Array[Any] = null)
   extends ExecSubqueryExpression with UnaryLike[Expression] with Predicate {
@@ -128,7 +123,7 @@ case class InSubqueryExec(
   override def nullable: Boolean = child.nullable
   override def toString: String = s"$child IN ${plan.name}"
   override def withNewPlan(plan: BaseSubqueryExec): InSubqueryExec = copy(plan = plan)
-  final override def nodePatternsInternal(): Seq[TreePattern] = Seq(IN_SUBQUERY_EXEC)
+  final override def nodePatternsInternal: Seq[TreePattern] = Seq(IN_SUBQUERY_EXEC)
 
   def updateResult(): Unit = {
     val rows = plan.executeCollect()
@@ -137,7 +132,7 @@ case class InSubqueryExec(
     } else {
       rows.map(_.get(0, child.dataType))
     }
-    if (!isDynamicPruning) {
+    if (shouldBroadcast) {
       resultBroadcast = plan.session.sparkContext.broadcast(result)
     }
   }
@@ -199,7 +194,7 @@ case class PlanSubqueries(sparkSession: SparkSession) extends Rule[SparkPlan] {
         }
         val executedPlan = QueryExecution.prepareExecutedPlan(sparkSession, query)
         InSubqueryExec(expr, SubqueryExec(s"subquery#${exprId.id}", executedPlan),
-          exprId, isDynamicPruning = false)
+          exprId, shouldBroadcast = true)
     }
   }
 }

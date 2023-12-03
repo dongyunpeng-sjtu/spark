@@ -170,10 +170,10 @@ public interface TableCatalog extends CatalogPlugin {
   /**
    * Create a table in the catalog.
    * <p>
-   * @deprecated This is deprecated. Please override
+   * This is deprecated. Please override
    * {@link #createTable(Identifier, Column[], Transform[], Map)} instead.
    */
-  @Deprecated(since = "3.4.0")
+  @Deprecated
   Table createTable(
       Identifier ident,
       StructType schema,

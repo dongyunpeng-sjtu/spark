@@ -19,7 +19,7 @@ package org.apache.spark.sql.avro
 
 import java.io.ByteArrayOutputStream
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord, GenericRecordBuilder}
@@ -264,7 +264,7 @@ class AvroFunctionsSuite extends QueryTest with SharedSparkSession {
     val avroOptions = AvroOptions(options)
     val avroSchema = avroOptions.schema.get
     val sparkSchema = SchemaConverters
-      .toSqlType(avroSchema, avroOptions.useStableIdForUnionType)
+      .toSqlType(avroSchema, options)
       .dataType
       .asInstanceOf[StructType]
 

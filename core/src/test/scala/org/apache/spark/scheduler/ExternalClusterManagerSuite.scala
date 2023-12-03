@@ -23,7 +23,6 @@ import org.apache.spark.{LocalSparkContext, SparkConf, SparkContext, SparkFunSui
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.resource.ResourceProfile
 import org.apache.spark.scheduler.SchedulingMode.SchedulingMode
-import org.apache.spark.status.api.v1.ThreadStackTrace
 import org.apache.spark.storage.BlockManagerId
 import org.apache.spark.util.AccumulatorV2
 
@@ -74,8 +73,6 @@ private class DummySchedulerBackend extends SchedulerBackend {
   def reviveOffers(): Unit = {}
   def defaultParallelism(): Int = 1
   def maxNumConcurrentTasks(rp: ResourceProfile): Int = 0
-
-  override def getTaskThreadDump(taskId: Long, executorId: String): Option[ThreadStackTrace] = None
 }
 
 private class DummyTaskScheduler extends TaskScheduler {

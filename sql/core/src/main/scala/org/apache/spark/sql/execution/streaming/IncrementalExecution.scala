@@ -20,8 +20,6 @@ package org.apache.spark.sql.execution.streaming
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.apache.hadoop.fs.Path
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.QueryPlanningTracker
@@ -34,7 +32,6 @@ import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, MergingSessi
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 import org.apache.spark.sql.execution.python.FlatMapGroupsInPandasWithStateExec
 import org.apache.spark.sql.execution.streaming.sources.WriteToMicroBatchDataSourceV1
-import org.apache.spark.sql.execution.streaming.state.OperatorStateMetadataWriter
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.util.Utils
@@ -53,8 +50,7 @@ class IncrementalExecution(
     val currentBatchId: Long,
     val prevOffsetSeqMetadata: Option[OffsetSeqMetadata],
     val offsetSeqMetadata: OffsetSeqMetadata,
-    val watermarkPropagator: WatermarkPropagator,
-    val isFirstBatch: Boolean)
+    val watermarkPropagator: WatermarkPropagator)
   extends QueryExecution(sparkSession, logicalPlan) with Logging {
 
   // Modified planner with stateful operations.
@@ -74,8 +70,6 @@ class IncrementalExecution(
       StreamingDeduplicationStrategy ::
       StreamingGlobalLimitStrategy(outputMode) :: Nil
   }
-
-  private lazy val hadoopConf = sparkSession.sessionState.newHadoopConf()
 
   private[sql] val numStateStores = offsetSeqMetadata.conf.get(SQLConf.SHUFFLE_PARTITIONS.key)
     .map(SQLConf.SHUFFLE_PARTITIONS.valueConverter)
@@ -183,23 +177,12 @@ class IncrementalExecution(
     }
   }
 
-  object WriteStatefulOperatorMetadataRule extends SparkPlanPartialRule {
-    override val rule: PartialFunction[SparkPlan, SparkPlan] = {
-      case stateStoreWriter: StateStoreWriter if isFirstBatch =>
-        val metadata = stateStoreWriter.operatorStateMetadata()
-        val metadataWriter = new OperatorStateMetadataWriter(new Path(
-          checkpointLocation, stateStoreWriter.getStateInfo.operatorId.toString), hadoopConf)
-        metadataWriter.write(metadata)
-        stateStoreWriter
-    }
-  }
-
   object StateOpIdRule extends SparkPlanPartialRule {
     override val rule: PartialFunction[SparkPlan, SparkPlan] = {
       case StateStoreSaveExec(keys, None, None, None, None, stateFormatVersion,
       UnaryExecNode(agg,
       StateStoreRestoreExec(_, None, _, child))) =>
-        val aggStateInfo = nextStatefulOperationStateInfo()
+        val aggStateInfo = nextStatefulOperationStateInfo
         StateStoreSaveExec(
           keys,
           Some(aggStateInfo),
@@ -218,7 +201,7 @@ class IncrementalExecution(
       stateFormatVersion,
       UnaryExecNode(agg,
       SessionWindowStateStoreRestoreExec(_, _, None, None, None, _, child))) =>
-        val aggStateInfo = nextStatefulOperationStateInfo()
+        val aggStateInfo = nextStatefulOperationStateInfo
         SessionWindowStateStoreSaveExec(
           keys,
           session,
@@ -241,7 +224,7 @@ class IncrementalExecution(
         StreamingDeduplicateExec(
           keys,
           child,
-          Some(nextStatefulOperationStateInfo()),
+          Some(nextStatefulOperationStateInfo),
           eventTimeWatermarkForLateEvents = None,
           eventTimeWatermarkForEviction = None)
 
@@ -249,7 +232,7 @@ class IncrementalExecution(
         StreamingDeduplicateWithinWatermarkExec(
           keys,
           child,
-          Some(nextStatefulOperationStateInfo()),
+          Some(nextStatefulOperationStateInfo),
           eventTimeWatermarkForLateEvents = None,
           eventTimeWatermarkForEviction = None)
 
@@ -257,7 +240,7 @@ class IncrementalExecution(
         // We set this to true only for the first batch of the streaming query.
         val hasInitialState = (currentBatchId == 0L && m.hasInitialState)
         m.copy(
-          stateInfo = Some(nextStatefulOperationStateInfo()),
+          stateInfo = Some(nextStatefulOperationStateInfo),
           batchTimestampMs = Some(offsetSeqMetadata.batchTimestampMs),
           eventTimeWatermarkForLateEvents = None,
           eventTimeWatermarkForEviction = None,
@@ -266,7 +249,7 @@ class IncrementalExecution(
 
       case m: FlatMapGroupsInPandasWithStateExec =>
         m.copy(
-          stateInfo = Some(nextStatefulOperationStateInfo()),
+          stateInfo = Some(nextStatefulOperationStateInfo),
           batchTimestampMs = Some(offsetSeqMetadata.batchTimestampMs),
           eventTimeWatermarkForLateEvents = None,
           eventTimeWatermarkForEviction = None
@@ -274,14 +257,14 @@ class IncrementalExecution(
 
       case j: StreamingSymmetricHashJoinExec =>
         j.copy(
-          stateInfo = Some(nextStatefulOperationStateInfo()),
+          stateInfo = Some(nextStatefulOperationStateInfo),
           eventTimeWatermarkForLateEvents = None,
           eventTimeWatermarkForEviction = None
         )
 
       case l: StreamingGlobalLimitExec =>
         l.copy(
-          stateInfo = Some(nextStatefulOperationStateInfo()),
+          stateInfo = Some(nextStatefulOperationStateInfo),
           outputMode = Some(outputMode))
     }
   }
@@ -374,18 +357,12 @@ class IncrementalExecution(
 
     override def apply(plan: SparkPlan): SparkPlan = {
       val planWithStateOpId = plan transform composedRule
-      // The rule doesn't change the plan but cause the side effect that metadata is written
-      // in the checkpoint directory of stateful operator.
-      planWithStateOpId transform WriteStatefulOperatorMetadataRule.rule
       simulateWatermarkPropagation(planWithStateOpId)
       planWithStateOpId transform WatermarkPropagationRule.rule
     }
   }
 
   override def preparations: Seq[Rule[SparkPlan]] = state +: super.preparations
-
-  /** no need to try-catch again as this is already done once */
-  override def assertAnalyzed(): Unit = analyzed
 
   /** No need assert supported, as this check has already been done */
   override def assertSupported(): Unit = { }

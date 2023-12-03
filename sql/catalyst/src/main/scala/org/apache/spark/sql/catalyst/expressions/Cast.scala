@@ -21,13 +21,13 @@ import java.time.{ZoneId, ZoneOffset}
 import java.util.Locale
 import java.util.concurrent.TimeUnit._
 
-import org.apache.spark.{QueryContext, SparkArithmeticException}
+import org.apache.spark.SparkArithmeticException
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult.DataTypeMismatch
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
+import org.apache.spark.sql.catalyst.trees.{SQLQueryContext, TreeNodeTag}
 import org.apache.spark.sql.catalyst.trees.TreePattern._
 import org.apache.spark.sql.catalyst.types.{PhysicalFractionalType, PhysicalIntegralType, PhysicalNumericType}
 import org.apache.spark.sql.catalyst.util._
@@ -181,7 +181,7 @@ object Cast extends QueryErrorsBase {
   /**
    * A tag to decide if a CAST is specified by user.
    */
-  val USER_SPECIFIED_CAST = new TreeNodeTag[Unit]("user_specified_cast")
+  val USER_SPECIFIED_CAST = new TreeNodeTag[Boolean]("user_specified_cast")
 
   /**
    * Returns true iff we can cast `from` type to `to` type.
@@ -266,8 +266,8 @@ object Cast extends QueryErrorsBase {
    * * Cast.castToTimestamp
    */
   def needsTimeZone(from: DataType, to: DataType): Boolean = (from, to) match {
-    case (StringType, TimestampType) => true
-    case (TimestampType, StringType) => true
+    case (StringType, TimestampType | DateType) => true
+    case (TimestampType | DateType, StringType) => true
     case (DateType, TimestampType) => true
     case (TimestampType, DateType) => true
     case (TimestampType, TimestampNTZType) => true
@@ -438,13 +438,10 @@ object Cast extends QueryErrorsBase {
  * session local timezone by an analyzer [[ResolveTimeZone]].
  */
 @ExpressionDescription(
-  usage = "_FUNC_(expr AS type) - Casts the value `expr` to the target data type `type`." +
-          " `expr` :: `type` alternative casting syntax is also supported.",
+  usage = "_FUNC_(expr AS type) - Casts the value `expr` to the target data type `type`.",
   examples = """
     Examples:
       > SELECT _FUNC_('10' as int);
-       10
-      > SELECT '10' :: int;
        10
   """,
   since = "1.0.0",
@@ -527,7 +524,7 @@ case class Cast(
     }
   }
 
-  override def initQueryContext(): Option[QueryContext] = if (ansiEnabled) {
+  override def initQueryContext(): Option[SQLQueryContext] = if (ansiEnabled) {
     Some(origin.context)
   } else {
     None
@@ -945,7 +942,7 @@ case class Cast(
   private[this] def toPrecision(
       value: Decimal,
       decimalType: DecimalType,
-      context: QueryContext): Decimal =
+      context: SQLQueryContext): Decimal =
     value.toPrecision(
       decimalType.precision, decimalType.scale, Decimal.ROUND_HALF_UP, !ansiEnabled, context)
 

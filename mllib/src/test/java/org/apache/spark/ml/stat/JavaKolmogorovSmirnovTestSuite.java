@@ -23,9 +23,8 @@ import java.util.List;
 
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.spark.sql.Encoders;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.apache.spark.SharedSparkSession;
 import org.apache.spark.api.java.function.Function;
@@ -38,7 +37,6 @@ public class JavaKolmogorovSmirnovTestSuite extends SharedSparkSession {
   private transient Dataset<Row> dataset;
 
   @Override
-  @BeforeEach
   public void setUp() throws IOException {
     super.setUp();
     List<java.lang.Double> points = Arrays.asList(0.1, 1.1, 10.1, -1.1);
@@ -63,7 +61,7 @@ public class JavaKolmogorovSmirnovTestSuite extends SharedSparkSession {
       .test(dataset, "sample", stdNormalCDF).head();
     double pValue1 = results.getDouble(0);
     // Cannot reject null hypothesis
-    Assertions.assertTrue(pValue1 > pThreshold);
+    Assert.assertTrue(pValue1 > pThreshold);
   }
 
   @Test
@@ -75,6 +73,6 @@ public class JavaKolmogorovSmirnovTestSuite extends SharedSparkSession {
             .test(dataset, "sample", "norm", 0.0, 1.0).head();
     double pValue1 = results.getDouble(0);
     // Cannot reject null hypothesis
-    Assertions.assertTrue(pValue1 > pThreshold);
+    Assert.assertTrue(pValue1 > pThreshold);
   }
 }

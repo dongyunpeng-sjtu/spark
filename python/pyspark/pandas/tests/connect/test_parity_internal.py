@@ -24,7 +24,9 @@ from pyspark.testing.pandasutils import PandasOnSparkTestUtils
 class InternalFrameParityTests(
     InternalFrameTestsMixin, PandasOnSparkTestUtils, ReusedConnectTestCase
 ):
-    pass
+    @unittest.skip("TODO(SPARK-43654): Enable InternalFrameParityTests.test_from_pandas.")
+    def test_from_pandas(self):
+        super().test_from_pandas()
 
 
 if __name__ == "__main__":

@@ -24,7 +24,23 @@ from pyspark.testing.pandasutils import PandasOnSparkTestUtils
 class GroupbyParityMissingDataTests(
     GroupbyMissingDataMixin, PandasOnSparkTestUtils, ReusedConnectTestCase
 ):
-    pass
+    @unittest.skip(
+        "TODO(SPARK-43611): Fix unexpected `AnalysisException` from Spark Connect client."
+    )
+    def test_bfill(self):
+        super().test_bfill()
+
+    @unittest.skip(
+        "TODO(SPARK-43611): Fix unexpected `AnalysisException` from Spark Connect client."
+    )
+    def test_ffill(self):
+        super().test_ffill()
+
+    @unittest.skip(
+        "TODO(SPARK-43611): Fix unexpected `AnalysisException` from Spark Connect client."
+    )
+    def test_fillna(self):
+        super().test_fillna()
 
 
 if __name__ == "__main__":

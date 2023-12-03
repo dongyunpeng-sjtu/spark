@@ -32,11 +32,11 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 import org.apache.spark.network.buffer.FileSegmentManagedBuffer;
 import org.apache.spark.network.buffer.ManagedBuffer;
@@ -65,13 +65,8 @@ public class ChunkFetchIntegrationSuite {
   static ManagedBuffer bufferChunk;
   static ManagedBuffer fileChunk;
 
-  // This is split out so it can be invoked in a subclass with a different config
-  @BeforeAll
+  @BeforeClass
   public static void setUp() throws Exception {
-    doSetUpWithConfig(new TransportConf("shuffle", MapConfigProvider.EMPTY));
-  }
-
-  public static void doSetUpWithConfig(final TransportConf conf) throws Exception {
     int bufSize = 100000;
     final ByteBuffer buf = ByteBuffer.allocate(bufSize);
     for (int i = 0; i < bufSize; i ++) {
@@ -93,6 +88,7 @@ public class ChunkFetchIntegrationSuite {
       Closeables.close(fp, shouldSuppressIOException);
     }
 
+    final TransportConf conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
 
     streamManager = new StreamManager() {
@@ -127,7 +123,7 @@ public class ChunkFetchIntegrationSuite {
     clientFactory = context.createClientFactory();
   }
 
-  @AfterAll
+  @AfterClass
   public static void tearDown() {
     bufferChunk.release();
     server.close();

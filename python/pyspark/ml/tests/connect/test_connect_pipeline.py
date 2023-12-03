@@ -17,15 +17,10 @@
 #
 
 import unittest
-
 from pyspark.sql import SparkSession
-from pyspark.testing.connectutils import should_test_connect, connect_requirement_message
-
-if should_test_connect:
-    from pyspark.ml.tests.connect.test_legacy_mode_pipeline import PipelineTestsMixin
+from pyspark.ml.tests.connect.test_legacy_mode_pipeline import PipelineTestsMixin
 
 
-@unittest.skipIf(not should_test_connect, connect_requirement_message)
 class PipelineTestsOnConnect(PipelineTestsMixin, unittest.TestCase):
     def setUp(self) -> None:
         self.spark = (

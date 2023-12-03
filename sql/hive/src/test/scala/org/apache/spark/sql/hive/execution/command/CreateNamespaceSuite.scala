@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.hive.execution.command
 
-import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.execution.command.v1
 
 /**
@@ -26,18 +25,4 @@ import org.apache.spark.sql.execution.command.v1
  */
 class CreateNamespaceSuite extends v1.CreateNamespaceSuiteBase with CommandSuiteBase {
   override def commandVersion: String = super[CreateNamespaceSuiteBase].commandVersion
-
-  test("REQUIRES_SINGLE_PART_NAMESPACE") {
-    val namespace = "ns1.ns2"
-    checkError(
-      exception = intercept[AnalysisException] {
-        sql(s"CREATE NAMESPACE $catalog.$namespace")
-      },
-      errorClass = "REQUIRES_SINGLE_PART_NAMESPACE",
-      parameters = Map(
-        "sessionCatalog" -> catalog,
-        "namespace" -> "`ns1`.`ns2`"
-      )
-    )
-  }
 }

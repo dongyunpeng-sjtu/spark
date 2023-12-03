@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.hive.client
 
-import java.io.{File, PrintStream}
+import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.net.{URL, URLClassLoader}
 import java.util
@@ -31,14 +31,14 @@ import org.apache.hadoop.hive.conf.HiveConf.ConfVars
 import org.apache.hadoop.hive.shims.ShimLoader
 
 import org.apache.spark.SparkConf
-import org.apache.spark.deploy.SparkSubmit
+import org.apache.spark.deploy.SparkSubmitUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.util.quietly
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.NonClosableMutableURLClassLoader
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.util.{MavenUtils, MutableURLClassLoader, Utils, VersionUtils}
+import org.apache.spark.util.{MutableURLClassLoader, Utils, VersionUtils}
 
 /** Factory for `IsolatedClientLoader` with specific versions of hive. */
 private[hive] object IsolatedClientLoader extends Logging {
@@ -66,7 +66,7 @@ private[hive] object IsolatedClientLoader extends Logging {
           case e: RuntimeException if e.getMessage.contains("hadoop") =>
             // If the error message contains hadoop, it is probably because the hadoop
             // version cannot be resolved.
-            val fallbackVersion = "3.3.6"
+            val fallbackVersion = "3.3.4"
             logWarning(s"Failed to resolve Hadoop artifacts for the version $hadoopVersion. We " +
               s"will change the hadoop version from $hadoopVersion to $fallbackVersion and try " +
               "again. It is recommended to set jars used by Hive metastore client through " +
@@ -90,6 +90,12 @@ private[hive] object IsolatedClientLoader extends Logging {
 
   def hiveVersion(version: String): HiveVersion = {
     VersionUtils.majorMinorPatchVersion(version).flatMap {
+      case (12, _, _) | (0, 12, _) => Some(hive.v12)
+      case (13, _, _) | (0, 13, _) => Some(hive.v13)
+      case (14, _, _) | (0, 14, _) => Some(hive.v14)
+      case (1, 0, _) => Some(hive.v1_0)
+      case (1, 1, _) => Some(hive.v1_1)
+      case (1, 2, _) => Some(hive.v1_2)
       case (2, 0, _) => Some(hive.v2_0)
       case (2, 1, _) => Some(hive.v2_1)
       case (2, 2, _) => Some(hive.v2_2)
@@ -127,11 +133,10 @@ private[hive] object IsolatedClientLoader extends Logging {
         .map(a => s"org.apache.hive:$a:${version.fullVersion}") ++
       Seq("com.google.guava:guava:14.0.1") ++ hadoopJarNames
 
-    implicit val printStream: PrintStream = SparkSubmit.printStream
     val classpaths = quietly {
-      MavenUtils.resolveMavenCoordinates(
+      SparkSubmitUtils.resolveMavenCoordinates(
         hiveArtifacts.mkString(","),
-        MavenUtils.buildIvySettings(
+        SparkSubmitUtils.buildIvySettings(
           Some(remoteRepos),
           ivyPath),
         transitive = true,

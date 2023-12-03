@@ -125,7 +125,7 @@ case class ApproximatePercentile(
       DataTypeMismatch(
         errorSubClass = "NON_FOLDABLE_INPUT",
         messageParameters = Map(
-          "inputName" -> toSQLId("percentage"),
+          "inputName" -> "percentage",
           "inputType" -> toSQLType(percentageExpression.dataType),
           "inputExpr" -> toSQLExpr(percentageExpression)
         )
@@ -134,7 +134,7 @@ case class ApproximatePercentile(
       DataTypeMismatch(
         errorSubClass = "NON_FOLDABLE_INPUT",
         messageParameters = Map(
-          "inputName" -> toSQLId("accuracy"),
+          "inputName" -> "accuracy",
           "inputType" -> toSQLType(accuracyExpression.dataType),
           "inputExpr" -> toSQLExpr(accuracyExpression)
         )

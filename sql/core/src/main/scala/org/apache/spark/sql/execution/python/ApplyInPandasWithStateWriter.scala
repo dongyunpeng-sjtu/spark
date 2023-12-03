@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.python
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.arrow.vector.{FieldVector, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowStreamWriter

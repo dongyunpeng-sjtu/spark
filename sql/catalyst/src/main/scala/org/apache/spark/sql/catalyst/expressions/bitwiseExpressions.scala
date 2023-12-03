@@ -19,8 +19,8 @@ package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
 import org.apache.spark.sql.catalyst.expressions.codegen._
-import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.types._
+
 
 /**
  * A function that calculates bitwise and(&) of two numbers.
@@ -246,9 +246,11 @@ case class BitwiseCount(child: Expression)
 }
 
 object BitwiseGetUtil {
-  def checkPosition(funcName: String, pos: Int, size: Int): Unit = {
-    if (pos < 0 || pos >= size) {
-      throw QueryExecutionErrors.bitPositionRangeError(funcName, pos, size)
+  def checkPosition(pos: Int, size: Int): Unit = {
+    if (pos < 0) {
+      throw new IllegalArgumentException(s"Invalid bit position: $pos is less than zero")
+    } else if (size <= pos) {
+      throw new IllegalArgumentException(s"Invalid bit position: $pos exceeds the bit upper limit")
     }
   }
 }
@@ -284,15 +286,14 @@ case class BitwiseGet(left: Expression, right: Expression)
 
   override def nullSafeEval(target: Any, pos: Any): Any = {
     val posInt = pos.asInstanceOf[Int]
-    BitwiseGetUtil.checkPosition(prettyName, posInt, bitSize)
+    BitwiseGetUtil.checkPosition(posInt, bitSize)
     ((target.asInstanceOf[Number].longValue() >> posInt) & 1).toByte
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     nullSafeCodeGen(ctx, ev, (target, pos) => {
       s"""
-         |org.apache.spark.sql.catalyst.expressions.BitwiseGetUtil.checkPosition(
-         |  "$prettyName", $pos, $bitSize);
+         |org.apache.spark.sql.catalyst.expressions.BitwiseGetUtil.checkPosition($pos, $bitSize);
          |${ev.value} = (byte) ((((long) $target) >> $pos) & 1);
        """.stripMargin
     })

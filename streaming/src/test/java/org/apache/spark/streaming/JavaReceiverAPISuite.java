@@ -24,10 +24,10 @@ import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 import com.google.common.io.Closeables;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -44,12 +44,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class JavaReceiverAPISuite implements Serializable {
 
-  @BeforeEach
+  @Before
   public void setUp() {
     System.clearProperty("spark.streaming.clock");
   }
 
-  @AfterEach
+  @After
   public void tearDown() {
     System.clearProperty("spark.streaming.clock");
   }
@@ -84,7 +84,7 @@ public class JavaReceiverAPISuite implements Serializable {
         Thread.sleep(100);
       }
       ssc.stop();
-      Assertions.assertTrue(dataCounter.get() > 0);
+      Assert.assertTrue(dataCounter.get() > 0);
     } finally {
       server.stop();
     }

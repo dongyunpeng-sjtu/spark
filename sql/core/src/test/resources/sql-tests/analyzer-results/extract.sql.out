@@ -932,12 +932,11 @@ select date_part(c, c) from t
 -- !query analysis
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "NON_FOLDABLE_ARGUMENT",
-  "sqlState" : "42K08",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1100",
   "messageParameters" : {
-    "funcName" : "`date_part`",
-    "paramName" : "`field`",
-    "paramType" : "\"STRING\""
+    "argName" : "field",
+    "funcName" : "date_part",
+    "requiredType" : "string"
   },
   "queryContext" : [ {
     "objectType" : "",
@@ -965,12 +964,11 @@ select date_part(i, i) from t
 -- !query analysis
 org.apache.spark.sql.AnalysisException
 {
-  "errorClass" : "NON_FOLDABLE_ARGUMENT",
-  "sqlState" : "42K08",
+  "errorClass" : "_LEGACY_ERROR_TEMP_1100",
   "messageParameters" : {
-    "funcName" : "`date_part`",
-    "paramName" : "`field`",
-    "paramType" : "\"STRING\""
+    "argName" : "field",
+    "funcName" : "date_part",
+    "requiredType" : "string"
   },
   "queryContext" : [ {
     "objectType" : "",

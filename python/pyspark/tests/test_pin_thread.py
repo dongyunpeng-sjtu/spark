@@ -99,6 +99,7 @@ class PinThreadTests(unittest.TestCase):
         )
 
     def check_job_cancellation(self, setter, canceller):
+
         job_id_a = "job_ids_to_cancel"
         job_id_b = "job_ids_to_run"
 

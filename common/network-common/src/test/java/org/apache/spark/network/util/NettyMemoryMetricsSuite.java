@@ -27,9 +27,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
 import org.apache.spark.network.TestUtils;
 import org.apache.spark.network.client.TransportClient;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.apache.spark.network.TransportContext;
 import org.apache.spark.network.client.TransportClientFactory;
@@ -54,7 +54,7 @@ public class NettyMemoryMetricsSuite {
     clientFactory = context.createClientFactory();
   }
 
-  @AfterEach
+  @After
   public void tearDown() {
     if (clientFactory != null) {
       JavaUtils.closeQuietly(clientFactory);
@@ -76,50 +76,50 @@ public class NettyMemoryMetricsSuite {
     setUp(false);
 
     MetricSet serverMetrics = server.getAllMetrics();
-    Assertions.assertNotNull(serverMetrics);
-    Assertions.assertNotNull(serverMetrics.getMetrics());
-    Assertions.assertNotEquals(serverMetrics.getMetrics().size(), 0);
+    Assert.assertNotNull(serverMetrics);
+    Assert.assertNotNull(serverMetrics.getMetrics());
+    Assert.assertNotEquals(serverMetrics.getMetrics().size(), 0);
 
     Map<String, Metric> serverMetricMap = serverMetrics.getMetrics();
     serverMetricMap.forEach((name, metric) ->
-      Assertions.assertTrue(name.startsWith("shuffle-server"))
+      Assert.assertTrue(name.startsWith("shuffle-server"))
     );
 
     MetricSet clientMetrics = clientFactory.getAllMetrics();
-    Assertions.assertNotNull(clientMetrics);
-    Assertions.assertNotNull(clientMetrics.getMetrics());
-    Assertions.assertNotEquals(clientMetrics.getMetrics().size(), 0);
+    Assert.assertNotNull(clientMetrics);
+    Assert.assertNotNull(clientMetrics.getMetrics());
+    Assert.assertNotEquals(clientMetrics.getMetrics().size(), 0);
 
     Map<String, Metric> clientMetricMap = clientMetrics.getMetrics();
     clientMetricMap.forEach((name, metrics) ->
-      Assertions.assertTrue(name.startsWith("shuffle-client"))
+      Assert.assertTrue(name.startsWith("shuffle-client"))
     );
 
     // Make sure general metrics existed.
     String heapMemoryMetric = "usedHeapMemory";
     String directMemoryMetric = "usedDirectMemory";
-    Assertions.assertNotNull(serverMetricMap.get(
+    Assert.assertNotNull(serverMetricMap.get(
       MetricRegistry.name("shuffle-server", heapMemoryMetric)));
-    Assertions.assertNotNull(serverMetricMap.get(
+    Assert.assertNotNull(serverMetricMap.get(
       MetricRegistry.name("shuffle-server", directMemoryMetric)));
 
-    Assertions.assertNotNull(clientMetricMap.get(
+    Assert.assertNotNull(clientMetricMap.get(
       MetricRegistry.name("shuffle-client", heapMemoryMetric)));
-    Assertions.assertNotNull(clientMetricMap.get(
+    Assert.assertNotNull(clientMetricMap.get(
       MetricRegistry.name("shuffle-client", directMemoryMetric)));
 
     try (TransportClient client =
         clientFactory.createClient(TestUtils.getLocalHost(), server.getPort())) {
-      Assertions.assertTrue(client.isActive());
+      Assert.assertTrue(client.isActive());
 
-      Assertions.assertTrue(((Gauge<Long>)serverMetricMap.get(
+      Assert.assertTrue(((Gauge<Long>)serverMetricMap.get(
         MetricRegistry.name("shuffle-server", heapMemoryMetric))).getValue() >= 0L);
-      Assertions.assertTrue(((Gauge<Long>)serverMetricMap.get(
+      Assert.assertTrue(((Gauge<Long>)serverMetricMap.get(
         MetricRegistry.name("shuffle-server", directMemoryMetric))).getValue() >= 0L);
 
-      Assertions.assertTrue(((Gauge<Long>)clientMetricMap.get(
+      Assert.assertTrue(((Gauge<Long>)clientMetricMap.get(
         MetricRegistry.name("shuffle-client", heapMemoryMetric))).getValue() >= 0L);
-      Assertions.assertTrue(((Gauge<Long>)clientMetricMap.get(
+      Assert.assertTrue(((Gauge<Long>)clientMetricMap.get(
         MetricRegistry.name("shuffle-client", directMemoryMetric))).getValue() >= 0L);
 
     }
@@ -133,18 +133,18 @@ public class NettyMemoryMetricsSuite {
     // Make sure additional metrics are added.
     Map<String, Metric> serverMetricMap = server.getAllMetrics().getMetrics();
     serverMetricMap.forEach((name, metric) -> {
-      Assertions.assertTrue(name.startsWith("shuffle-server"));
+      Assert.assertTrue(name.startsWith("shuffle-server"));
       String metricName = name.substring(name.lastIndexOf(".") + 1);
-      Assertions.assertTrue(metricName.equals("usedDirectMemory")
+      Assert.assertTrue(metricName.equals("usedDirectMemory")
         || metricName.equals("usedHeapMemory")
         || NettyMemoryMetrics.VERBOSE_METRICS.contains(metricName));
     });
 
     Map<String, Metric> clientMetricMap = clientFactory.getAllMetrics().getMetrics();
     clientMetricMap.forEach((name, metric) -> {
-      Assertions.assertTrue(name.startsWith("shuffle-client"));
+      Assert.assertTrue(name.startsWith("shuffle-client"));
       String metricName = name.substring(name.lastIndexOf(".") + 1);
-      Assertions.assertTrue(metricName.equals("usedDirectMemory")
+      Assert.assertTrue(metricName.equals("usedDirectMemory")
         || metricName.equals("usedHeapMemory")
         || NettyMemoryMetrics.VERBOSE_METRICS.contains(metricName));
     });
@@ -152,13 +152,13 @@ public class NettyMemoryMetricsSuite {
     TransportClient client = null;
     try {
       client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
-      Assertions.assertTrue(client.isActive());
+      Assert.assertTrue(client.isActive());
 
       String activeBytesMetric = "numActiveBytes";
-      Assertions.assertTrue(((Gauge<Long>) serverMetricMap.get(MetricRegistry.name("shuffle-server",
+      Assert.assertTrue(((Gauge<Long>) serverMetricMap.get(MetricRegistry.name("shuffle-server",
         "directArena0", activeBytesMetric))).getValue() >= 0L);
 
-      Assertions.assertTrue(((Gauge<Long>) clientMetricMap.get(MetricRegistry.name("shuffle-client",
+      Assert.assertTrue(((Gauge<Long>) clientMetricMap.get(MetricRegistry.name("shuffle-client",
         "directArena0", activeBytesMetric))).getValue() >= 0L);
     } finally {
       if (client != null) {

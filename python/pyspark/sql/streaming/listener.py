@@ -107,9 +107,7 @@ class StreamingQueryListener(ABC):
         """
         pass
 
-    # NOTE: Do not mark this as abstract method, since we released this abstract class without
-    # this method in prior version and marking this as abstract method would break existing
-    # implementations.
+    @abstractmethod
     def onQueryIdle(self, event: "QueryIdleEvent") -> None:
         """
         Called when the query is idle and waiting for new data to process.
@@ -479,7 +477,7 @@ class StreamingQueryProgress:
             name=j["name"],
             timestamp=j["timestamp"],
             batchId=j["batchId"],
-            batchDuration=j["batchDuration"],
+            batchDuration=j.get("batchDuration", None),
             durationMs=dict(j["durationMs"]) if "durationMs" in j else {},
             eventTime=dict(j["eventTime"]) if "eventTime" in j else {},
             stateOperators=[StateOperatorProgress.fromJson(s) for s in j["stateOperators"]],

@@ -17,7 +17,7 @@
 
 package org.apache.spark.mllib.classification
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 import breeze.linalg.{DenseVector => BDV}

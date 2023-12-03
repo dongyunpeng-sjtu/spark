@@ -115,27 +115,25 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
         exception = intercept[AnalysisException] {
           sql("CREATE OR REPLACE VIEW tab1 AS SELECT * FROM jt")
         },
-        errorClass = "EXPECT_VIEW_NOT_TABLE.NO_ALTERNATIVE",
-        parameters = Map(
-          "tableName" -> s"`$SESSION_CATALOG_NAME`.`default`.`tab1`",
-          "operation" -> "CREATE OR REPLACE VIEW")
+        errorClass = "_LEGACY_ERROR_TEMP_1278",
+        parameters = Map("name" -> s"`$SESSION_CATALOG_NAME`.`default`.`tab1`")
       )
       checkError(
         exception = intercept[AnalysisException] {
           sql("CREATE VIEW tab1 AS SELECT * FROM jt")
         },
-        errorClass = "TABLE_OR_VIEW_ALREADY_EXISTS",
-        parameters = Map(
-          "relationName" -> s"`$SESSION_CATALOG_NAME`.`default`.`tab1`")
+        errorClass = "_LEGACY_ERROR_TEMP_1278",
+        parameters = Map("name" -> s"`$SESSION_CATALOG_NAME`.`default`.`tab1`")
       )
       checkError(
         exception = intercept[AnalysisException] {
           sql("ALTER VIEW tab1 AS SELECT * FROM jt")
         },
-        errorClass = "EXPECT_VIEW_NOT_TABLE.NO_ALTERNATIVE",
+        errorClass = "_LEGACY_ERROR_TEMP_1015",
         parameters = Map(
-          "tableName" -> s"`$SESSION_CATALOG_NAME`.`default`.`tab1`",
-          "operation" -> "ALTER VIEW ... AS"
+          "identifier" -> "default.tab1",
+          "cmd" -> "ALTER VIEW ... AS",
+          "hintStr" -> ""
         ),
         context = ExpectedContext(
           fragment = "tab1",
@@ -157,36 +155,12 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     val viewName = "testView"
     withTempView(viewName) {
       spark.range(10).createTempView(viewName)
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER VIEW $viewName SET TBLPROPERTIES ('p' = 'an')")
-        },
-        errorClass = "EXPECT_PERMANENT_VIEW_NOT_TEMP",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER VIEW ... SET TBLPROPERTIES"
-        ),
-        context = ExpectedContext(
-          fragment = "testView",
-          start = 11,
-          stop = 18
-        )
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER VIEW $viewName UNSET TBLPROPERTIES ('p')")
-        },
-        errorClass = "EXPECT_PERMANENT_VIEW_NOT_TEMP",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER VIEW ... UNSET TBLPROPERTIES"
-        ),
-        context = ExpectedContext(
-          fragment = "testView",
-          start = 11,
-          stop = 18
-        )
-      )
+      assertAnalysisError(
+        s"ALTER VIEW $viewName SET TBLPROPERTIES ('p' = 'an')",
+        "testView is a temp view. 'ALTER VIEW ... SET TBLPROPERTIES' expects a permanent view.")
+      assertAnalysisError(
+        s"ALTER VIEW $viewName UNSET TBLPROPERTIES ('p')",
+        "testView is a temp view. 'ALTER VIEW ... UNSET TBLPROPERTIES' expects a permanent view.")
     }
   }
 
@@ -194,127 +168,50 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     val viewName = "testView"
     withTempView(viewName) {
       spark.range(10).createTempView(viewName)
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName SET SERDE 'whatever'")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.USE_ALTER_VIEW",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... SET [SERDE|SERDEPROPERTIES]"
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName PARTITION (a=1, b=2) SET SERDE 'whatever'")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.USE_ALTER_VIEW",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... SET [SERDE|SERDEPROPERTIES]"
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName SET SERDEPROPERTIES ('p' = 'an')")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.USE_ALTER_VIEW",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... SET [SERDE|SERDEPROPERTIES]"
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName PARTITION (a='4') RENAME TO PARTITION (a='5')")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... RENAME TO PARTITION"
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName RECOVER PARTITIONS")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... RECOVER PARTITIONS"
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName SET LOCATION '/path/to/your/lovely/heart'")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... SET LOCATION ..."
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName PARTITION (a='4') SET LOCATION '/path/to/home'")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... SET LOCATION ..."
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName ADD IF NOT EXISTS PARTITION (a='4', b='8')")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... ADD PARTITION ..."
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName DROP PARTITION (a='4', b='8')")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... DROP PARTITION ..."
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName SET TBLPROPERTIES ('p' = 'an')")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.USE_ALTER_VIEW",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... SET TBLPROPERTIES"
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
-      checkError(
-        exception = intercept[AnalysisException] {
-          sql(s"ALTER TABLE $viewName UNSET TBLPROPERTIES ('p')")
-        },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.USE_ALTER_VIEW",
-        parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ALTER TABLE ... UNSET TBLPROPERTIES"
-        ),
-        context = ExpectedContext(fragment = viewName, start = 12, stop = 19)
-      )
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName SET SERDE 'whatever'",
+        viewName,
+        "ALTER TABLE ... SET [SERDE|SERDEPROPERTIES]")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName PARTITION (a=1, b=2) SET SERDE 'whatever'",
+        viewName,
+        "ALTER TABLE ... SET [SERDE|SERDEPROPERTIES]")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName SET SERDEPROPERTIES ('p' = 'an')",
+        viewName,
+        "ALTER TABLE ... SET [SERDE|SERDEPROPERTIES]")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName PARTITION (a='4') RENAME TO PARTITION (a='5')",
+        viewName,
+        "ALTER TABLE ... RENAME TO PARTITION")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName RECOVER PARTITIONS",
+        viewName,
+        "ALTER TABLE ... RECOVER PARTITIONS")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName SET LOCATION '/path/to/your/lovely/heart'",
+        viewName,
+        "ALTER TABLE ... SET LOCATION ...")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName PARTITION (a='4') SET LOCATION '/path/to/home'",
+        viewName,
+        "ALTER TABLE ... SET LOCATION ...")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName ADD IF NOT EXISTS PARTITION (a='4', b='8')",
+        viewName,
+        "ALTER TABLE ... ADD PARTITION ...")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName DROP PARTITION (a='4', b='8')",
+        viewName,
+        "ALTER TABLE ... DROP PARTITION ...")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName SET TBLPROPERTIES ('p' = 'an')",
+        viewName,
+        "ALTER TABLE ... SET TBLPROPERTIES")
+      assertErrorForAlterTableOnTempView(
+        s"ALTER TABLE $viewName UNSET TBLPROPERTIES ('p')",
+        viewName,
+        "ALTER TABLE ... UNSET TBLPROPERTIES")
     }
   }
 
@@ -338,10 +235,12 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
         exception = intercept[AnalysisException] {
           sql(sqlText)
         },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
+        errorClass = "_LEGACY_ERROR_TEMP_1013",
         parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "LOAD DATA"
+          "nameParts" -> viewName,
+          "viewStr" -> "temp view",
+          "cmd" -> "LOAD DATA",
+          "hintStr" -> ""
         ),
         context = ExpectedContext(
           fragment = viewName,
@@ -353,10 +252,10 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
         exception = intercept[AnalysisException] {
           sql(s"SHOW CREATE TABLE $viewName")
         },
-        errorClass = "EXPECT_PERMANENT_VIEW_NOT_TEMP",
+        errorClass = "_LEGACY_ERROR_TEMP_1016",
         parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "SHOW CREATE TABLE"
+          "nameParts" -> "testView",
+          "cmd" -> "SHOW CREATE TABLE"
         ),
         context = ExpectedContext(
           fragment = viewName,
@@ -368,10 +267,10 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
         exception = intercept[AnalysisException] {
           sql(s"ANALYZE TABLE $viewName COMPUTE STATISTICS")
         },
-        errorClass = "EXPECT_PERMANENT_VIEW_NOT_TEMP",
+        errorClass = "_LEGACY_ERROR_TEMP_1016",
         parameters = Map(
-          "viewName" -> s"`$viewName`",
-          "operation" -> "ANALYZE TABLE"
+          "nameParts" -> "testView",
+          "cmd" -> "ANALYZE TABLE"
         ),
         context = ExpectedContext(
           fragment = viewName,
@@ -389,12 +288,24 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
+  private def assertAnalysisError(query: String, message: String): Unit = {
+    val e = intercept[AnalysisException](sql(query))
+    assert(e.message.contains(message))
+  }
+
   private def assertAnalysisErrorClass(query: String,
       errorClass: String,
       parameters: Map[String, String],
       context: ExpectedContext): Unit = {
     val e = intercept[AnalysisException](sql(query))
     checkError(e, errorClass = errorClass, parameters = parameters, context = context)
+  }
+
+  private def assertErrorForAlterTableOnTempView(
+    sqlText: String, viewName: String, cmdName: String): Unit = {
+    assertAnalysisError(
+      sqlText,
+      s"$viewName is a temp view. '$cmdName' expects a table. Please use ALTER VIEW instead.")
   }
 
   test("error handling: insert/load table commands against a view") {
@@ -405,11 +316,8 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
         exception = intercept[AnalysisException] {
           sql(s"INSERT INTO TABLE $viewName SELECT 1")
         },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
-        parameters = Map(
-          "viewName" -> s"`$SESSION_CATALOG_NAME`.`default`.`testview`",
-          "operation" -> "INSERT"
-        ),
+        errorClass = "_LEGACY_ERROR_TEMP_1010",
+        parameters = Map("identifier" -> s"`$SESSION_CATALOG_NAME`.`default`.`testview`"),
         context = ExpectedContext(fragment = viewName, start = 18, stop = 25)
       )
 
@@ -420,10 +328,12 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
         exception = intercept[AnalysisException] {
           sql(sqlText)
         },
-        errorClass = "EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE",
+        errorClass = "_LEGACY_ERROR_TEMP_1013",
         parameters = Map(
-          "viewName" -> s"`$SESSION_CATALOG_NAME`.`default`.`testview`",
-          "operation" -> "LOAD DATA"),
+          "nameParts" -> "spark_catalog.default.testview",
+          "viewStr" -> "view",
+          "cmd" -> "LOAD DATA",
+          "hintStr" -> ""),
         context = ExpectedContext(
           fragment = viewName,
           start = sqlText.length - 8,
@@ -1206,7 +1116,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
               },
               errorClass = "DIVIDE_BY_ZERO",
               parameters = Map("config" -> "\"spark.sql.ansi.enabled\""),
-              context = ExpectedContext(
+              context = new ExpectedContext(
                 objectType = "VIEW",
                 objectName = s"$SESSION_CATALOG_NAME.default.v5",
                 fragment = "1/0",
@@ -1225,7 +1135,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
           },
           errorClass = "DIVIDE_BY_ZERO",
           parameters = Map("config" -> "\"spark.sql.ansi.enabled\""),
-          context = ExpectedContext(
+          context = new ExpectedContext(
             objectType = "VIEW",
             objectName = s"$SESSION_CATALOG_NAME.default.v1",
             fragment = "1/0",

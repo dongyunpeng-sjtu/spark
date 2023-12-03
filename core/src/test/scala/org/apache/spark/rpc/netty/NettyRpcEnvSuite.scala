@@ -53,7 +53,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with MockitoSugar with TimeLimits {
   }
 
   test("advertise address different from bind address") {
-    val sparkConf = createSparkConf()
+    val sparkConf = new SparkConf()
     val config = RpcEnvConfig(sparkConf, "test", "localhost", "example.com", 0,
       new SecurityManager(sparkConf), 0, false)
     val env = new NettyRpcEnvFactory().create(config)
@@ -95,7 +95,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with MockitoSugar with TimeLimits {
 
   test("StackOverflowError should be sent back and Dispatcher should survive") {
     val numUsableCores = 2
-    val conf = createSparkConf()
+    val conf = new SparkConf
     val config = RpcEnvConfig(
       conf,
       "test",
@@ -150,7 +150,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with MockitoSugar with TimeLimits {
           context.reply(msg)
       }
     })
-    val conf = createSparkConf()
+    val conf = new SparkConf()
     val anotherEnv = createRpcEnv(conf, "remote", 0, clientMode = true)
     // Use anotherEnv to find out the RpcEndpointRef
     val rpcEndpointRef = anotherEnv.setupEndpointRef(env.address, "ask-remotely-server")
@@ -178,11 +178,5 @@ class NettyRpcEnvSuite extends RpcEnvSuite with MockitoSugar with TimeLimits {
       anotherEnv.shutdown()
       anotherEnv.awaitTermination()
     }
-  }
-}
-
-class SslNettyRpcEnvSuite extends NettyRpcEnvSuite with MockitoSugar with TimeLimits {
-  override def createSparkConf(): SparkConf = {
-    SslTestUtils.updateWithSSLConfig(super.createSparkConf())
   }
 }

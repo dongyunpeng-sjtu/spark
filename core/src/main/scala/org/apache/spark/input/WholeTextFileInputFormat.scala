@@ -17,7 +17,7 @@
 
 package org.apache.spark.input
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.Text

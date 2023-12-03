@@ -19,7 +19,7 @@ license: |
   limitations under the License.
 ---
 
-[SQLSTATE: 22003](sql-error-conditions-sqlstates.html#class-22-data-exception)
+SQLSTATE: none assigned
 
 The boundary `<boundary>` is invalid: `<invalidValue>`.
 

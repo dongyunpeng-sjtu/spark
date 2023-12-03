@@ -17,7 +17,7 @@
 
 package org.apache.spark.status.protobuf
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.status.PoolData
 import org.apache.spark.status.protobuf.Utils.{getStringField, setStringField}

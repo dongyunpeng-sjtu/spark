@@ -36,25 +36,23 @@ import org.apache.spark.tags.DockerTest
  *    - The documentation on how to build Oracle RDBMS in a container is at
  *      https://github.com/oracle/docker-images/blob/master/OracleDatabase/SingleInstance/README.md
  *    - Official Oracle container images can be found at https://container-registry.oracle.com
- *    - Trustable and streamlined Oracle Database Free images can be found on Docker Hub at
- *      https://hub.docker.com/r/gvenzl/oracle-free
- *      see also https://github.com/gvenzl/oci-oracle-free
+ *    - A trustable and streamlined Oracle XE database image can be found on Docker Hub at
+ *      https://hub.docker.com/r/gvenzl/oracle-xe see also https://github.com/gvenzl/oci-oracle-xe
  * 2. Run: export ORACLE_DOCKER_IMAGE_NAME=image_you_want_to_use_for_testing
- *    - Example: export ORACLE_DOCKER_IMAGE_NAME=gvenzl/oracle-free:latest
+ *    - Example: export ORACLE_DOCKER_IMAGE_NAME=gvenzl/oracle-xe:latest
  * 3. Run: export ENABLE_DOCKER_INTEGRATION_TESTS=1
  * 4. Start docker: sudo service docker start
  *    - Optionally, docker pull $ORACLE_DOCKER_IMAGE_NAME
  * 5. Run Spark integration tests for Oracle with: ./build/sbt -Pdocker-integration-tests
  *    "testOnly org.apache.spark.sql.jdbc.v2.OracleIntegrationSuite"
  *
- * A sequence of commands to build the Oracle Database Free container image:
+ * A sequence of commands to build the Oracle XE database container image:
  *  $ git clone https://github.com/oracle/docker-images.git
  *  $ cd docker-images/OracleDatabase/SingleInstance/dockerfiles
- *  $ ./buildContainerImage.sh -v 23.2.0 -f
- *  $ export ORACLE_DOCKER_IMAGE_NAME=oracle/database:23.2.0-free
+ *  $ ./buildContainerImage.sh -v 21.3.0 -x
+ *  $ export ORACLE_DOCKER_IMAGE_NAME=oracle/database:21.3.0-xe
  *
- * This procedure has been validated with Oracle Databae Free version 23.2.0,
- * and with Oracle Express Edition versions 18.4.0 and 21.3.0
+ * This procedure has been validated with Oracle 18.4.0 and 21.3.0 Express Edition.
  */
 @DockerTest
 class OracleIntegrationSuite extends DockerJDBCIntegrationV2Suite with V2JDBCTest {
@@ -76,16 +74,16 @@ class OracleIntegrationSuite extends DockerJDBCIntegrationV2Suite with V2JDBCTes
   override val namespaceOpt: Option[String] = Some("SYSTEM")
   override val db = new DatabaseOnDocker {
     lazy override val imageName =
-      sys.env.getOrElse("ORACLE_DOCKER_IMAGE_NAME", "gvenzl/oracle-free:23.3")
+      sys.env.getOrElse("ORACLE_DOCKER_IMAGE_NAME", "gvenzl/oracle-xe:21.3.0")
     val oracle_password = "Th1s1sThe0racle#Pass"
     override val env = Map(
       "ORACLE_PWD" -> oracle_password,      // oracle images uses this
-      "ORACLE_PASSWORD" -> oracle_password  // gvenzl/oracle-free uses this
+      "ORACLE_PASSWORD" -> oracle_password  // gvenzl/oracle-xe uses this
     )
     override val usesIpc = false
     override val jdbcPort: Int = 1521
     override def getJdbcUrl(ip: String, port: Int): String =
-      s"jdbc:oracle:thin:system/$oracle_password@//$ip:$port/freepdb1"
+      s"jdbc:oracle:thin:system/$oracle_password@//$ip:$port/xe"
   }
 
   override def sparkConf: SparkConf = super.sparkConf

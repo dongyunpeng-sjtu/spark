@@ -17,7 +17,7 @@
 
 package org.apache.spark.deploy.yarn
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.hadoop.yarn.api.records.ResourceTypeInfo
 import org.apache.hadoop.yarn.util.resource.ResourceUtils

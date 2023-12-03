@@ -22,6 +22,7 @@ import threading
 import os
 import warnings
 from collections.abc import Sized
+from distutils.version import LooseVersion
 from functools import reduce
 from threading import RLock
 from typing import (
@@ -44,12 +45,12 @@ import pandas as pd
 import pyarrow as pa
 from pandas.api.types import (  # type: ignore[attr-defined]
     is_datetime64_dtype,
+    is_datetime64tz_dtype,
     is_timedelta64_dtype,
 )
 import urllib
 
 from pyspark import SparkContext, SparkConf, __version__
-from pyspark.loose_version import LooseVersion
 from pyspark.sql.connect.client import SparkConnectClient, ChannelBuilder
 from pyspark.sql.connect.conf import RuntimeConf
 from pyspark.sql.connect.dataframe import DataFrame
@@ -63,8 +64,7 @@ from pyspark.sql.connect.plan import (
     CachedRemoteRelation,
 )
 from pyspark.sql.connect.readwriter import DataFrameReader
-from pyspark.sql.connect.streaming.readwriter import DataStreamReader
-from pyspark.sql.connect.streaming.query import StreamingQueryManager
+from pyspark.sql.connect.streaming import DataStreamReader, StreamingQueryManager
 from pyspark.sql.pandas.serializers import ArrowStreamPandasSerializer
 from pyspark.sql.pandas.types import to_arrow_schema, to_arrow_type, _deduplicate_field_names
 from pyspark.sql.session import classproperty, SparkSession as PySparkSession
@@ -179,16 +179,10 @@ class SparkSession:
         def _apply_options(self, session: "SparkSession") -> None:
             with self._lock:
                 for k, v in self._options.items():
-                    # the options are applied after session creation,
-                    # so following options always take no effect
-                    if k not in [
-                        "spark.remote",
-                        "spark.master",
-                    ]:
-                        try:
-                            session.conf.set(k, v)
-                        except Exception as e:
-                            warnings.warn(str(e))
+                    try:
+                        session.conf.set(k, v)
+                    except Exception as e:
+                        warnings.warn(str(e))
 
         def create(self) -> "SparkSession":
             has_channel_builder = self._channel_builder is not None
@@ -418,7 +412,7 @@ class SparkSession:
                 # Any timestamps must be coerced to be compatible with Spark
                 spark_types = [
                     TimestampType()
-                    if is_datetime64_dtype(t) or isinstance(t, pd.DatetimeTZDtype)
+                    if is_datetime64_dtype(t) or is_datetime64tz_dtype(t)
                     else DayTimeIntervalType()
                     if is_timedelta64_dtype(t)
                     else None
@@ -557,7 +551,7 @@ class SparkSession:
         if "sql_command_result" in properties:
             return DataFrame.withPlan(CachedRelation(properties["sql_command_result"]), self)
         else:
-            return DataFrame.withPlan(cmd, self)
+            return DataFrame.withPlan(SQL(sqlQuery, args), self)
 
     sql.__doc__ = PySparkSession.sql.__doc__
 
@@ -694,9 +688,13 @@ class SparkSession:
     streams.__doc__ = PySparkSession.streams.__doc__
 
     def __getattr__(self, name: str) -> Any:
-        if name in ["_jsc", "_jconf", "_jvm", "_jsparkSession", "sparkContext", "newSession"]:
+        if name in ["_jsc", "_jconf", "_jvm", "_jsparkSession"]:
             raise PySparkAttributeError(
                 error_class="JVM_ATTRIBUTE_NOT_SUPPORTED", message_parameters={"attr_name": name}
+            )
+        elif name in ["newSession", "sparkContext"]:
+            raise PySparkNotImplementedError(
+                error_class="NOT_IMPLEMENTED", message_parameters={"feature": f"{name}()"}
             )
         return object.__getattribute__(self, name)
 
@@ -806,6 +804,7 @@ class SparkSession:
         """
         session = PySparkSession._instantiatedSession
         if session is None or session._sc._jsc is None:
+
             # Configurations to be overwritten
             overwrite_conf = opts
             overwrite_conf["spark.master"] = master

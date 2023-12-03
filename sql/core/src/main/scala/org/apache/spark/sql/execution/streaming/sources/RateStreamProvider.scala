@@ -100,9 +100,6 @@ class RateStreamTable(
 
     override def toContinuousStream(checkpointLocation: String): ContinuousStream =
       new RateStreamContinuousStream(rowsPerSecond, numPartitions)
-
-    override def columnarSupportMode(): Scan.ColumnarSupportMode =
-      Scan.ColumnarSupportMode.UNSUPPORTED
   }
 }
 

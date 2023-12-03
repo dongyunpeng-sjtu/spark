@@ -17,7 +17,7 @@
 
 package org.apache.spark
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.internal.Logging
 
@@ -122,7 +122,7 @@ trait ThreadAudit extends Logging {
   }
 
   private def runningThreadNames(): Set[String] = {
-    runningThreads().map(_.getName)
+    runningThreads.map(_.getName).toSet
   }
 
   private def runningThreads(): Set[Thread] = {

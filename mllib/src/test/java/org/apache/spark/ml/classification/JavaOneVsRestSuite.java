@@ -20,11 +20,10 @@ package org.apache.spark.ml.classification;
 import java.io.IOException;
 import java.util.List;
 
-import scala.jdk.javaapi.CollectionConverters;
+import scala.collection.JavaConverters;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.apache.spark.SharedSparkSession;
 import org.apache.spark.api.java.JavaRDD;
@@ -39,7 +38,6 @@ public class JavaOneVsRestSuite extends SharedSparkSession {
   private transient JavaRDD<LabeledPoint> datasetRDD;
 
   @Override
-  @BeforeEach
   public void setUp() throws IOException {
     super.setUp();
     int nPoints = 3;
@@ -53,8 +51,9 @@ public class JavaOneVsRestSuite extends SharedSparkSession {
 
     double[] xMean = {5.843, 3.057, 3.758, 1.199};
     double[] xVariance = {0.6856, 0.1899, 3.116, 0.581};
-    List<LabeledPoint> points = CollectionConverters.asJava(generateMultinomialLogisticInput(
-      coefficients, xMean, xVariance, true, nPoints, 42));
+    List<LabeledPoint> points = JavaConverters.seqAsJavaListConverter(
+      generateMultinomialLogisticInput(coefficients, xMean, xVariance, true, nPoints, 42)
+    ).asJava();
     datasetRDD = jsc.parallelize(points, 2);
     dataset = spark.createDataFrame(datasetRDD, LabeledPoint.class);
   }
@@ -63,12 +62,12 @@ public class JavaOneVsRestSuite extends SharedSparkSession {
   public void oneVsRestDefaultParams() {
     OneVsRest ova = new OneVsRest();
     ova.setClassifier(new LogisticRegression());
-    Assertions.assertEquals("label", ova.getLabelCol());
-    Assertions.assertEquals("prediction", ova.getPredictionCol());
+    Assert.assertEquals("label", ova.getLabelCol());
+    Assert.assertEquals("prediction", ova.getPredictionCol());
     OneVsRestModel ovaModel = ova.fit(dataset);
     Dataset<Row> predictions = ovaModel.transform(dataset).select("label", "prediction");
     predictions.collectAsList();
-    Assertions.assertEquals("label", ovaModel.getLabelCol());
-    Assertions.assertEquals("prediction", ovaModel.getPredictionCol());
+    Assert.assertEquals("label", ovaModel.getLabelCol());
+    Assert.assertEquals("prediction", ovaModel.getPredictionCol());
   }
 }

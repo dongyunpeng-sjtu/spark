@@ -556,18 +556,14 @@ case class SortMergeJoinExec(
 
     val doJoin = joinType match {
       case _: InnerLike =>
-        val cleanedFlag =
-          ctx.addMutableState(CodeGenerator.JAVA_BOOLEAN, "cleanedFlag", v => s"$v = false;")
         codegenInner(findNextJoinRows, beforeLoop, iterator, bufferedRow, condCheck, outputRow,
-          eagerCleanup, cleanedFlag)
+          eagerCleanup)
       case LeftOuter | RightOuter =>
         codegenOuter(streamedInput, findNextJoinRows, beforeLoop, iterator, bufferedRow, condCheck,
           ctx.freshName("hasOutputRow"), outputRow, eagerCleanup)
       case LeftSemi =>
-        val cleanedFlag =
-          ctx.addMutableState(CodeGenerator.JAVA_BOOLEAN, "cleanedFlag", v => s"$v = false;")
         codegenSemi(findNextJoinRows, beforeLoop, iterator, bufferedRow, condCheck,
-          ctx.freshName("hasOutputRow"), outputRow, eagerCleanup, cleanedFlag)
+          ctx.freshName("hasOutputRow"), outputRow, eagerCleanup)
       case LeftAnti =>
         codegenAnti(streamedInput, findNextJoinRows, beforeLoop, iterator, bufferedRow, condCheck,
           loadStreamed, ctx.freshName("hasMatchedRow"), outputRow, eagerCleanup)
@@ -610,13 +606,8 @@ case class SortMergeJoinExec(
       bufferedRow: String,
       conditionCheck: String,
       outputRow: String,
-      eagerCleanup: String,
-      cleanedFlag: String): String = {
+      eagerCleanup: String): String = {
     s"""
-       |if($cleanedFlag) {
-       |  return;
-       |}
-       |
        |while ($findNextJoinRows) {
        |  $beforeLoop
        |  while ($matchIterator.hasNext()) {
@@ -626,7 +617,6 @@ case class SortMergeJoinExec(
        |  }
        |  if (shouldStop()) return;
        |}
-       |$cleanedFlag = true;
        |$eagerCleanup
      """.stripMargin
   }
@@ -675,13 +665,8 @@ case class SortMergeJoinExec(
       conditionCheck: String,
       hasOutputRow: String,
       outputRow: String,
-      eagerCleanup: String,
-      cleanedFlag: String): String = {
+      eagerCleanup: String): String = {
     s"""
-       |if($cleanedFlag) {
-       |  return;
-       |}
-       |
        |while ($findNextJoinRows) {
        |  $beforeLoop
        |  boolean $hasOutputRow = false;
@@ -694,7 +679,6 @@ case class SortMergeJoinExec(
        |  }
        |  if (shouldStop()) return;
        |}
-       |$cleanedFlag = true;
        |$eagerCleanup
      """.stripMargin
   }

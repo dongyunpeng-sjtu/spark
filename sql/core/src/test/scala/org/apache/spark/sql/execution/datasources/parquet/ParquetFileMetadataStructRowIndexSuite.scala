@@ -133,8 +133,7 @@ class ParquetFileMetadataStructRowIndexSuite extends QueryTest with SharedSparkS
         parameters = Map(
           "fieldName" -> "`row_index`",
           "fields" -> ("`file_path`, `file_name`, `file_size`, " +
-            "`file_block_start`, `file_block_length`, `file_modification_time`")),
-        context = ExpectedContext(fragment = "select", getCurrentClassCallSitePattern))
+            "`file_block_start`, `file_block_length`, `file_modification_time`")))
     }
   }
 
@@ -149,7 +148,7 @@ class ParquetFileMetadataStructRowIndexSuite extends QueryTest with SharedSparkS
 
           assert(df.select("*", s"${FileFormat.METADATA_NAME}.$mixedCaseRowIndex")
             .where(s"$EXPECTED_ROW_ID_COL != $mixedCaseRowIndex")
-            .count() == 0)
+            .count == 0)
         }
       }
     }
@@ -161,7 +160,7 @@ class ParquetFileMetadataStructRowIndexSuite extends QueryTest with SharedSparkS
         Seq(StructField(ROW_INDEX_TEMPORARY_COLUMN_NAME, LongType))) { df =>
       assert(df
           .where(col(EXPECTED_ROW_ID_COL) === col(ROW_INDEX_TEMPORARY_COLUMN_NAME))
-          .count() == NUM_ROWS)
+          .count == NUM_ROWS)
     }
 
     // File format not supporting row index generation populates missing column with nulls.
@@ -169,7 +168,7 @@ class ParquetFileMetadataStructRowIndexSuite extends QueryTest with SharedSparkS
         Seq(StructField(ROW_INDEX_TEMPORARY_COLUMN_NAME, LongType)))  { df =>
       assert(df
           .where(col(ROW_INDEX_TEMPORARY_COLUMN_NAME).isNull)
-          .count() == NUM_ROWS)
+          .count == NUM_ROWS)
     }
   }
 
@@ -181,7 +180,7 @@ class ParquetFileMetadataStructRowIndexSuite extends QueryTest with SharedSparkS
       //                    ROW_INDEX_TEMPORARY_COLUMN_NAME in their schemas.
       assert(df
         .where(col(EXPECTED_ROW_ID_COL) === col(ROW_INDEX_TEMPORARY_COLUMN_NAME))
-        .count() == NUM_ROWS)
+        .count == NUM_ROWS)
 
       // Column cannot be read in combination with _metadata.row_index.
       intercept[AnalysisException](df.select("*", FileFormat.METADATA_NAME).collect())
@@ -195,7 +194,7 @@ class ParquetFileMetadataStructRowIndexSuite extends QueryTest with SharedSparkS
       // Column values are set for each partition, rather than populated with generated row indexes.
       assert(df
         .where(col(EXPECTED_PARTITION_COL) === col(ROW_INDEX_TEMPORARY_COLUMN_NAME))
-        .count() == NUM_ROWS)
+        .count == NUM_ROWS)
 
       // Column cannot be read in combination with _metadata.row_index.
       intercept[AnalysisException](df.select("*", FileFormat.METADATA_NAME).collect())
@@ -231,13 +230,13 @@ class ParquetFileMetadataStructRowIndexSuite extends QueryTest with SharedSparkS
 
         assert(spark
           .read.parquet(dir.getAbsolutePath)
-          .count() == NUM_ROWS)
+          .count == NUM_ROWS)
 
         // The _metadata.row_index is returning data from the file, not generated metadata.
         assert(spark
           .read.parquet(dir.getAbsolutePath)
           .select(s"${FileFormat.METADATA_NAME}.${ROW_INDEX}")
-          .distinct().count() == NUM_ROWS / 10)
+          .distinct.count == NUM_ROWS / 10)
       }
     }
   }

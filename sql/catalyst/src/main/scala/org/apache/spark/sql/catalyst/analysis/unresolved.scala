@@ -104,11 +104,12 @@ object UnresolvedRelation {
       tableIdentifier: TableIdentifier,
       extraOptions: CaseInsensitiveStringMap,
       isStreaming: Boolean): UnresolvedRelation = {
-    UnresolvedRelation(tableIdentifier.nameParts, extraOptions, isStreaming)
+    UnresolvedRelation(
+      tableIdentifier.database.toSeq :+ tableIdentifier.table, extraOptions, isStreaming)
   }
 
   def apply(tableIdentifier: TableIdentifier): UnresolvedRelation =
-    UnresolvedRelation(tableIdentifier.nameParts)
+    UnresolvedRelation(tableIdentifier.database.toSeq :+ tableIdentifier.table)
 }
 
 /**
@@ -275,13 +276,13 @@ case class UnresolvedGenerator(name: FunctionIdentifier, children: Seq[Expressio
   override def prettyName: String = name.unquotedString
   override def toString: String = s"'$name(${children.mkString(", ")})"
 
-  override def eval(input: InternalRow = null): IterableOnce[InternalRow] =
+  override def eval(input: InternalRow = null): TraversableOnce[InternalRow] =
     throw QueryExecutionErrors.cannotEvaluateExpressionError(this)
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode =
     throw QueryExecutionErrors.cannotGenerateCodeForExpressionError(this)
 
-  override def terminate(): IterableOnce[InternalRow] =
+  override def terminate(): TraversableOnce[InternalRow] =
     throw QueryExecutionErrors.cannotTerminateGeneratorError(this)
 
   override protected def withNewChildrenInternal(

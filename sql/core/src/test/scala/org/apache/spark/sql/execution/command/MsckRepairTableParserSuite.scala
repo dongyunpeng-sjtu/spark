@@ -26,7 +26,7 @@ class MsckRepairTableParserSuite extends AnalysisTest {
     comparePlans(
       parsePlan("MSCK REPAIR TABLE a.b.c"),
       RepairTable(
-        UnresolvedTable(Seq("a", "b", "c"), "MSCK REPAIR TABLE"),
+        UnresolvedTable(Seq("a", "b", "c"), "MSCK REPAIR TABLE", None),
         enableAddPartitions = true,
         enableDropPartitions = false))
   }
@@ -35,7 +35,7 @@ class MsckRepairTableParserSuite extends AnalysisTest {
     comparePlans(
       parsePlan("REPAIR TABLE a.b.c"),
       RepairTable(
-        UnresolvedTable(Seq("a", "b", "c"), "MSCK REPAIR TABLE"),
+        UnresolvedTable(Seq("a", "b", "c"), "MSCK REPAIR TABLE", None),
         enableAddPartitions = true,
         enableDropPartitions = false))
   }
@@ -46,7 +46,8 @@ class MsckRepairTableParserSuite extends AnalysisTest {
       RepairTable(
         UnresolvedTable(
           Seq("ns", "tbl"),
-          "MSCK REPAIR TABLE ... ADD PARTITIONS"),
+          "MSCK REPAIR TABLE ... ADD PARTITIONS",
+          None),
         enableAddPartitions = true,
         enableDropPartitions = false))
   }
@@ -57,7 +58,8 @@ class MsckRepairTableParserSuite extends AnalysisTest {
       RepairTable(
         UnresolvedTable(
           Seq("TBL"),
-          "MSCK REPAIR TABLE ... DROP PARTITIONS"),
+          "MSCK REPAIR TABLE ... DROP PARTITIONS",
+          None),
         enableAddPartitions = false,
         enableDropPartitions = true))
   }
@@ -68,7 +70,8 @@ class MsckRepairTableParserSuite extends AnalysisTest {
       RepairTable(
         UnresolvedTable(
           Seq("spark_catalog", "ns", "tbl"),
-          "MSCK REPAIR TABLE ... SYNC PARTITIONS"),
+          "MSCK REPAIR TABLE ... SYNC PARTITIONS",
+          None),
         enableAddPartitions = true,
         enableDropPartitions = true))
   }

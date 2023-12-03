@@ -23,6 +23,7 @@
 import os
 import sys
 import warnings
+from distutils.version import LooseVersion
 from typing import Any
 
 from pyspark.pandas.missing.general_functions import MissingPandasLikeGeneralFunctions
@@ -39,7 +40,13 @@ except ImportError as e:
     else:
         raise
 
-if "PYARROW_IGNORE_TIMEZONE" not in os.environ:
+
+import pyarrow
+
+if (
+    LooseVersion(pyarrow.__version__) >= LooseVersion("2.0.0")
+    and "PYARROW_IGNORE_TIMEZONE" not in os.environ
+):
     warnings.warn(
         "'PYARROW_IGNORE_TIMEZONE' environment variable was not set. It is required to "
         "set this environment variable to '1' in both driver and executor sides if you use "
@@ -54,6 +61,7 @@ from pyspark.pandas.indexes.base import Index
 from pyspark.pandas.indexes.category import CategoricalIndex
 from pyspark.pandas.indexes.datetimes import DatetimeIndex
 from pyspark.pandas.indexes.multi import MultiIndex
+from pyspark.pandas.indexes.numeric import Float64Index, Int64Index
 from pyspark.pandas.indexes.timedelta import TimedeltaIndex
 from pyspark.pandas.series import Series
 from pyspark.pandas.groupby import NamedAgg
@@ -69,6 +77,8 @@ __all__ = [  # noqa: F405
     "Series",
     "Index",
     "MultiIndex",
+    "Int64Index",
+    "Float64Index",
     "CategoricalIndex",
     "DatetimeIndex",
     "TimedeltaIndex",

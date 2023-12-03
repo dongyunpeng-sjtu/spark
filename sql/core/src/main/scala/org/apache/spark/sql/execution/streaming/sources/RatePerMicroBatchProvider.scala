@@ -111,9 +111,6 @@ class RatePerMicroBatchTable(
     override def toContinuousStream(checkpointLocation: String): ContinuousStream = {
       throw new UnsupportedOperationException("continuous mode is not supported!")
     }
-
-    override def columnarSupportMode(): Scan.ColumnarSupportMode =
-      Scan.ColumnarSupportMode.UNSUPPORTED
   }
 }
 

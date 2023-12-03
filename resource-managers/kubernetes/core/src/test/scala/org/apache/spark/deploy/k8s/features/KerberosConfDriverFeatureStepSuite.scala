@@ -20,7 +20,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.PrivilegedExceptionAction
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import com.google.common.io.Files
 import io.fabric8.kubernetes.api.model.{ConfigMap, Secret}

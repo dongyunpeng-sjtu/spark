@@ -17,7 +17,7 @@
 
 package org.apache.spark.status.protobuf
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.resource.{ExecutorResourceRequest, TaskResourceRequest}
 import org.apache.spark.status.ApplicationEnvironmentInfoWrapper
@@ -130,10 +130,9 @@ private[protobuf] class ApplicationEnvironmentInfoWrapperSerializer
     new ResourceProfileInfo(
       id = info.getId,
       executorResources =
-        info.getExecutorResourcesMap.asScala.view.mapValues(deserializeExecutorResourceRequest)
-          .toMap,
+        info.getExecutorResourcesMap.asScala.mapValues(deserializeExecutorResourceRequest).toMap,
       taskResources =
-        info.getTaskResourcesMap.asScala.view.mapValues(deserializeTaskResourceRequest).toMap)
+        info.getTaskResourcesMap.asScala.mapValues(deserializeTaskResourceRequest).toMap)
   }
 
   private def deserializeExecutorResourceRequest(info: StoreTypes.ExecutorResourceRequest):

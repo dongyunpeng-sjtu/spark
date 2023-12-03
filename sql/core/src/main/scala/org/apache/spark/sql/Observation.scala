@@ -19,9 +19,8 @@ package org.apache.spark.sql
 
 import java.util.UUID
 
-import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.collection.JavaConverters
 
-import org.apache.spark.sql.catalyst.plans.logical.CollectMetrics
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.util.QueryExecutionListener
 
@@ -57,7 +56,7 @@ class Observation(val name: String) {
 
   private val listener: ObservationListener = ObservationListener(this)
 
-  @volatile private var ds: Option[Dataset[_]] = None
+  @volatile private var sparkSession: Option[SparkSession] = None
 
   @volatile private var metrics: Option[Map[String, Any]] = None
 
@@ -73,12 +72,9 @@ class Observation(val name: String) {
    */
   private[spark] def on[T](ds: Dataset[T], expr: Column, exprs: Column*): Dataset[T] = {
     if (ds.isStreaming) {
-      throw new IllegalArgumentException("Observation does not support streaming Datasets." +
-        "This is because there will be multiple observed metrics as microbatches are constructed" +
-        ". Please register a StreamingQueryListener and get the metric for each microbatch in " +
-        "QueryProgressEvent.progress, or use query.lastProgress or query.recentProgress.")
+      throw new IllegalArgumentException("Observation does not support streaming Datasets")
     }
-    register(ds)
+    register(ds.sparkSession)
     ds.observe(name, expr, exprs: _*)
   }
 
@@ -113,34 +109,32 @@ class Observation(val name: String) {
    */
   @throws[InterruptedException]
   def getAsJava: java.util.Map[String, AnyRef] = {
-      get.map { case (key, value) => (key, value.asInstanceOf[Object])}.asJava
+    JavaConverters.mapAsJavaMap(
+      get.map { case (key, value) => (key, value.asInstanceOf[Object])}
+    )
   }
 
-  private def register(ds: Dataset[_]): Unit = {
+  private def register(sparkSession: SparkSession): Unit = {
     // makes this class thread-safe:
     // only the first thread entering this block can set sparkSession
     // all other threads will see the exception, as it is only allowed to do this once
     synchronized {
-      if (this.ds.isDefined) {
+      if (this.sparkSession.isDefined) {
         throw new IllegalArgumentException("An Observation can be used with a Dataset only once")
       }
-      this.ds = Some(ds)
+      this.sparkSession = Some(sparkSession)
     }
 
-    ds.sparkSession.listenerManager.register(this.listener)
+    sparkSession.listenerManager.register(this.listener)
   }
 
   private def unregister(): Unit = {
-    this.ds.foreach(_.sparkSession.listenerManager.unregister(this.listener))
+    this.sparkSession.foreach(_.listenerManager.unregister(this.listener))
   }
 
   private[spark] def onFinish(qe: QueryExecution): Unit = {
     synchronized {
-      if (this.metrics.isEmpty && qe.logical.exists {
-        case CollectMetrics(name, _, _, dataframeId) =>
-          name == this.name && dataframeId == ds.get.id
-        case _ => false
-      }) {
+      if (this.metrics.isEmpty) {
         val row = qe.observedMetrics.get(name)
         this.metrics = row.map(r => r.getValuesMap[Any](r.schema.fieldNames))
         if (metrics.isDefined) {

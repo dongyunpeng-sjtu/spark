@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.datasources.parquet
 
 import java.io.IOException
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.hadoop.mapreduce.{InputSplit, RecordReader, TaskAttemptContext}
 import org.apache.parquet.column.page.PageReadStore

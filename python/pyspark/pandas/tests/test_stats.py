@@ -16,9 +16,14 @@
 #
 
 import unittest
-
+from distutils.version import LooseVersion
 import numpy as np
 import pandas as pd
+
+try:
+    from pandas._testing import makeMissingDataframe
+except ImportError:
+    from pandas.util.testing import makeMissingDataframe
 
 from pyspark import pandas as ps
 from pyspark.pandas.config import option_context
@@ -28,24 +33,15 @@ from pyspark.testing.sqlutils import SQLTestUtils
 
 class StatsTestsMixin:
     def _test_stat_functions(self, pdf_or_pser, psdf_or_psser):
-        self.assert_eq(
-            psdf_or_psser.count(),
-            pdf_or_pser.count(),
-            almost=True,
-        )
-
-        functions = ["max", "min", "mean", "sum"]
+        functions = ["max", "min", "mean", "sum", "count"]
         for funcname in functions:
-            self.assert_eq(
-                getattr(psdf_or_psser, funcname)(),
-                getattr(pdf_or_pser, funcname)(numeric_only=True),
-            )
+            self.assert_eq(getattr(psdf_or_psser, funcname)(), getattr(pdf_or_pser, funcname)())
 
         functions = ["std", "var", "product", "sem"]
         for funcname in functions:
             self.assert_eq(
                 getattr(psdf_or_psser, funcname)(),
-                getattr(pdf_or_pser, funcname)(numeric_only=True),
+                getattr(pdf_or_pser, funcname)(),
                 check_exact=False,
             )
 
@@ -53,7 +49,7 @@ class StatsTestsMixin:
         for funcname in functions:
             self.assert_eq(
                 getattr(psdf_or_psser, funcname)(ddof=0),
-                getattr(pdf_or_pser, funcname)(ddof=0, numeric_only=True),
+                getattr(pdf_or_pser, funcname)(ddof=0),
                 check_exact=False,
             )
 
@@ -80,6 +76,11 @@ class StatsTestsMixin:
         self._test_stat_functions(pdf.A, psdf.A)
         self._test_stat_functions(pdf, psdf)
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43499): Enable SeriesTests.test_stat_functions_with_no_numeric_columns "
+        "for pandas 2.0.0.",
+    )
     def test_stat_functions_with_no_numeric_columns(self):
         pdf = pd.DataFrame(
             {
@@ -160,6 +161,10 @@ class StatsTestsMixin:
         ):
             psdf.D.abs()
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43498): Enable SeriesTests.test_axis_on_dataframe for pandas 2.0.0.",
+    )
     def test_axis_on_dataframe(self):
         # The number of each count is intentionally big
         # because when data is small, it executes a shortcut.
@@ -176,11 +181,6 @@ class StatsTestsMixin:
                 },
                 index=range(10, 15001, 10),
             )
-            # TODO(SPARK-45228): Update `test_axis_on_dataframe` when Pandas regression is fixed
-            # There is a regression in Pandas 2.1.0,
-            # so we should manually cast to float until the regression is fixed.
-            # See https://github.com/pandas-dev/pandas/issues/55194.
-            pdf = pdf.astype(float)
             psdf = ps.from_pandas(pdf)
             self.assert_eq(psdf.count(axis=1), pdf.count(axis=1))
             self.assert_eq(psdf.var(axis=1), pdf.var(axis=1))
@@ -269,18 +269,7 @@ class StatsTestsMixin:
         self.assert_eq(psdf.kurt(), pdf.kurt(), almost=True)
 
     def test_dataframe_corr(self):
-        pdf = pd.DataFrame(
-            index=[
-                "".join(
-                    np.random.choice(
-                        list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 10
-                    )
-                )
-                for _ in range(30)
-            ],
-            columns=list("ABCD"),
-            dtype="float64",
-        )
+        pdf = makeMissingDataframe(0.3, 42)
         psdf = ps.from_pandas(pdf)
 
         with self.assertRaisesRegex(ValueError, "Invalid method"):
@@ -354,18 +343,7 @@ class StatsTestsMixin:
             )
 
     def test_series_corr(self):
-        pdf = pd.DataFrame(
-            index=[
-                "".join(
-                    np.random.choice(
-                        list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 10
-                    )
-                )
-                for _ in range(30)
-            ],
-            columns=list("ABCD"),
-            dtype="float64",
-        )
+        pdf = makeMissingDataframe(0.3, 42)
         pser1 = pdf.A
         pser2 = pdf.B
         psdf = ps.from_pandas(pdf)
@@ -429,6 +407,10 @@ class StatsTestsMixin:
                     almost=True,
                 )
 
+    @unittest.skipIf(
+        LooseVersion(pd.__version__) >= LooseVersion("2.0.0"),
+        "TODO(SPARK-43497): Enable SeriesTests.test_cov_corr_meta for pandas 2.0.0.",
+    )
     def test_cov_corr_meta(self):
         # Disable arrow execution since corr() is using UDT internally which is not supported.
         with self.sql_conf({SPARK_CONF_ARROW_ENABLED: False}):
@@ -446,7 +428,7 @@ class StatsTestsMixin:
                 index=pd.Index([1, 2, 3], name="myindex"),
             )
             psdf = ps.from_pandas(pdf)
-            self.assert_eq(psdf.corr(), pdf.corr(numeric_only=True), check_exact=False)
+            self.assert_eq(psdf.corr(), pdf.corr(), check_exact=False)
 
     def test_stats_on_boolean_dataframe(self):
         pdf = pd.DataFrame({"A": [True, False, True], "B": [False, False, True]})

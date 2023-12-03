@@ -18,7 +18,7 @@
 // scalastyle:off println
 package org.apache.spark.examples
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 import org.apache.spark.util.Utils
 

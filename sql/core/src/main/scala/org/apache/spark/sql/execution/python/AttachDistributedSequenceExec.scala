@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.storage.{StorageLevel, StorageLevelMapper}
+import org.apache.spark.storage.StorageLevel
 
 /**
  * A physical plan that adds a new long column with `sequenceAttr` that
@@ -70,7 +70,7 @@ case class AttachDistributedSequenceExec(
     // The string is double quoted because of JSON ser/deser for pandas API on Spark
     val storageLevel = SQLConf.get.getConfString(
       "pandas_on_Spark.compute.default_index_cache",
-      StorageLevelMapper.MEMORY_AND_DISK_SER.name()
+      "MEMORY_AND_DISK_SER"
     ).stripPrefix("\"").stripSuffix("\"")
 
     val cachedRDD = storageLevel match {

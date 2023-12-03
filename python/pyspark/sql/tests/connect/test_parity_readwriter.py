@@ -16,11 +16,9 @@
 #
 import unittest
 
+from pyspark.sql.connect.readwriter import DataFrameWriterV2
 from pyspark.sql.tests.test_readwriter import ReadwriterTestsMixin, ReadwriterV2TestsMixin
-from pyspark.testing.connectutils import should_test_connect, ReusedConnectTestCase
-
-if should_test_connect:
-    from pyspark.sql.connect.readwriter import DataFrameWriterV2
+from pyspark.testing.connectutils import ReusedConnectTestCase
 
 
 class ReadwriterParityTests(ReadwriterTestsMixin, ReusedConnectTestCase):

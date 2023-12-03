@@ -66,7 +66,8 @@ public final class OneWayMessage extends AbstractMessage implements RequestMessa
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof OneWayMessage o) {
+    if (other instanceof OneWayMessage) {
+      OneWayMessage o = (OneWayMessage) other;
       return super.equals(o);
     }
     return false;

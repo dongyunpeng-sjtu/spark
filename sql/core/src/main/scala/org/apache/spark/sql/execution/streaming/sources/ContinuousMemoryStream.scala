@@ -56,9 +56,9 @@ class ContinuousMemoryStream[A : Encoder](id: Int, sqlContext: SQLContext, numPa
   private val recordEndpoint = new ContinuousRecordEndpoint(records, this)
   @volatile private var endpointRef: RpcEndpointRef = _
 
-  def addData(data: IterableOnce[A]): Offset = synchronized {
+  def addData(data: TraversableOnce[A]): Offset = synchronized {
     // Distribute data evenly among partition lists.
-    data.iterator.to(Seq).zipWithIndex.map {
+    data.toSeq.zipWithIndex.map {
       case (item, index) =>
         records(index % numPartitions) += toRow(item).copy().asInstanceOf[UnsafeRow]
     }

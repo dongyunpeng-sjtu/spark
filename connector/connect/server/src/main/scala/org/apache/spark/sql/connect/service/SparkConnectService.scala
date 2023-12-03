@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.connect.service
 
-import java.net.InetSocketAddress
 import java.util.UUID
 import java.util.concurrent.{Callable, TimeUnit}
 
@@ -41,7 +40,7 @@ import org.apache.spark.connect.proto.SparkConnectServiceGrpc.AsyncService
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.connect.config.Connect.{CONNECT_GRPC_BINDING_ADDRESS, CONNECT_GRPC_BINDING_PORT, CONNECT_GRPC_MARSHALLER_RECURSION_LIMIT, CONNECT_GRPC_MAX_INBOUND_MESSAGE_SIZE}
+import org.apache.spark.sql.connect.config.Connect.{CONNECT_GRPC_BINDING_PORT, CONNECT_GRPC_MARSHALLER_RECURSION_LIMIT, CONNECT_GRPC_MAX_INBOUND_MESSAGE_SIZE}
 import org.apache.spark.sql.connect.ui.{SparkConnectServerAppStatusStore, SparkConnectServerListener, SparkConnectServerTab}
 import org.apache.spark.sql.connect.utils.ErrorUtils
 import org.apache.spark.status.ElementTrackingStore
@@ -199,20 +198,6 @@ class SparkConnectService(debug: Boolean) extends AsyncService with BindableServ
         observer = responseObserver,
         userId = request.getUserContext.getUserId,
         sessionId = request.getSessionId)
-  }
-
-  override def fetchErrorDetails(
-      request: proto.FetchErrorDetailsRequest,
-      responseObserver: StreamObserver[proto.FetchErrorDetailsResponse]): Unit = {
-    try {
-      new SparkConnectFetchErrorDetailsHandler(responseObserver).handle(request)
-    } catch {
-      ErrorUtils.handleError(
-        "getErrorInfo",
-        observer = responseObserver,
-        userId = request.getUserContext.getUserId,
-        sessionId = request.getSessionId)
-    }
   }
 
   private def methodWithCustomMarshallers(methodDesc: MethodDescriptor[MessageLite, MessageLite])
@@ -405,15 +390,10 @@ object SparkConnectService extends Logging {
    */
   private def startGRPCService(): Unit = {
     val debugMode = SparkEnv.get.conf.getBoolean("spark.connect.grpc.debug.enabled", true)
-    val bindAddress = SparkEnv.get.conf.get(CONNECT_GRPC_BINDING_ADDRESS)
     val port = SparkEnv.get.conf.get(CONNECT_GRPC_BINDING_PORT)
-    val sb = bindAddress match {
-      case Some(hostname) =>
-        logInfo(s"start GRPC service at: $hostname")
-        NettyServerBuilder.forAddress(new InetSocketAddress(hostname, port))
-      case _ => NettyServerBuilder.forPort(port)
-    }
-    sb.maxInboundMessageSize(SparkEnv.get.conf.get(CONNECT_GRPC_MAX_INBOUND_MESSAGE_SIZE).toInt)
+    val sb = NettyServerBuilder
+      .forPort(port)
+      .maxInboundMessageSize(SparkEnv.get.conf.get(CONNECT_GRPC_MAX_INBOUND_MESSAGE_SIZE).toInt)
       .addService(new SparkConnectService(debugMode))
 
     // Add all registered interceptors to the server builder.
