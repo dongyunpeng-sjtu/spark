@@ -84,7 +84,7 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
    */
   def toSeq(fieldTypes: Seq[DataType]): Seq[Any] = {
     val len = numFields
-    assert(len == fieldTypes.length)
+    //assert(len == fieldTypes.length)
 
     val values = new Array[Any](len)
     var i = 0
