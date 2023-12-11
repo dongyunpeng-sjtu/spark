@@ -156,7 +156,8 @@ case class ShuffleExchangeExec(
 
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[InternalRow] = {
     //new ShuffledRowRDD(shuffleDependency, readMetrics, partitionSpecs)
-    new ShuffledRowRDD(shuffleDependency, readMetrics, partitionSpecs, Some(child.output))
+    println("getShuffleRDD!!")
+    new ShuffledRowRDD(shuffleDependency, readMetrics, partitionSpecs, child.output)
 
   }
 
@@ -194,7 +195,9 @@ case class ShuffleExchangeExec(
   protected override def doExecute(): RDD[InternalRow] = {
     // Returns the same ShuffleRowRDD if this plan is used by multiple plans.
     if (cachedShuffleRDD == null) {
-      cachedShuffleRDD = new ShuffledRowRDD(shuffleDependency, readMetrics)
+      cachedShuffleRDD = new ShuffledRowRDD(shuffleDependency, readMetrics,child.output)
+      //cachedShuffleRDD.output = Some(child.output)
+      println("doExecute!!")
     }
     cachedShuffleRDD
   }

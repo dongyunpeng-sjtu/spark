@@ -129,18 +129,40 @@ class CoalescedPartitioner(val parent: Partitioner, val partitionStartIndices: A
  * map output, and `dependency.partitioner.numPartitions` is the number of pre-shuffle partitions
  * (i.e. the number of partitions of the map output).
  */
+// class ShuffledRowRDD(
+//     var dependency: ShuffleDependency[Int, InternalRow, InternalRow],
+//     metrics: Map[String, SQLMetric],
+//     partitionSpecs: Array[ShufflePartitionSpec],
+//     var output: Option[Seq[Attribute]] = None)
+//   extends RDD[InternalRow](dependency.rdd.context, Nil) {
+
+//   def this(
+//       dependency: ShuffleDependency[Int, InternalRow, InternalRow],
+//       metrics: Map[String, SQLMetric]) = {
+//     this(dependency, metrics,
+//       Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)))
+//   }
+//change by dong
 class ShuffledRowRDD(
     var dependency: ShuffleDependency[Int, InternalRow, InternalRow],
     metrics: Map[String, SQLMetric],
     partitionSpecs: Array[ShufflePartitionSpec],
-    output: Option[Seq[Attribute]] = None)
+    output: Seq[Attribute])
   extends RDD[InternalRow](dependency.rdd.context, Nil) {
+
+  def this(
+      dependency: ShuffleDependency[Int, InternalRow, InternalRow],
+      metrics: Map[String, SQLMetric],
+      output: Seq[Attribute]) = {
+    this(dependency, metrics,
+      Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)),output)
+  }
 
   def this(
       dependency: ShuffleDependency[Int, InternalRow, InternalRow],
       metrics: Map[String, SQLMetric]) = {
     this(dependency, metrics,
-      Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)))
+      Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)),Seq.empty[Attribute])
   }
 
   dependency.rdd.context.setLocalProperty(
@@ -195,8 +217,8 @@ class ShuffledRowRDD(
     //val schema = StructType(output.map(attr => StructField(attr.name, attr.dataType, attr.nullable, attr.metadata)))
     val sqlMetricsReporter = new SQLShuffleReadMetricsReporter(tempMetrics, metrics)
     // 获取 SparkPlan 的输出列
-    val outputAttributes: Seq[Attribute] = output.getOrElse(Seq.empty[Attribute])
-
+    val outputAttributes: Seq[Attribute] = output
+    println("outputAttributes length", outputAttributes.length)
     // 将输出列转换为 StructField
     val structFields = outputAttributes.map(attr => StructField(attr.name, attr.dataType, attr.nullable, attr.metadata))
 
@@ -241,8 +263,13 @@ class ShuffledRowRDD(
           context,
           sqlMetricsReporter)
     }
+    println("test")
     reader.read().asInstanceOf[Iterator[Product2[Int, InternalRow]]].map { case (_, internalRow) =>
+      println("before toSeq", internalRow.numFields)
+      println("schema length", schema.length)
+      println("schema", schema)
       val outputSeq = internalRow.toSeq(schema)
+      println("after toSeq")
       println(outputSeq)
       internalRow
     }
